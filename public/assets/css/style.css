@@ -1,0 +1,26 @@
+/*
+ * Estilos propios del panel.
+ *
+ * Está casi vacío a propósito: el diseño se resuelve con Tailwind desde las
+ * vistas. Las clases que había aquí (bg-ayto-*, img-blend, card-fade-in) venían
+ * del portal municipal del que parte el proyecto y ya no las usaba nadie.
+ *
+ * Añade aquí solo lo que Tailwind no cubre: ajustes de impresión, animaciones
+ * propias o correcciones puntuales de navegador.
+ */
+
+/* Al imprimir un listado sobran la navegación y los botones. */
+@media print {
+    header,
+    aside,
+    nav,
+    footer,
+    form button,
+    .no-imprimir {
+        display: none !important;
+    }
+
+    body {
+        background: #ffffff !important;
+    }
+}

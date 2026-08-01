@@ -1,0 +1,14 @@
+.env
+.env.*.bak
+# Copia del repositorio anterior (proyecto de clase), solo respaldo local.
+/.git.bak/
+# Volcados de la base: llevan datos personales e IBAN. Nunca al repositorio.
+/copias/
+/vendor/
+*.log
+/storage/logs/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

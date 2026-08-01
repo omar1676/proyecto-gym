@@ -1,0 +1,9 @@
+Options -Indexes
+
+<FilesMatch "\.(jpg|jpeg|png|gif|webp|svg)$">
+    Header set Cache-Control "max-age=2592000, public"
+</FilesMatch>
+
+<FilesMatch "\.(php|phtml|phar|cgi|pl|py)$">
+    Require all denied
+</FilesMatch>

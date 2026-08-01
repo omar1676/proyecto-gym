@@ -1,0 +1,41 @@
+Options -Indexes
+
+# ---------------------------------------------------------------------------
+# Protección de la raíz del proyecto.
+#
+# Lo correcto es que el dominio apunte a /public, pero en alojamiento compartido
+# es muy habitual que el docroot sea la raíz del proyecto. Si eso pasa y no hay
+# estas reglas, cualquiera puede abrir tudominio.es/.env y leer el usuario y la
+# contraseña de la base de datos en texto plano.
+#
+# Con esto queda cubierto en ambos casos.
+# ---------------------------------------------------------------------------
+
+# Configuración, copias de seguridad, volcados de base de datos y documentación.
+<FilesMatch "(^\.env|\.env\.|\.(bak|sql|md|log|ini|lock|dist|example)$|^\.git|^\.htaccess$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Carpetas con código y datos: no deben servirse nunca por web.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(app|pruebas|\.git)(/|$) - [F,L]
+</IfModule>
+
+# Respaldo por si mod_rewrite no estuviera activo.
+<IfModule mod_alias.c>
+    RedirectMatch 404 ^/(app|pruebas|\.git)(/|$)
+</IfModule>
+
+# Cabeceras de seguridad básicas.
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "same-origin"
+</IfModule>

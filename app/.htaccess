@@ -1,0 +1,9 @@
+# Segunda barrera: aquí viven el .env parseado, los modelos y las migraciones.
+# Nada de esta carpeta debe servirse por web bajo ninguna circunstancia.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
