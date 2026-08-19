@@ -21,16 +21,18 @@ class ProductoModel
     private $db;
     private $tabla = 'producto';
     private $idGimnasio;
+    private $idEmpresa;
 
     /**
      * $idGimnasio limita todo el modelo a una sede. null solo lo usa el rol
      * la empresa para ver el conjunto: cualquier otro rol debe pasar siempre
      * su gimnasio, porque el filtro se aplica aquí y no en cada consulta.
      */
-    public function __construct(?int $idGimnasio = null)
+    public function __construct(?int $idGimnasio = null, ?int $idEmpresa = null)
     {
         $this->db = Database::getInstance()->getConnection();
         $this->idGimnasio = $idGimnasio;
+        $this->idEmpresa = $idEmpresa;
     }
 
     /**
@@ -42,9 +44,15 @@ class ProductoModel
      */
     private function filtroSede(string $alias = 'p'): string
     {
-        if ($this->idGimnasio === null) return '';
         $prefijo = $alias === '' ? '' : $alias . '.';
-        return ' AND ' . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio;
+        if ($this->idGimnasio !== null) {
+            return ' AND ' . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio;
+        }
+        if ($this->idEmpresa !== null) {
+            return ' AND ' . $prefijo . 'id_gimnasio IN (SELECT id_gimnasio FROM gimnasio WHERE id_empresa = '
+                . (int) $this->idEmpresa . ')';
+        }
+        return '';
     }
 
     /**

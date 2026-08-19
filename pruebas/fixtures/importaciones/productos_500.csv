@@ -1,0 +1,501 @@
+﻿external_id;nombre;categoria;precio;stock;estado;descripcion;sede_id
+PROD-0001;"Producto sintético 1";Bebidas;2.07;1;activo;"Descripción sintética con ñ 1";123
+PROD-0002;"Producto sintético 2";Nutrición;3.14;2;activo;"Descripción sintética con ñ 2";123
+PROD-0003;"Producto sintético 3";"Categoría no mapeada";4.21;3;activo;"Descripción sintética con ñ 3";123
+PROD-0004;"Producto sintético 4";Nutrición;5.28;4;activo;"Descripción sintética con ñ 4";123
+PROD-0005;"Producto sintético 5";Bebidas;6.35;5;activo;"Descripción sintética con ñ 5";123
+PROD-0006;"Producto sintético 6";"Categoría no mapeada";7.42;6;activo;"Descripción sintética con ñ 6";123
+PROD-0007;"Producto sintético 7";Bebidas;8.49;7;activo;"Descripción sintética con ñ 7";123
+PROD-0008;"Producto sintético 8";Nutrición;9.56;8;activo;"Descripción sintética con ñ 8";123
+PROD-0009;"Producto sintético 9";"Categoría no mapeada";10.63;9;activo;"Descripción sintética con ñ 9";123
+PROD-0010;"Producto sintético 10";Nutrición;11.70;10;activo;"Descripción sintética con ñ 10";123
+PROD-0011;"Producto sintético 11";Bebidas;12.77;11;activo;"Descripción sintética con ñ 11";123
+PROD-0012;"Producto sintético 12";"Categoría no mapeada";13.84;12;activo;"Descripción sintética con ñ 12";123
+PROD-0013;"Producto sintético 13";Bebidas;14.91;13;activo;"Descripción sintética con ñ 13";123
+PROD-0014;"Producto sintético 14";Nutrición;15.98;14;activo;"Descripción sintética con ñ 14";123
+PROD-0015;"Producto sintético 15";"Categoría no mapeada";16.05;15;activo;"Descripción sintética con ñ 15";123
+PROD-0016;"Producto sintético 16";Nutrición;17.12;16;activo;"Descripción sintética con ñ 16";123
+PROD-0017;"Producto sintético 17";Bebidas;18.19;17;inactivo;"Descripción sintética con ñ 17";123
+PROD-0018;"Producto sintético 18";"Categoría no mapeada";19.26;18;activo;"Descripción sintética con ñ 18";123
+PROD-0019;"Producto sintético 19";Bebidas;20.33;19;activo;"Descripción sintética con ñ 19";123
+PROD-0020;"Producto sintético 20";Nutrición;21.40;20;activo;"Descripción sintética con ñ 20";123
+PROD-0021;"Producto sintético 21";"Categoría no mapeada";22.47;21;activo;"Descripción sintética con ñ 21";123
+PROD-0022;"Producto sintético 22";Nutrición;23.54;22;activo;"Descripción sintética con ñ 22";123
+PROD-0023;"Producto sintético 23";Bebidas;24.61;23;activo;"Descripción sintética con ñ 23";123
+PROD-0024;"Producto sintético 24";"Categoría no mapeada";25.68;24;activo;"Descripción sintética con ñ 24";123
+PROD-0025;"Producto sintético 25";Bebidas;26.75;25;activo;"Descripción sintética con ñ 25";123
+PROD-0026;"Producto sintético 26";Nutrición;27.82;26;activo;"Descripción sintética con ñ 26";123
+PROD-0027;"Producto sintético 27";"Categoría no mapeada";28.89;27;activo;"Descripción sintética con ñ 27";123
+PROD-0028;"Producto sintético 28";Nutrición;29.96;28;activo;"Descripción sintética con ñ 28";123
+PROD-0029;"Producto sintético 29";Bebidas;30.03;29;activo;"Descripción sintética con ñ 29";123
+PROD-0030;"Producto sintético 30";"Categoría no mapeada";31.10;30;activo;"Descripción sintética con ñ 30";123
+PROD-0031;"Producto sintético 31";Bebidas;32.17;31;activo;"Descripción sintética con ñ 31";123
+PROD-0032;"Producto sintético 32";Nutrición;33.24;32;activo;"Descripción sintética con ñ 32";123
+PROD-0033;"Producto sintético 33";"Categoría no mapeada";34.31;33;activo;"Descripción sintética con ñ 33";123
+PROD-0034;"Producto sintético 34";Nutrición;35.38;34;inactivo;"Descripción sintética con ñ 34";123
+PROD-0035;"Producto sintético 35";Bebidas;36.45;35;activo;"Descripción sintética con ñ 35";123
+PROD-0036;"Producto sintético 36";"Categoría no mapeada";37.52;36;activo;"Descripción sintética con ñ 36";123
+PROD-0037;"Producto sintético 37";Bebidas;38.59;37;activo;"Descripción sintética con ñ 37";123
+PROD-0038;"Producto sintético 38";Nutrición;39.66;38;activo;"Descripción sintética con ñ 38";123
+PROD-0039;"Producto sintético 39";"Categoría no mapeada";40.73;39;activo;"Descripción sintética con ñ 39";123
+PROD-0040;"Producto sintético 40";Nutrición;41.80;40;activo;"Descripción sintética con ñ 40";123
+PROD-0041;"Producto sintético 41";Bebidas;42.87;41;activo;"Descripción sintética con ñ 41";123
+PROD-0042;"Producto sintético 42";"Categoría no mapeada";43.94;42;activo;"Descripción sintética con ñ 42";123
+PROD-0043;"Producto sintético 43";Bebidas;44.01;43;activo;"Descripción sintética con ñ 43";123
+PROD-0044;"Producto sintético 44";Nutrición;45.08;44;activo;"Descripción sintética con ñ 44";123
+PROD-0045;"Producto sintético 45";"Categoría no mapeada";46.15;45;activo;"Descripción sintética con ñ 45";123
+PROD-0046;"Producto sintético 46";Nutrición;47.22;46;activo;"Descripción sintética con ñ 46";123
+PROD-0047;"Producto sintético 47";Bebidas;48.29;47;activo;"Descripción sintética con ñ 47";123
+PROD-0048;"Producto sintético 48";"Categoría no mapeada";49.36;48;activo;"Descripción sintética con ñ 48";123
+PROD-0049;"Producto sintético 49";Bebidas;50.43;49;activo;"Descripción sintética con ñ 49";123
+PROD-0050;"Producto sintético 50";Nutrición;51.50;50;activo;"Descripción sintética con ñ 50";123
+PROD-0051;"Producto sintético 51";"Categoría no mapeada";52.57;51;inactivo;"Descripción sintética con ñ 51";123
+PROD-0052;"Producto sintético 52";Nutrición;53.64;52;activo;"Descripción sintética con ñ 52";123
+PROD-0053;"Producto sintético 53";Bebidas;54.71;53;activo;"Descripción sintética con ñ 53";123
+PROD-0054;"Producto sintético 54";"Categoría no mapeada";55.78;54;activo;"Descripción sintética con ñ 54";123
+PROD-0055;"Producto sintético 55";Bebidas;56.85;55;activo;"Descripción sintética con ñ 55";123
+PROD-0056;"Producto sintético 56";Nutrición;57.92;56;activo;"Descripción sintética con ñ 56";123
+PROD-0057;"Producto sintético 57";"Categoría no mapeada";58.99;57;activo;"Descripción sintética con ñ 57";123
+PROD-0058;"Producto sintético 58";Nutrición;59.06;58;activo;"Descripción sintética con ñ 58";123
+PROD-0059;"Producto sintético 59";Bebidas;60.13;59;activo;"Descripción sintética con ñ 59";123
+PROD-0060;"Producto sintético 60";"Categoría no mapeada";61.20;60;activo;"Descripción sintética con ñ 60";123
+PROD-0061;"Producto sintético 61";Bebidas;62.27;61;activo;"Descripción sintética con ñ 61";123
+PROD-0062;"Producto sintético 62";Nutrición;63.34;62;activo;"Descripción sintética con ñ 62";123
+PROD-0063;"Producto sintético 63";"Categoría no mapeada";64.41;63;activo;"Descripción sintética con ñ 63";123
+PROD-0064;"Producto sintético 64";Nutrición;65.48;64;activo;"Descripción sintética con ñ 64";123
+PROD-0065;"Producto sintético 65";Bebidas;66.55;65;activo;"Descripción sintética con ñ 65";123
+PROD-0066;"Producto sintético 66";"Categoría no mapeada";67.62;66;activo;"Descripción sintética con ñ 66";123
+PROD-0067;"Producto sintético 67";Bebidas;68.69;67;activo;"Descripción sintética con ñ 67";123
+PROD-0068;"Producto sintético 68";Nutrición;69.76;68;inactivo;"Descripción sintética con ñ 68";123
+PROD-0069;"Producto sintético 69";"Categoría no mapeada";70.83;69;activo;"Descripción sintética con ñ 69";123
+PROD-0070;"Producto sintético 70";Nutrición;71.90;70;activo;"Descripción sintética con ñ 70";123
+PROD-0071;"Producto sintético 71";Bebidas;72.97;71;activo;"Descripción sintética con ñ 71";123
+PROD-0072;"Producto sintético 72";"Categoría no mapeada";73.04;72;activo;"Descripción sintética con ñ 72";123
+PROD-0073;"Producto sintético 73";Bebidas;74.11;73;activo;"Descripción sintética con ñ 73";123
+PROD-0074;"Producto sintético 74";Nutrición;75.18;74;activo;"Descripción sintética con ñ 74";123
+PROD-0075;"Producto sintético 75";"Categoría no mapeada";76.25;75;activo;"Descripción sintética con ñ 75";123
+PROD-0076;"Producto sintético 76";Nutrición;77.32;76;activo;"Descripción sintética con ñ 76";123
+PROD-0077;"Producto sintético 77";Bebidas;78.39;77;activo;"Descripción sintética con ñ 77";123
+PROD-0078;"Producto sintético 78";"Categoría no mapeada";79.46;78;activo;"Descripción sintética con ñ 78";123
+PROD-0079;"Producto sintético 79";Bebidas;80.53;79;activo;"Descripción sintética con ñ 79";123
+PROD-0080;"Producto sintético 80";Nutrición;81.60;80;activo;"Descripción sintética con ñ 80";123
+PROD-0081;"Producto sintético 81";"Categoría no mapeada";82.67;81;activo;"Descripción sintética con ñ 81";123
+PROD-0082;"Producto sintético 82";Nutrición;83.74;82;activo;"Descripción sintética con ñ 82";123
+PROD-0083;"Producto sintético 83";Bebidas;84.81;83;activo;"Descripción sintética con ñ 83";123
+PROD-0084;"Producto sintético 84";"Categoría no mapeada";85.88;84;activo;"Descripción sintética con ñ 84";123
+PROD-0085;"Producto sintético 85";Bebidas;86.95;85;inactivo;"Descripción sintética con ñ 85";123
+PROD-0086;"Producto sintético 86";Nutrición;87.02;86;activo;"Descripción sintética con ñ 86";123
+PROD-0087;"Producto sintético 87";"Categoría no mapeada";88.09;87;activo;"Descripción sintética con ñ 87";123
+PROD-0088;"Producto sintético 88";Nutrición;89.16;88;activo;"Descripción sintética con ñ 88";123
+PROD-0089;"Producto sintético 89";Bebidas;90.23;89;activo;"Descripción sintética con ñ 89";123
+PROD-0090;"Producto sintético 90";"Categoría no mapeada";91.30;90;activo;"Descripción sintética con ñ 90";123
+PROD-0091;"Producto sintético 91";Bebidas;92.37;91;activo;"Descripción sintética con ñ 91";123
+PROD-0092;"Producto sintético 92";Nutrición;93.44;92;activo;"Descripción sintética con ñ 92";123
+PROD-0093;"Producto sintético 93";"Categoría no mapeada";94.51;93;activo;"Descripción sintética con ñ 93";123
+PROD-0094;"Producto sintético 94";Nutrición;95.58;94;activo;"Descripción sintética con ñ 94";123
+PROD-0095;"Producto sintético 95";Bebidas;96.65;95;activo;"Descripción sintética con ñ 95";123
+PROD-0096;"Producto sintético 96";"Categoría no mapeada";97.72;96;activo;"Descripción sintética con ñ 96";123
+PROD-0097;"Producto sintético 97";Bebidas;98.79;97;activo;"Descripción sintética con ñ 97";123
+PROD-0098;"Producto sintético 98";Nutrición;99.86;98;activo;"Descripción sintética con ñ 98";123
+PROD-0099;"Producto sintético 99";"Categoría no mapeada";100.93;99;activo;"Descripción sintética con ñ 99";123
+PROD-0100;"Producto sintético 100";Nutrición;1.00;100;activo;"Descripción sintética con ñ 100";123
+PROD-0101;"Producto sintético 101";Bebidas;2.07;101;activo;"Descripción sintética con ñ 101";123
+PROD-0102;"Producto sintético 102";"Categoría no mapeada";3.14;102;inactivo;"Descripción sintética con ñ 102";123
+PROD-0103;"Producto sintético 103";Bebidas;4.21;103;activo;"Descripción sintética con ñ 103";123
+PROD-0104;"Producto sintético 104";Nutrición;5.28;104;activo;"Descripción sintética con ñ 104";123
+PROD-0105;"Producto sintético 105";"Categoría no mapeada";6.35;105;activo;"Descripción sintética con ñ 105";123
+PROD-0106;"Producto sintético 106";Nutrición;7.42;106;activo;"Descripción sintética con ñ 106";123
+PROD-0107;"Producto sintético 107";Bebidas;8.49;107;activo;"Descripción sintética con ñ 107";123
+PROD-0108;"Producto sintético 108";"Categoría no mapeada";9.56;108;activo;"Descripción sintética con ñ 108";123
+PROD-0109;"Producto sintético 109";Bebidas;10.63;109;activo;"Descripción sintética con ñ 109";123
+PROD-0110;"Producto sintético 110";Nutrición;11.70;110;activo;"Descripción sintética con ñ 110";123
+PROD-0111;"Producto sintético 111";"Categoría no mapeada";12.77;111;activo;"Descripción sintética con ñ 111";123
+PROD-0112;"Producto sintético 112";Nutrición;13.84;112;activo;"Descripción sintética con ñ 112";123
+PROD-0113;"Producto sintético 113";Bebidas;14.91;113;activo;"Descripción sintética con ñ 113";123
+PROD-0114;"Producto sintético 114";"Categoría no mapeada";15.98;114;activo;"Descripción sintética con ñ 114";123
+PROD-0115;"Producto sintético 115";Bebidas;16.05;115;activo;"Descripción sintética con ñ 115";123
+PROD-0116;"Producto sintético 116";Nutrición;17.12;116;activo;"Descripción sintética con ñ 116";123
+PROD-0117;"Producto sintético 117";"Categoría no mapeada";18.19;117;activo;"Descripción sintética con ñ 117";123
+PROD-0118;"Producto sintético 118";Nutrición;19.26;118;activo;"Descripción sintética con ñ 118";123
+PROD-0119;"Producto sintético 119";Bebidas;20.33;119;inactivo;"Descripción sintética con ñ 119";123
+PROD-0120;"Producto sintético 120";"Categoría no mapeada";21.40;120;activo;"Descripción sintética con ñ 120";123
+PROD-0121;"Producto sintético 121";Bebidas;22.47;121;activo;"Descripción sintética con ñ 121";123
+PROD-0122;"Producto sintético 122";Nutrición;23.54;122;activo;"Descripción sintética con ñ 122";123
+PROD-0123;"Producto sintético 123";"Categoría no mapeada";24.61;123;activo;"Descripción sintética con ñ 123";123
+PROD-0124;"Producto sintético 124";Nutrición;25.68;124;activo;"Descripción sintética con ñ 124";123
+PROD-0125;"Producto sintético 125";Bebidas;26.75;125;activo;"Descripción sintética con ñ 125";123
+PROD-0126;"Producto sintético 126";"Categoría no mapeada";27.82;126;activo;"Descripción sintética con ñ 126";123
+PROD-0127;"Producto sintético 127";Bebidas;28.89;127;activo;"Descripción sintética con ñ 127";123
+PROD-0128;"Producto sintético 128";Nutrición;29.96;128;activo;"Descripción sintética con ñ 128";123
+PROD-0129;"Producto sintético 129";"Categoría no mapeada";30.03;129;activo;"Descripción sintética con ñ 129";123
+PROD-0130;"Producto sintético 130";Nutrición;31.10;130;activo;"Descripción sintética con ñ 130";123
+PROD-0131;"Producto sintético 131";Bebidas;32.17;131;activo;"Descripción sintética con ñ 131";123
+PROD-0132;"Producto sintético 132";"Categoría no mapeada";33.24;132;activo;"Descripción sintética con ñ 132";123
+PROD-0133;"Producto sintético 133";Bebidas;34.31;133;activo;"Descripción sintética con ñ 133";123
+PROD-0134;"Producto sintético 134";Nutrición;35.38;134;activo;"Descripción sintética con ñ 134";123
+PROD-0135;"Producto sintético 135";"Categoría no mapeada";36.45;135;activo;"Descripción sintética con ñ 135";123
+PROD-0136;"Producto sintético 136";Nutrición;37.52;136;inactivo;"Descripción sintética con ñ 136";123
+PROD-0137;"Producto sintético 137";Bebidas;38.59;137;activo;"Descripción sintética con ñ 137";123
+PROD-0138;"Producto sintético 138";"Categoría no mapeada";39.66;138;activo;"Descripción sintética con ñ 138";123
+PROD-0139;"Producto sintético 139";Bebidas;40.73;139;activo;"Descripción sintética con ñ 139";123
+PROD-0140;"Producto sintético 140";Nutrición;41.80;140;activo;"Descripción sintética con ñ 140";123
+PROD-0141;"Producto sintético 141";"Categoría no mapeada";42.87;141;activo;"Descripción sintética con ñ 141";123
+PROD-0142;"Producto sintético 142";Nutrición;43.94;142;activo;"Descripción sintética con ñ 142";123
+PROD-0143;"Producto sintético 143";Bebidas;44.01;143;activo;"Descripción sintética con ñ 143";123
+PROD-0144;"Producto sintético 144";"Categoría no mapeada";45.08;144;activo;"Descripción sintética con ñ 144";123
+PROD-0145;"Producto sintético 145";Bebidas;46.15;145;activo;"Descripción sintética con ñ 145";123
+PROD-0146;"Producto sintético 146";Nutrición;47.22;146;activo;"Descripción sintética con ñ 146";123
+PROD-0147;"Producto sintético 147";"Categoría no mapeada";48.29;147;activo;"Descripción sintética con ñ 147";123
+PROD-0148;"Producto sintético 148";Nutrición;49.36;148;activo;"Descripción sintética con ñ 148";123
+PROD-0149;"Producto sintético 149";Bebidas;50.43;149;activo;"Descripción sintética con ñ 149";123
+PROD-0150;"Producto sintético 150";"Categoría no mapeada";51.50;150;activo;"Descripción sintética con ñ 150";123
+PROD-0151;"Producto sintético 151";Bebidas;52.57;151;activo;"Descripción sintética con ñ 151";123
+PROD-0152;"Producto sintético 152";Nutrición;53.64;152;activo;"Descripción sintética con ñ 152";123
+PROD-0153;"Producto sintético 153";"Categoría no mapeada";54.71;153;inactivo;"Descripción sintética con ñ 153";123
+PROD-0154;"Producto sintético 154";Nutrición;55.78;154;activo;"Descripción sintética con ñ 154";123
+PROD-0155;"Producto sintético 155";Bebidas;56.85;155;activo;"Descripción sintética con ñ 155";123
+PROD-0156;"Producto sintético 156";"Categoría no mapeada";57.92;156;activo;"Descripción sintética con ñ 156";123
+PROD-0157;"Producto sintético 157";Bebidas;58.99;157;activo;"Descripción sintética con ñ 157";123
+PROD-0158;"Producto sintético 158";Nutrición;59.06;158;activo;"Descripción sintética con ñ 158";123
+PROD-0159;"Producto sintético 159";"Categoría no mapeada";60.13;159;activo;"Descripción sintética con ñ 159";123
+PROD-0160;"Producto sintético 160";Nutrición;61.20;160;activo;"Descripción sintética con ñ 160";123
+PROD-0161;"Producto sintético 161";Bebidas;62.27;161;activo;"Descripción sintética con ñ 161";123
+PROD-0162;"Producto sintético 162";"Categoría no mapeada";63.34;162;activo;"Descripción sintética con ñ 162";123
+PROD-0163;"Producto sintético 163";Bebidas;64.41;163;activo;"Descripción sintética con ñ 163";123
+PROD-0164;"Producto sintético 164";Nutrición;65.48;164;activo;"Descripción sintética con ñ 164";123
+PROD-0165;"Producto sintético 165";"Categoría no mapeada";66.55;165;activo;"Descripción sintética con ñ 165";123
+PROD-0166;"Producto sintético 166";Nutrición;67.62;166;activo;"Descripción sintética con ñ 166";123
+PROD-0167;"Producto sintético 167";Bebidas;68.69;167;activo;"Descripción sintética con ñ 167";123
+PROD-0168;"Producto sintético 168";"Categoría no mapeada";69.76;168;activo;"Descripción sintética con ñ 168";123
+PROD-0169;"Producto sintético 169";Bebidas;70.83;169;activo;"Descripción sintética con ñ 169";123
+PROD-0170;"Producto sintético 170";Nutrición;71.90;170;inactivo;"Descripción sintética con ñ 170";123
+PROD-0171;"Producto sintético 171";"Categoría no mapeada";72.97;171;activo;"Descripción sintética con ñ 171";123
+PROD-0172;"Producto sintético 172";Nutrición;73.04;172;activo;"Descripción sintética con ñ 172";123
+PROD-0173;"Producto sintético 173";Bebidas;74.11;173;activo;"Descripción sintética con ñ 173";123
+PROD-0174;"Producto sintético 174";"Categoría no mapeada";75.18;174;activo;"Descripción sintética con ñ 174";123
+PROD-0175;"Producto sintético 175";Bebidas;76.25;175;activo;"Descripción sintética con ñ 175";123
+PROD-0176;"Producto sintético 176";Nutrición;77.32;176;activo;"Descripción sintética con ñ 176";123
+PROD-0177;"Producto sintético 177";"Categoría no mapeada";78.39;177;activo;"Descripción sintética con ñ 177";123
+PROD-0178;"Producto sintético 178";Nutrición;79.46;178;activo;"Descripción sintética con ñ 178";123
+PROD-0179;"Producto sintético 179";Bebidas;80.53;179;activo;"Descripción sintética con ñ 179";123
+PROD-0180;"Producto sintético 180";"Categoría no mapeada";81.60;180;activo;"Descripción sintética con ñ 180";123
+PROD-0181;"Producto sintético 181";Bebidas;82.67;181;activo;"Descripción sintética con ñ 181";123
+PROD-0182;"Producto sintético 182";Nutrición;83.74;182;activo;"Descripción sintética con ñ 182";123
+PROD-0183;"Producto sintético 183";"Categoría no mapeada";84.81;183;activo;"Descripción sintética con ñ 183";123
+PROD-0184;"Producto sintético 184";Nutrición;85.88;184;activo;"Descripción sintética con ñ 184";123
+PROD-0185;"Producto sintético 185";Bebidas;86.95;185;activo;"Descripción sintética con ñ 185";123
+PROD-0186;"Producto sintético 186";"Categoría no mapeada";87.02;186;activo;"Descripción sintética con ñ 186";123
+PROD-0187;"Producto sintético 187";Bebidas;88.09;187;inactivo;"Descripción sintética con ñ 187";123
+PROD-0188;"Producto sintético 188";Nutrición;89.16;188;activo;"Descripción sintética con ñ 188";123
+PROD-0189;"Producto sintético 189";"Categoría no mapeada";90.23;189;activo;"Descripción sintética con ñ 189";123
+PROD-0190;"Producto sintético 190";Nutrición;91.30;190;activo;"Descripción sintética con ñ 190";123
+PROD-0191;"Producto sintético 191";Bebidas;92.37;191;activo;"Descripción sintética con ñ 191";123
+PROD-0192;"Producto sintético 192";"Categoría no mapeada";93.44;192;activo;"Descripción sintética con ñ 192";123
+PROD-0193;"Producto sintético 193";Bebidas;94.51;193;activo;"Descripción sintética con ñ 193";123
+PROD-0194;"Producto sintético 194";Nutrición;95.58;194;activo;"Descripción sintética con ñ 194";123
+PROD-0195;"Producto sintético 195";"Categoría no mapeada";96.65;195;activo;"Descripción sintética con ñ 195";123
+PROD-0196;"Producto sintético 196";Nutrición;97.72;196;activo;"Descripción sintética con ñ 196";123
+PROD-0197;"Producto sintético 197";Bebidas;98.79;197;activo;"Descripción sintética con ñ 197";123
+PROD-0198;"Producto sintético 198";"Categoría no mapeada";99.86;198;activo;"Descripción sintética con ñ 198";123
+PROD-0199;"Producto sintético 199";Bebidas;100.93;199;activo;"Descripción sintética con ñ 199";123
+PROD-0200;"Producto sintético 200";Nutrición;1.00;200;activo;"Descripción sintética con ñ 200";123
+PROD-0201;"Producto sintético 201";"Categoría no mapeada";2.07;201;activo;"Descripción sintética con ñ 201";123
+PROD-0202;"Producto sintético 202";Nutrición;3.14;202;activo;"Descripción sintética con ñ 202";123
+PROD-0203;"Producto sintético 203";Bebidas;4.21;203;activo;"Descripción sintética con ñ 203";123
+PROD-0204;"Producto sintético 204";"Categoría no mapeada";5.28;204;inactivo;"Descripción sintética con ñ 204";123
+PROD-0205;"Producto sintético 205";Bebidas;6.35;205;activo;"Descripción sintética con ñ 205";123
+PROD-0206;"Producto sintético 206";Nutrición;7.42;206;activo;"Descripción sintética con ñ 206";123
+PROD-0207;"Producto sintético 207";"Categoría no mapeada";8.49;207;activo;"Descripción sintética con ñ 207";123
+PROD-0208;"Producto sintético 208";Nutrición;9.56;208;activo;"Descripción sintética con ñ 208";123
+PROD-0209;"Producto sintético 209";Bebidas;10.63;209;activo;"Descripción sintética con ñ 209";123
+PROD-0210;"Producto sintético 210";"Categoría no mapeada";11.70;210;activo;"Descripción sintética con ñ 210";123
+PROD-0211;"Producto sintético 211";Bebidas;12.77;211;activo;"Descripción sintética con ñ 211";123
+PROD-0212;"Producto sintético 212";Nutrición;13.84;212;activo;"Descripción sintética con ñ 212";123
+PROD-0213;"Producto sintético 213";"Categoría no mapeada";14.91;213;activo;"Descripción sintética con ñ 213";123
+PROD-0214;"Producto sintético 214";Nutrición;15.98;214;activo;"Descripción sintética con ñ 214";123
+PROD-0215;"Producto sintético 215";Bebidas;16.05;215;activo;"Descripción sintética con ñ 215";123
+PROD-0216;"Producto sintético 216";"Categoría no mapeada";17.12;216;activo;"Descripción sintética con ñ 216";123
+PROD-0217;"Producto sintético 217";Bebidas;18.19;217;activo;"Descripción sintética con ñ 217";123
+PROD-0218;"Producto sintético 218";Nutrición;19.26;218;activo;"Descripción sintética con ñ 218";123
+PROD-0219;"Producto sintético 219";"Categoría no mapeada";20.33;219;activo;"Descripción sintética con ñ 219";123
+PROD-0220;"Producto sintético 220";Nutrición;21.40;220;activo;"Descripción sintética con ñ 220";123
+PROD-0221;"Producto sintético 221";Bebidas;22.47;221;inactivo;"Descripción sintética con ñ 221";123
+PROD-0222;"Producto sintético 222";"Categoría no mapeada";23.54;222;activo;"Descripción sintética con ñ 222";123
+PROD-0223;"Producto sintético 223";Bebidas;24.61;223;activo;"Descripción sintética con ñ 223";123
+PROD-0224;"Producto sintético 224";Nutrición;25.68;224;activo;"Descripción sintética con ñ 224";123
+PROD-0225;"Producto sintético 225";"Categoría no mapeada";26.75;225;activo;"Descripción sintética con ñ 225";123
+PROD-0226;"Producto sintético 226";Nutrición;27.82;226;activo;"Descripción sintética con ñ 226";123
+PROD-0227;"Producto sintético 227";Bebidas;28.89;227;activo;"Descripción sintética con ñ 227";123
+PROD-0228;"Producto sintético 228";"Categoría no mapeada";29.96;228;activo;"Descripción sintética con ñ 228";123
+PROD-0229;"Producto sintético 229";Bebidas;30.03;229;activo;"Descripción sintética con ñ 229";123
+PROD-0230;"Producto sintético 230";Nutrición;31.10;230;activo;"Descripción sintética con ñ 230";123
+PROD-0231;"Producto sintético 231";"Categoría no mapeada";32.17;231;activo;"Descripción sintética con ñ 231";123
+PROD-0232;"Producto sintético 232";Nutrición;33.24;232;activo;"Descripción sintética con ñ 232";123
+PROD-0233;"Producto sintético 233";Bebidas;34.31;233;activo;"Descripción sintética con ñ 233";123
+PROD-0234;"Producto sintético 234";"Categoría no mapeada";35.38;234;activo;"Descripción sintética con ñ 234";123
+PROD-0235;"Producto sintético 235";Bebidas;36.45;235;activo;"Descripción sintética con ñ 235";123
+PROD-0236;"Producto sintético 236";Nutrición;37.52;236;activo;"Descripción sintética con ñ 236";123
+PROD-0237;"Producto sintético 237";"Categoría no mapeada";38.59;237;activo;"Descripción sintética con ñ 237";123
+PROD-0238;"Producto sintético 238";Nutrición;39.66;238;inactivo;"Descripción sintética con ñ 238";123
+PROD-0239;"Producto sintético 239";Bebidas;40.73;239;activo;"Descripción sintética con ñ 239";123
+PROD-0240;"Producto sintético 240";"Categoría no mapeada";41.80;240;activo;"Descripción sintética con ñ 240";123
+PROD-0241;"Producto sintético 241";Bebidas;42.87;241;activo;"Descripción sintética con ñ 241";123
+PROD-0242;"Producto sintético 242";Nutrición;43.94;242;activo;"Descripción sintética con ñ 242";123
+PROD-0243;"Producto sintético 243";"Categoría no mapeada";44.01;243;activo;"Descripción sintética con ñ 243";123
+PROD-0244;"Producto sintético 244";Nutrición;45.08;244;activo;"Descripción sintética con ñ 244";123
+PROD-0245;"Producto sintético 245";Bebidas;46.15;245;activo;"Descripción sintética con ñ 245";123
+PROD-0246;"Producto sintético 246";"Categoría no mapeada";47.22;246;activo;"Descripción sintética con ñ 246";123
+PROD-0247;"Producto sintético 247";Bebidas;48.29;247;activo;"Descripción sintética con ñ 247";123
+PROD-0248;"Producto sintético 248";Nutrición;49.36;248;activo;"Descripción sintética con ñ 248";123
+PROD-0249;"Producto sintético 249";"Categoría no mapeada";50.43;249;activo;"Descripción sintética con ñ 249";123
+PROD-0250;"Producto sintético 250";Nutrición;51.50;0;activo;"Descripción sintética con ñ 250";123
+PROD-0251;"Producto sintético 251";Bebidas;52.57;1;activo;"Descripción sintética con ñ 251";123
+PROD-0252;"Producto sintético 252";"Categoría no mapeada";53.64;2;activo;"Descripción sintética con ñ 252";123
+PROD-0253;"Producto sintético 253";Bebidas;54.71;3;activo;"Descripción sintética con ñ 253";123
+PROD-0254;"Producto sintético 254";Nutrición;55.78;4;activo;"Descripción sintética con ñ 254";123
+PROD-0255;"Producto sintético 255";"Categoría no mapeada";56.85;5;inactivo;"Descripción sintética con ñ 255";123
+PROD-0256;"Producto sintético 256";Nutrición;57.92;6;activo;"Descripción sintética con ñ 256";123
+PROD-0257;"Producto sintético 257";Bebidas;58.99;7;activo;"Descripción sintética con ñ 257";123
+PROD-0258;"Producto sintético 258";"Categoría no mapeada";59.06;8;activo;"Descripción sintética con ñ 258";123
+PROD-0259;"Producto sintético 259";Bebidas;60.13;9;activo;"Descripción sintética con ñ 259";123
+PROD-0260;"Producto sintético 260";Nutrición;61.20;10;activo;"Descripción sintética con ñ 260";123
+PROD-0261;"Producto sintético 261";"Categoría no mapeada";62.27;11;activo;"Descripción sintética con ñ 261";123
+PROD-0262;"Producto sintético 262";Nutrición;63.34;12;activo;"Descripción sintética con ñ 262";123
+PROD-0263;"Producto sintético 263";Bebidas;64.41;13;activo;"Descripción sintética con ñ 263";123
+PROD-0264;"Producto sintético 264";"Categoría no mapeada";65.48;14;activo;"Descripción sintética con ñ 264";123
+PROD-0265;"Producto sintético 265";Bebidas;66.55;15;activo;"Descripción sintética con ñ 265";123
+PROD-0266;"Producto sintético 266";Nutrición;67.62;16;activo;"Descripción sintética con ñ 266";123
+PROD-0267;"Producto sintético 267";"Categoría no mapeada";68.69;17;activo;"Descripción sintética con ñ 267";123
+PROD-0268;"Producto sintético 268";Nutrición;69.76;18;activo;"Descripción sintética con ñ 268";123
+PROD-0269;"Producto sintético 269";Bebidas;70.83;19;activo;"Descripción sintética con ñ 269";123
+PROD-0270;"Producto sintético 270";"Categoría no mapeada";71.90;20;activo;"Descripción sintética con ñ 270";123
+PROD-0271;"Producto sintético 271";Bebidas;72.97;21;activo;"Descripción sintética con ñ 271";123
+PROD-0272;"Producto sintético 272";Nutrición;73.04;22;inactivo;"Descripción sintética con ñ 272";123
+PROD-0273;"Producto sintético 273";"Categoría no mapeada";74.11;23;activo;"Descripción sintética con ñ 273";123
+PROD-0274;"Producto sintético 274";Nutrición;75.18;24;activo;"Descripción sintética con ñ 274";123
+PROD-0275;"Producto sintético 275";Bebidas;76.25;25;activo;"Descripción sintética con ñ 275";123
+PROD-0276;"Producto sintético 276";"Categoría no mapeada";77.32;26;activo;"Descripción sintética con ñ 276";123
+PROD-0277;"Producto sintético 277";Bebidas;78.39;27;activo;"Descripción sintética con ñ 277";123
+PROD-0278;"Producto sintético 278";Nutrición;79.46;28;activo;"Descripción sintética con ñ 278";123
+PROD-0279;"Producto sintético 279";"Categoría no mapeada";80.53;29;activo;"Descripción sintética con ñ 279";123
+PROD-0280;"Producto sintético 280";Nutrición;81.60;30;activo;"Descripción sintética con ñ 280";123
+PROD-0281;"Producto sintético 281";Bebidas;82.67;31;activo;"Descripción sintética con ñ 281";123
+PROD-0282;"Producto sintético 282";"Categoría no mapeada";83.74;32;activo;"Descripción sintética con ñ 282";123
+PROD-0283;"Producto sintético 283";Bebidas;84.81;33;activo;"Descripción sintética con ñ 283";123
+PROD-0284;"Producto sintético 284";Nutrición;85.88;34;activo;"Descripción sintética con ñ 284";123
+PROD-0285;"Producto sintético 285";"Categoría no mapeada";86.95;35;activo;"Descripción sintética con ñ 285";123
+PROD-0286;"Producto sintético 286";Nutrición;87.02;36;activo;"Descripción sintética con ñ 286";123
+PROD-0287;"Producto sintético 287";Bebidas;88.09;37;activo;"Descripción sintética con ñ 287";123
+PROD-0288;"Producto sintético 288";"Categoría no mapeada";89.16;38;activo;"Descripción sintética con ñ 288";123
+PROD-0289;"Producto sintético 289";Bebidas;90.23;39;inactivo;"Descripción sintética con ñ 289";123
+PROD-0290;"Producto sintético 290";Nutrición;91.30;40;activo;"Descripción sintética con ñ 290";123
+PROD-0291;"Producto sintético 291";"Categoría no mapeada";92.37;41;activo;"Descripción sintética con ñ 291";123
+PROD-0292;"Producto sintético 292";Nutrición;93.44;42;activo;"Descripción sintética con ñ 292";123
+PROD-0293;"Producto sintético 293";Bebidas;94.51;43;activo;"Descripción sintética con ñ 293";123
+PROD-0294;"Producto sintético 294";"Categoría no mapeada";95.58;44;activo;"Descripción sintética con ñ 294";123
+PROD-0295;"Producto sintético 295";Bebidas;96.65;45;activo;"Descripción sintética con ñ 295";123
+PROD-0296;"Producto sintético 296";Nutrición;97.72;46;activo;"Descripción sintética con ñ 296";123
+PROD-0297;"Producto sintético 297";"Categoría no mapeada";98.79;47;activo;"Descripción sintética con ñ 297";123
+PROD-0298;"Producto sintético 298";Nutrición;99.86;48;activo;"Descripción sintética con ñ 298";123
+PROD-0299;"Producto sintético 299";Bebidas;100.93;49;activo;"Descripción sintética con ñ 299";123
+PROD-0300;"Producto sintético 300";"Categoría no mapeada";1.00;50;activo;"Descripción sintética con ñ 300";123
+PROD-0301;"Producto sintético 301";Bebidas;2.07;51;activo;"Descripción sintética con ñ 301";123
+PROD-0302;"Producto sintético 302";Nutrición;3.14;52;activo;"Descripción sintética con ñ 302";123
+PROD-0303;"Producto sintético 303";"Categoría no mapeada";4.21;53;activo;"Descripción sintética con ñ 303";123
+PROD-0304;"Producto sintético 304";Nutrición;5.28;54;activo;"Descripción sintética con ñ 304";123
+PROD-0305;"Producto sintético 305";Bebidas;6.35;55;activo;"Descripción sintética con ñ 305";123
+PROD-0306;"Producto sintético 306";"Categoría no mapeada";7.42;56;inactivo;"Descripción sintética con ñ 306";123
+PROD-0307;"Producto sintético 307";Bebidas;8.49;57;activo;"Descripción sintética con ñ 307";123
+PROD-0308;"Producto sintético 308";Nutrición;9.56;58;activo;"Descripción sintética con ñ 308";123
+PROD-0309;"Producto sintético 309";"Categoría no mapeada";10.63;59;activo;"Descripción sintética con ñ 309";123
+PROD-0310;"Producto sintético 310";Nutrición;11.70;60;activo;"Descripción sintética con ñ 310";123
+PROD-0311;"Producto sintético 311";Bebidas;12.77;61;activo;"Descripción sintética con ñ 311";123
+PROD-0312;"Producto sintético 312";"Categoría no mapeada";13.84;62;activo;"Descripción sintética con ñ 312";123
+PROD-0313;"Producto sintético 313";Bebidas;14.91;63;activo;"Descripción sintética con ñ 313";123
+PROD-0314;"Producto sintético 314";Nutrición;15.98;64;activo;"Descripción sintética con ñ 314";123
+PROD-0315;"Producto sintético 315";"Categoría no mapeada";16.05;65;activo;"Descripción sintética con ñ 315";123
+PROD-0316;"Producto sintético 316";Nutrición;17.12;66;activo;"Descripción sintética con ñ 316";123
+PROD-0317;"Producto sintético 317";Bebidas;18.19;67;activo;"Descripción sintética con ñ 317";123
+PROD-0318;"Producto sintético 318";"Categoría no mapeada";19.26;68;activo;"Descripción sintética con ñ 318";123
+PROD-0319;"Producto sintético 319";Bebidas;20.33;69;activo;"Descripción sintética con ñ 319";123
+PROD-0320;"Producto sintético 320";Nutrición;21.40;70;activo;"Descripción sintética con ñ 320";123
+PROD-0321;"Producto sintético 321";"Categoría no mapeada";22.47;71;activo;"Descripción sintética con ñ 321";123
+PROD-0322;"Producto sintético 322";Nutrición;23.54;72;activo;"Descripción sintética con ñ 322";123
+PROD-0323;"Producto sintético 323";Bebidas;24.61;73;inactivo;"Descripción sintética con ñ 323";123
+PROD-0324;"Producto sintético 324";"Categoría no mapeada";25.68;74;activo;"Descripción sintética con ñ 324";123
+PROD-0325;"Producto sintético 325";Bebidas;26.75;75;activo;"Descripción sintética con ñ 325";123
+PROD-0326;"Producto sintético 326";Nutrición;27.82;76;activo;"Descripción sintética con ñ 326";123
+PROD-0327;"Producto sintético 327";"Categoría no mapeada";28.89;77;activo;"Descripción sintética con ñ 327";123
+PROD-0328;"Producto sintético 328";Nutrición;29.96;78;activo;"Descripción sintética con ñ 328";123
+PROD-0329;"Producto sintético 329";Bebidas;30.03;79;activo;"Descripción sintética con ñ 329";123
+PROD-0330;"Producto sintético 330";"Categoría no mapeada";31.10;80;activo;"Descripción sintética con ñ 330";123
+PROD-0331;"Producto sintético 331";Bebidas;32.17;81;activo;"Descripción sintética con ñ 331";123
+PROD-0332;"Producto sintético 332";Nutrición;33.24;82;activo;"Descripción sintética con ñ 332";123
+PROD-0333;"Producto sintético 333";"Categoría no mapeada";34.31;83;activo;"Descripción sintética con ñ 333";123
+PROD-0334;"Producto sintético 334";Nutrición;35.38;84;activo;"Descripción sintética con ñ 334";123
+PROD-0335;"Producto sintético 335";Bebidas;36.45;85;activo;"Descripción sintética con ñ 335";123
+PROD-0336;"Producto sintético 336";"Categoría no mapeada";37.52;86;activo;"Descripción sintética con ñ 336";123
+PROD-0337;"Producto sintético 337";Bebidas;38.59;87;activo;"Descripción sintética con ñ 337";123
+PROD-0338;"Producto sintético 338";Nutrición;39.66;88;activo;"Descripción sintética con ñ 338";123
+PROD-0339;"Producto sintético 339";"Categoría no mapeada";40.73;89;activo;"Descripción sintética con ñ 339";123
+PROD-0340;"Producto sintético 340";Nutrición;41.80;90;inactivo;"Descripción sintética con ñ 340";123
+PROD-0341;"Producto sintético 341";Bebidas;42.87;91;activo;"Descripción sintética con ñ 341";123
+PROD-0342;"Producto sintético 342";"Categoría no mapeada";43.94;92;activo;"Descripción sintética con ñ 342";123
+PROD-0343;"Producto sintético 343";Bebidas;44.01;93;activo;"Descripción sintética con ñ 343";123
+PROD-0344;"Producto sintético 344";Nutrición;45.08;94;activo;"Descripción sintética con ñ 344";123
+PROD-0345;"Producto sintético 345";"Categoría no mapeada";46.15;95;activo;"Descripción sintética con ñ 345";123
+PROD-0346;"Producto sintético 346";Nutrición;47.22;96;activo;"Descripción sintética con ñ 346";123
+PROD-0347;"Producto sintético 347";Bebidas;48.29;97;activo;"Descripción sintética con ñ 347";123
+PROD-0348;"Producto sintético 348";"Categoría no mapeada";49.36;98;activo;"Descripción sintética con ñ 348";123
+PROD-0349;"Producto sintético 349";Bebidas;50.43;99;activo;"Descripción sintética con ñ 349";123
+PROD-0350;"Producto sintético 350";Nutrición;51.50;100;activo;"Descripción sintética con ñ 350";123
+PROD-0351;"Producto sintético 351";"Categoría no mapeada";52.57;101;activo;"Descripción sintética con ñ 351";123
+PROD-0352;"Producto sintético 352";Nutrición;53.64;102;activo;"Descripción sintética con ñ 352";123
+PROD-0353;"Producto sintético 353";Bebidas;54.71;103;activo;"Descripción sintética con ñ 353";123
+PROD-0354;"Producto sintético 354";"Categoría no mapeada";55.78;104;activo;"Descripción sintética con ñ 354";123
+PROD-0355;"Producto sintético 355";Bebidas;56.85;105;activo;"Descripción sintética con ñ 355";123
+PROD-0356;"Producto sintético 356";Nutrición;57.92;106;activo;"Descripción sintética con ñ 356";123
+PROD-0357;"Producto sintético 357";"Categoría no mapeada";58.99;107;inactivo;"Descripción sintética con ñ 357";123
+PROD-0358;"Producto sintético 358";Nutrición;59.06;108;activo;"Descripción sintética con ñ 358";123
+PROD-0359;"Producto sintético 359";Bebidas;60.13;109;activo;"Descripción sintética con ñ 359";123
+PROD-0360;"Producto sintético 360";"Categoría no mapeada";61.20;110;activo;"Descripción sintética con ñ 360";123
+PROD-0361;"Producto sintético 361";Bebidas;62.27;111;activo;"Descripción sintética con ñ 361";123
+PROD-0362;"Producto sintético 362";Nutrición;63.34;112;activo;"Descripción sintética con ñ 362";123
+PROD-0363;"Producto sintético 363";"Categoría no mapeada";64.41;113;activo;"Descripción sintética con ñ 363";123
+PROD-0364;"Producto sintético 364";Nutrición;65.48;114;activo;"Descripción sintética con ñ 364";123
+PROD-0365;"Producto sintético 365";Bebidas;66.55;115;activo;"Descripción sintética con ñ 365";123
+PROD-0366;"Producto sintético 366";"Categoría no mapeada";67.62;116;activo;"Descripción sintética con ñ 366";123
+PROD-0367;"Producto sintético 367";Bebidas;68.69;117;activo;"Descripción sintética con ñ 367";123
+PROD-0368;"Producto sintético 368";Nutrición;69.76;118;activo;"Descripción sintética con ñ 368";123
+PROD-0369;"Producto sintético 369";"Categoría no mapeada";70.83;119;activo;"Descripción sintética con ñ 369";123
+PROD-0370;"Producto sintético 370";Nutrición;71.90;120;activo;"Descripción sintética con ñ 370";123
+PROD-0371;"Producto sintético 371";Bebidas;72.97;121;activo;"Descripción sintética con ñ 371";123
+PROD-0372;"Producto sintético 372";"Categoría no mapeada";73.04;122;activo;"Descripción sintética con ñ 372";123
+PROD-0373;"Producto sintético 373";Bebidas;74.11;123;activo;"Descripción sintética con ñ 373";123
+PROD-0374;"Producto sintético 374";Nutrición;75.18;124;inactivo;"Descripción sintética con ñ 374";123
+PROD-0375;"Producto sintético 375";"Categoría no mapeada";76.25;125;activo;"Descripción sintética con ñ 375";123
+PROD-0376;"Producto sintético 376";Nutrición;77.32;126;activo;"Descripción sintética con ñ 376";123
+PROD-0377;"Producto sintético 377";Bebidas;78.39;127;activo;"Descripción sintética con ñ 377";123
+PROD-0378;"Producto sintético 378";"Categoría no mapeada";79.46;128;activo;"Descripción sintética con ñ 378";123
+PROD-0379;"Producto sintético 379";Bebidas;80.53;129;activo;"Descripción sintética con ñ 379";123
+PROD-0380;"Producto sintético 380";Nutrición;81.60;130;activo;"Descripción sintética con ñ 380";123
+PROD-0381;"Producto sintético 381";"Categoría no mapeada";82.67;131;activo;"Descripción sintética con ñ 381";123
+PROD-0382;"Producto sintético 382";Nutrición;83.74;132;activo;"Descripción sintética con ñ 382";123
+PROD-0383;"Producto sintético 383";Bebidas;84.81;133;activo;"Descripción sintética con ñ 383";123
+PROD-0384;"Producto sintético 384";"Categoría no mapeada";85.88;134;activo;"Descripción sintética con ñ 384";123
+PROD-0385;"Producto sintético 385";Bebidas;86.95;135;activo;"Descripción sintética con ñ 385";123
+PROD-0386;"Producto sintético 386";Nutrición;87.02;136;activo;"Descripción sintética con ñ 386";123
+PROD-0387;"Producto sintético 387";"Categoría no mapeada";88.09;137;activo;"Descripción sintética con ñ 387";123
+PROD-0388;"Producto sintético 388";Nutrición;89.16;138;activo;"Descripción sintética con ñ 388";123
+PROD-0389;"Producto sintético 389";Bebidas;90.23;139;activo;"Descripción sintética con ñ 389";123
+PROD-0390;"Producto sintético 390";"Categoría no mapeada";91.30;140;activo;"Descripción sintética con ñ 390";123
+PROD-0391;"Producto sintético 391";Bebidas;92.37;141;inactivo;"Descripción sintética con ñ 391";123
+PROD-0392;"Producto sintético 392";Nutrición;93.44;142;activo;"Descripción sintética con ñ 392";123
+PROD-0393;"Producto sintético 393";"Categoría no mapeada";94.51;143;activo;"Descripción sintética con ñ 393";123
+PROD-0394;"Producto sintético 394";Nutrición;95.58;144;activo;"Descripción sintética con ñ 394";123
+PROD-0395;"Producto sintético 395";Bebidas;96.65;145;activo;"Descripción sintética con ñ 395";123
+PROD-0396;"Producto sintético 396";"Categoría no mapeada";97.72;146;activo;"Descripción sintética con ñ 396";123
+PROD-0397;"Producto sintético 397";Bebidas;98.79;147;activo;"Descripción sintética con ñ 397";123
+PROD-0398;"Producto sintético 398";Nutrición;99.86;148;activo;"Descripción sintética con ñ 398";123
+PROD-0399;"Producto sintético 399";"Categoría no mapeada";100.93;149;activo;"Descripción sintética con ñ 399";123
+PROD-0400;"Producto sintético 400";Nutrición;1.00;150;activo;"Descripción sintética con ñ 400";123
+PROD-0401;"Producto sintético 401";Bebidas;2.07;151;activo;"Descripción sintética con ñ 401";123
+PROD-0402;"Producto sintético 402";"Categoría no mapeada";3.14;152;activo;"Descripción sintética con ñ 402";123
+PROD-0403;"Producto sintético 403";Bebidas;4.21;153;activo;"Descripción sintética con ñ 403";123
+PROD-0404;"Producto sintético 404";Nutrición;5.28;154;activo;"Descripción sintética con ñ 404";123
+PROD-0405;"Producto sintético 405";"Categoría no mapeada";6.35;155;activo;"Descripción sintética con ñ 405";123
+PROD-0406;"Producto sintético 406";Nutrición;7.42;156;activo;"Descripción sintética con ñ 406";123
+PROD-0407;"Producto sintético 407";Bebidas;8.49;157;activo;"Descripción sintética con ñ 407";123
+PROD-0408;"Producto sintético 408";"Categoría no mapeada";9.56;158;inactivo;"Descripción sintética con ñ 408";123
+PROD-0409;"Producto sintético 409";Bebidas;10.63;159;activo;"Descripción sintética con ñ 409";123
+PROD-0410;"Producto sintético 410";Nutrición;11.70;160;activo;"Descripción sintética con ñ 410";123
+PROD-0411;"Producto sintético 411";"Categoría no mapeada";12.77;161;activo;"Descripción sintética con ñ 411";123
+PROD-0412;"Producto sintético 412";Nutrición;13.84;162;activo;"Descripción sintética con ñ 412";123
+PROD-0413;"Producto sintético 413";Bebidas;14.91;163;activo;"Descripción sintética con ñ 413";123
+PROD-0414;"Producto sintético 414";"Categoría no mapeada";15.98;164;activo;"Descripción sintética con ñ 414";123
+PROD-0415;"Producto sintético 415";Bebidas;16.05;165;activo;"Descripción sintética con ñ 415";123
+PROD-0416;"Producto sintético 416";Nutrición;17.12;166;activo;"Descripción sintética con ñ 416";123
+PROD-0417;"Producto sintético 417";"Categoría no mapeada";18.19;167;activo;"Descripción sintética con ñ 417";123
+PROD-0418;"Producto sintético 418";Nutrición;19.26;168;activo;"Descripción sintética con ñ 418";123
+PROD-0419;"Producto sintético 419";Bebidas;20.33;169;activo;"Descripción sintética con ñ 419";123
+PROD-0420;"Producto sintético 420";"Categoría no mapeada";21.40;170;activo;"Descripción sintética con ñ 420";123
+PROD-0421;"Producto sintético 421";Bebidas;22.47;171;activo;"Descripción sintética con ñ 421";123
+PROD-0422;"Producto sintético 422";Nutrición;23.54;172;activo;"Descripción sintética con ñ 422";123
+PROD-0423;"Producto sintético 423";"Categoría no mapeada";24.61;173;activo;"Descripción sintética con ñ 423";123
+PROD-0424;"Producto sintético 424";Nutrición;25.68;174;activo;"Descripción sintética con ñ 424";123
+PROD-0425;"Producto sintético 425";Bebidas;26.75;175;inactivo;"Descripción sintética con ñ 425";123
+PROD-0426;"Producto sintético 426";"Categoría no mapeada";27.82;176;activo;"Descripción sintética con ñ 426";123
+PROD-0427;"Producto sintético 427";Bebidas;28.89;177;activo;"Descripción sintética con ñ 427";123
+PROD-0428;"Producto sintético 428";Nutrición;29.96;178;activo;"Descripción sintética con ñ 428";123
+PROD-0429;"Producto sintético 429";"Categoría no mapeada";30.03;179;activo;"Descripción sintética con ñ 429";123
+PROD-0430;"Producto sintético 430";Nutrición;31.10;180;activo;"Descripción sintética con ñ 430";123
+PROD-0431;"Producto sintético 431";Bebidas;32.17;181;activo;"Descripción sintética con ñ 431";123
+PROD-0432;"Producto sintético 432";"Categoría no mapeada";33.24;182;activo;"Descripción sintética con ñ 432";123
+PROD-0433;"Producto sintético 433";Bebidas;34.31;183;activo;"Descripción sintética con ñ 433";123
+PROD-0434;"Producto sintético 434";Nutrición;35.38;184;activo;"Descripción sintética con ñ 434";123
+PROD-0435;"Producto sintético 435";"Categoría no mapeada";36.45;185;activo;"Descripción sintética con ñ 435";123
+PROD-0436;"Producto sintético 436";Nutrición;37.52;186;activo;"Descripción sintética con ñ 436";123
+PROD-0437;"Producto sintético 437";Bebidas;38.59;187;activo;"Descripción sintética con ñ 437";123
+PROD-0438;"Producto sintético 438";"Categoría no mapeada";39.66;188;activo;"Descripción sintética con ñ 438";123
+PROD-0439;"Producto sintético 439";Bebidas;40.73;189;activo;"Descripción sintética con ñ 439";123
+PROD-0440;"Producto sintético 440";Nutrición;41.80;190;activo;"Descripción sintética con ñ 440";123
+PROD-0441;"Producto sintético 441";"Categoría no mapeada";42.87;191;activo;"Descripción sintética con ñ 441";123
+PROD-0442;"Producto sintético 442";Nutrición;43.94;192;inactivo;"Descripción sintética con ñ 442";123
+PROD-0443;"Producto sintético 443";Bebidas;44.01;193;activo;"Descripción sintética con ñ 443";123
+PROD-0444;"Producto sintético 444";"Categoría no mapeada";45.08;194;activo;"Descripción sintética con ñ 444";123
+PROD-0445;"Producto sintético 445";Bebidas;46.15;195;activo;"Descripción sintética con ñ 445";123
+PROD-0446;"Producto sintético 446";Nutrición;47.22;196;activo;"Descripción sintética con ñ 446";123
+PROD-0447;"Producto sintético 447";"Categoría no mapeada";48.29;197;activo;"Descripción sintética con ñ 447";123
+PROD-0448;"Producto sintético 448";Nutrición;49.36;198;activo;"Descripción sintética con ñ 448";123
+PROD-0449;"Producto sintético 449";Bebidas;50.43;199;activo;"Descripción sintética con ñ 449";123
+PROD-0450;"Producto sintético 450";"Categoría no mapeada";51.50;200;activo;"Descripción sintética con ñ 450";123
+PROD-0451;"Producto sintético 451";Bebidas;52.57;201;activo;"Descripción sintética con ñ 451";123
+PROD-0452;"Producto sintético 452";Nutrición;53.64;202;activo;"Descripción sintética con ñ 452";123
+PROD-0453;"Producto sintético 453";"Categoría no mapeada";54.71;203;activo;"Descripción sintética con ñ 453";123
+PROD-0454;"Producto sintético 454";Nutrición;55.78;204;activo;"Descripción sintética con ñ 454";123
+PROD-0455;"Producto sintético 455";Bebidas;56.85;205;activo;"Descripción sintética con ñ 455";123
+PROD-0456;"Producto sintético 456";"Categoría no mapeada";57.92;206;activo;"Descripción sintética con ñ 456";123
+PROD-0457;"Producto sintético 457";Bebidas;58.99;207;activo;"Descripción sintética con ñ 457";123
+PROD-0458;"Producto sintético 458";Nutrición;59.06;208;activo;"Descripción sintética con ñ 458";123
+PROD-0459;"Producto sintético 459";"Categoría no mapeada";60.13;209;inactivo;"Descripción sintética con ñ 459";123
+PROD-0460;"Producto sintético 460";Nutrición;61.20;210;activo;"Descripción sintética con ñ 460";123
+PROD-0461;"Producto sintético 461";Bebidas;62.27;211;activo;"Descripción sintética con ñ 461";123
+PROD-0462;"Producto sintético 462";"Categoría no mapeada";63.34;212;activo;"Descripción sintética con ñ 462";123
+PROD-0463;"Producto sintético 463";Bebidas;64.41;213;activo;"Descripción sintética con ñ 463";123
+PROD-0464;"Producto sintético 464";Nutrición;65.48;214;activo;"Descripción sintética con ñ 464";123
+PROD-0465;"Producto sintético 465";"Categoría no mapeada";66.55;215;activo;"Descripción sintética con ñ 465";123
+PROD-0466;"Producto sintético 466";Nutrición;67.62;216;activo;"Descripción sintética con ñ 466";123
+PROD-0467;"Producto sintético 467";Bebidas;68.69;217;activo;"Descripción sintética con ñ 467";123
+PROD-0468;"Producto sintético 468";"Categoría no mapeada";69.76;218;activo;"Descripción sintética con ñ 468";123
+PROD-0469;"Producto sintético 469";Bebidas;70.83;219;activo;"Descripción sintética con ñ 469";123
+PROD-0470;"Producto sintético 470";Nutrición;71.90;220;activo;"Descripción sintética con ñ 470";123
+PROD-0471;"Producto sintético 471";"Categoría no mapeada";72.97;221;activo;"Descripción sintética con ñ 471";123
+PROD-0472;"Producto sintético 472";Nutrición;73.04;222;activo;"Descripción sintética con ñ 472";123
+PROD-0473;"Producto sintético 473";Bebidas;74.11;223;activo;"Descripción sintética con ñ 473";123
+PROD-0474;"Producto sintético 474";"Categoría no mapeada";75.18;224;activo;"Descripción sintética con ñ 474";123
+PROD-0475;"Producto sintético 475";Bebidas;76.25;225;activo;"Descripción sintética con ñ 475";123
+PROD-0476;"Producto sintético 476";Nutrición;77.32;226;inactivo;"Descripción sintética con ñ 476";123
+PROD-0477;"Producto sintético 477";"Categoría no mapeada";78.39;227;activo;"Descripción sintética con ñ 477";123
+PROD-0478;"Producto sintético 478";Nutrición;79.46;228;activo;"Descripción sintética con ñ 478";123
+PROD-0479;"Producto sintético 479";Bebidas;80.53;229;activo;"Descripción sintética con ñ 479";123
+PROD-0480;"Producto sintético 480";"Categoría no mapeada";81.60;230;activo;"Descripción sintética con ñ 480";123
+PROD-0481;"Producto sintético 481";Bebidas;82.67;231;activo;"Descripción sintética con ñ 481";123
+PROD-0482;"Producto sintético 482";Nutrición;83.74;232;activo;"Descripción sintética con ñ 482";123
+PROD-0483;"Producto sintético 483";"Categoría no mapeada";84.81;233;activo;"Descripción sintética con ñ 483";123
+PROD-0484;"Producto sintético 484";Nutrición;85.88;234;activo;"Descripción sintética con ñ 484";123
+PROD-0485;"Producto sintético 485";Bebidas;86.95;235;activo;"Descripción sintética con ñ 485";123
+PROD-0486;"Producto sintético 486";"Categoría no mapeada";87.02;236;activo;"Descripción sintética con ñ 486";123
+PROD-0487;"Producto sintético 487";Bebidas;88.09;237;activo;"Descripción sintética con ñ 487";123
+PROD-0488;"Producto sintético 488";Nutrición;89.16;238;activo;"Descripción sintética con ñ 488";123
+PROD-0489;"Producto sintético 489";"Categoría no mapeada";90.23;239;activo;"Descripción sintética con ñ 489";123
+PROD-0490;"Producto sintético 490";Nutrición;91.30;240;activo;"Descripción sintética con ñ 490";123
+PROD-0491;"Producto sintético 491";Bebidas;92.37;241;activo;"Descripción sintética con ñ 491";123
+PROD-0492;"Producto sintético 492";"Categoría no mapeada";93.44;242;activo;"Descripción sintética con ñ 492";123
+PROD-0493;"Producto sintético 493";Bebidas;94.51;243;inactivo;"Descripción sintética con ñ 493";123
+PROD-0494;"Producto sintético 494";Nutrición;95.58;244;activo;"Descripción sintética con ñ 494";123
+PROD-0495;"Producto sintético 495";"Categoría no mapeada";96.65;245;activo;"Descripción sintética con ñ 495";123
+PROD-0496;"Producto sintético 496";Nutrición;97.72;246;activo;"Descripción sintética con ñ 496";123
+PROD-0497;"Producto sintético 497";Bebidas;98.79;247;activo;"Descripción sintética con ñ 497";123
+PROD-0498;"Producto sintético 498";"Categoría no mapeada";99.86;248;activo;"Descripción sintética con ñ 498";123
+PROD-0499;"Producto sintético 499";Bebidas;100.93;249;activo;"Descripción sintética con ñ 499";123
+PROD-0500;"Producto sintético 500";Nutrición;1.00;0;activo;"Descripción sintética con ñ 500";123

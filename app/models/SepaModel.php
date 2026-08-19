@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__) . '/helpers/Money.php';
 /**
  * SepaModel — mandatos de domiciliación y remesas de adeudos.
  *
@@ -23,18 +24,33 @@ class SepaModel
 {
     private $db;
     private $idGimnasio;
+    private $idEmpresa;
 
-    public function __construct(?int $idGimnasio = null)
+    public function __construct(?int $idGimnasio = null, ?int $idEmpresa = null)
     {
         $this->db = Database::getInstance()->getConnection();
         $this->idGimnasio = $idGimnasio;
+        $this->idEmpresa = $idEmpresa;
     }
 
     private function filtroSede(string $alias = ''): string
     {
-        if ($this->idGimnasio === null) return '';
         $prefijo = $alias === '' ? '' : $alias . '.';
-        return ' AND ' . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio;
+        if ($this->idGimnasio !== null) return ' AND ' . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio;
+        if ($this->idEmpresa !== null) {
+            return ' AND ' . $prefijo . 'id_gimnasio IN (SELECT id_gimnasio FROM gimnasio WHERE id_empresa = '
+                . (int) $this->idEmpresa . ')';
+        }
+        return '';
+    }
+
+    private function socioEnAmbito(int $idSocio): bool
+    {
+        $stmt = $this->db->prepare(
+            "SELECT 1 FROM usuario WHERE id_usuario = :id AND rol = 'socio'" . $this->filtroSede('') . ' LIMIT 1'
+        );
+        $stmt->execute([':id' => $idSocio]);
+        return (bool) $stmt->fetchColumn();
     }
 
     /* --- Datos del acreedor ---------------------------------------------- */
@@ -79,7 +95,7 @@ class SepaModel
                     iban                   = :iban,
                     bic                    = :bic,
                     identificador_acreedor = :id_acreedor
-                 WHERE id_gimnasio = :id"
+                 WHERE id_gimnasio = :id" . $this->filtroSede()
             );
             return $stmt->execute([
                 ':razon_social' => $datos['razon_social'] ?: null,
@@ -126,6 +142,10 @@ class SepaModel
         if (!in_array($tipo, ['recurrente', 'unico'], true)) {
             $tipo = 'recurrente';
         }
+        if (!$this->socioEnAmbito($idSocio)) {
+            $error = 'El socio no pertenece al ámbito activo.';
+            return null;
+        }
 
         try {
             $this->db->beginTransaction();
@@ -133,7 +153,7 @@ class SepaModel
             // Un socio solo puede tener un mandato activo: firmar uno nuevo
             // revoca el anterior, que es lo que ocurre al cambiar de banco.
             $this->db->prepare(
-                "UPDATE mandato_sepa SET estado = 'revocado' WHERE id_socio = :id AND estado = 'activo'"
+                "UPDATE mandato_sepa SET estado = 'revocado' WHERE id_socio = :id AND estado = 'activo'" . $this->filtroSede()
             )->execute([':id' => $idSocio]);
 
             // La referencia definitiva necesita el id, que aún no existe: se
@@ -175,7 +195,7 @@ class SepaModel
     {
         $stmt = $this->db->prepare(
             "SELECT * FROM mandato_sepa
-             WHERE id_socio = :id AND estado = 'activo'
+             WHERE id_socio = :id AND estado = 'activo'" . $this->filtroSede() . "
              ORDER BY fecha_firma DESC LIMIT 1"
         );
         $stmt->execute([':id' => $idSocio]);
@@ -263,8 +283,15 @@ class SepaModel
         string $concepto,
         string $fechaCobro,
         ?int $idUsuarioCreador,
-        string &$error
+        string &$error,
+        ?string $idempotencyKey = null
     ): ?int {
+        if ($idempotencyKey !== null) {
+            $stmt = $this->db->prepare('SELECT id_remesa FROM remesa WHERE id_gimnasio = :sede AND idempotency_key = :clave LIMIT 1');
+            $stmt->execute([':sede' => $this->idGimnasio, ':clave' => $idempotencyKey]);
+            $existente = (int) $stmt->fetchColumn();
+            if ($existente > 0) return $existente;
+        }
         $candidatos = [];
         foreach ($this->listarDomiciliablesPendientes() as $fila) {
             $candidatos[(int) $fila['id_socio_membresia']] = $fila;
@@ -285,14 +312,15 @@ class SepaModel
             $this->db->beginTransaction();
 
             $stmtRemesa = $this->db->prepare(
-                "INSERT INTO remesa (id_gimnasio, concepto, fecha_cobro, id_usuario_creador)
-                 VALUES (:id_gimnasio, :concepto, :fecha_cobro, :creador)"
+                "INSERT INTO remesa (id_gimnasio, concepto, fecha_cobro, id_usuario_creador, idempotency_key)
+                 VALUES (:id_gimnasio, :concepto, :fecha_cobro, :creador, :idempotency_key)"
             );
             $stmtRemesa->execute([
                 ':id_gimnasio' => $this->idGimnasio,
                 ':concepto'    => $concepto,
                 ':fecha_cobro' => $fechaCobro,
                 ':creador'     => $idUsuarioCreador ?: null,
+                ':idempotency_key' => $idempotencyKey,
             ]);
             $idRemesa = (int) $this->db->lastInsertId();
 
@@ -305,12 +333,13 @@ class SepaModel
                   :firma, :iban, :importe, :concepto, :secuencia)"
             );
 
-            $total = 0.0;
+            $totalCents = 0;
             foreach ($seleccion as $s) {
                 // Primer adeudo del mandato → FRST; los siguientes → RCUR.
                 $secuencia = empty($s['primer_cobro_hecho']) ? 'FRST' : 'RCUR';
-                $importe   = (float) $s['importe'];
-                $total    += $importe;
+                $importeCents = Money::cents($s['importe']);
+                $importe = Money::decimal($importeCents);
+                $totalCents += $importeCents;
 
                 $detalle = $s['nombre_tipo']
                     . (!empty($s['nombre_suplemento']) ? ' + ' . $s['nombre_suplemento'] : '');
@@ -331,7 +360,7 @@ class SepaModel
 
             $this->db->prepare(
                 "UPDATE remesa SET importe_total = :total, num_recibos = :num WHERE id_remesa = :id"
-            )->execute([':total' => $total, ':num' => count($seleccion), ':id' => $idRemesa]);
+            )->execute([':total' => Money::decimal($totalCents), ':num' => count($seleccion), ':id' => $idRemesa]);
 
             $this->db->commit();
             return $idRemesa;
@@ -377,7 +406,9 @@ class SepaModel
     public function listarRecibos(int $idRemesa): array
     {
         $stmt = $this->db->prepare(
-            "SELECT * FROM remesa_recibo WHERE id_remesa = :id ORDER BY nombre_socio ASC"
+            "SELECT rr.* FROM remesa_recibo rr
+             INNER JOIN remesa r ON r.id_remesa = rr.id_remesa
+             WHERE rr.id_remesa = :id" . $this->filtroSede('r') . " ORDER BY rr.nombre_socio ASC"
         );
         $stmt->execute([':id' => $idRemesa]);
         return $stmt->fetchAll();
@@ -392,9 +423,14 @@ class SepaModel
         try {
             $this->db->beginTransaction();
 
-            $this->db->prepare(
-                "UPDATE remesa SET estado = 'enviada' WHERE id_remesa = :id" . $this->filtroSede()
-            )->execute([':id' => $idRemesa]);
+            $stmtRemesa = $this->db->prepare(
+                "UPDATE remesa SET estado = 'enviada' WHERE id_remesa = :id AND estado = 'borrador'" . $this->filtroSede()
+            );
+            $stmtRemesa->execute([':id' => $idRemesa]);
+            if ($stmtRemesa->rowCount() !== 1) {
+                $this->db->rollBack();
+                return false;
+            }
 
             $this->db->prepare(
                 "UPDATE mandato_sepa m
@@ -416,9 +452,14 @@ class SepaModel
     {
         try {
             $this->db->beginTransaction();
-            $this->db->prepare(
-                "UPDATE remesa SET estado = 'cobrada' WHERE id_remesa = :id" . $this->filtroSede()
-            )->execute([':id' => $idRemesa]);
+            $stmtRemesa = $this->db->prepare(
+                "UPDATE remesa SET estado = 'cobrada' WHERE id_remesa = :id AND estado = 'enviada'" . $this->filtroSede()
+            );
+            $stmtRemesa->execute([':id' => $idRemesa]);
+            if ($stmtRemesa->rowCount() !== 1) {
+                $this->db->rollBack();
+                return false;
+            }
             // Solo pasan a cobrados los que no se hayan devuelto.
             $this->db->prepare(
                 "UPDATE remesa_recibo SET estado = 'cobrado', fecha_estado = NOW()

@@ -21,6 +21,7 @@
  * intentos fallidos) no depende ningún dato del negocio.
  */
 
+putenv('APP_ENV=test');
 define('MODO_PRUEBAS', true);
 
 require_once __DIR__ . '/../app/config/config.php';
@@ -35,8 +36,8 @@ if (PHP_SAPI !== 'cli') {
     pruebasAbortar('Las pruebas solo se ejecutan por línea de comandos.');
 }
 
-if (APP_ENV === 'production') {
-    pruebasAbortar('APP_ENV=production. Las pruebas borran filas: nunca deben correr en el servidor.');
+if (APP_ENV !== 'test') {
+    pruebasAbortar('APP_ENV debe ser test. Nunca se ejecutan pruebas con configuración de trabajo o producción.');
 }
 
 if (DB_NAME_PRUEBAS === '' || DB_NAME_PRUEBAS === DB_NAME) {

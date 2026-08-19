@@ -1,5 +1,105 @@
 # Panel de gestión del gimnasio
 
+## Operación de producción — fase 5
+
+### Arquitectura recomendada
+
+```text
+/var/www/gimnasio/
+├── releases/<commit>/        código inmutable, propietario deploy
+├── current -> releases/...   symlink de la versión activa
+└── shared/
+    ├── .env                  secretos, 0640
+    ├── uploads/              escritura del usuario PHP
+    ├── logs/                 escritura del usuario PHP
+    └── backups/              temporal; nunca bajo public/
+```
+
+El document root es exclusivamente `current/public`. El proceso web solo necesita
+escritura en uploads, logs y sesiones si se almacenan en disco. Código, `app/`,
+`ops/`, `cron/`, migraciones y tests deben ser de solo lectura. No usar `777`:
+directorios compartidos `0750`, archivos `0640`, código `0755/0644`.
+
+Requisitos: Linux, Apache 2.4 o Nginx, PHP **8.1+** (recomendado 8.2) con
+`pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `curl`, `dom`, `simplexml` y
+`zlib`; MariaDB 10.4+ o MySQL 8; UTF-8 `utf8mb4`; zona `Europe/Madrid`; TLS
+válido. Hay ejemplos en `ops/server/`.
+
+### Secuencia reproducible
+
+1. Crear una release desde un commit/tag inmutable.
+2. Enlazar `.env`, uploads y almacenamiento compartido.
+3. `php ops/setup_directories.php`.
+4. `php ops/preflight.php`; cualquier pendiente obligatorio detiene.
+5. `php cron/copia_seguridad.php` y `php cron/copia_archivos.php`.
+6. Activar mantenimiento en el balanceador/web si la migración bloquea tablas.
+7. `php ops/migrate.php --confirm-production`; cualquier error detiene.
+8. Cambiar `current` atómicamente a la release nueva.
+9. `php ops/status.php` y `php ops/smoke.php https://dominio`.
+10. Quitar mantenimiento y observar logs/monitor durante 30 minutos.
+
+`php ops/deploy.php --confirm-production --url=https://dominio` ejecuta las
+comprobaciones, copias, migración y smoke tests. La creación/activación de la
+release sigue a cargo del sistema del servidor porque depende del hosting.
+
+### Migraciones y rollback
+
+`schema_migrations` conserva nombre, SHA-256, release y fecha. Un checksum
+alterado o una migración fallida devuelve código distinto de cero y detiene el
+despliegue. No editar migraciones aplicadas: crear la siguiente.
+
+Para volver atrás tras un fallo de ventas: poner mantenimiento, conservar logs,
+volver el symlink `current` a la release anterior y ejecutar smoke tests. Si la
+migración solo añadió estructuras compatibles, no se revierte la base. Si fue
+destructiva/incompatible, restaurar el backup predespliegue implica perder los
+datos escritos desde ese backup: requiere decisión explícita del responsable.
+No se promete rollback SQL automático.
+
+### Backups y restauración
+
+- MySQL cada 6 horas: `cron/copia_seguridad.php`.
+- Uploads/configuración no secreta a diario: `cron/copia_archivos.php`.
+- Retención GFS: 7 diarios, 4 semanales y 6 mensuales.
+- Cada artefacto tiene SHA-256 y se valida antes de considerarse correcto.
+- `COPIAS_EXTERNAS_DIR` debe ser un volumen/bucket sincronizado **fuera del
+  servidor**. Vacío es una alerta, no un éxito.
+
+Restauración ensayada:
+
+```bash
+php ops/restore.php --database=/backup/backup_db.sql.gz \
+  --target=gimnasio_restore_ensayo \
+  --files=/backup/backup_files.tar.gz \
+  --files-target=/restore/uploads
+php ops/verify_restore.php gimnasio_restore_ensayo
+```
+
+En un servidor limpio: instalar runtime, desplegar la misma release, recuperar
+`.env` desde el gestor seguro, restaurar archivos y MySQL, ejecutar
+`ops/migrate.php`, preflight, status y smoke; después cambiar DNS/balanceador.
+
+Objetivos del piloto una vez activa la copia externa: **RPO 6 horas para MySQL,
+24 horas para archivos; RTO 4 horas**. Mientras no exista copia externa, el RPO
+ante pérdida total del servidor está PENDIENTE y no es aceptable para el piloto.
+
+### Cron propuesto
+
+```cron
+0 */6 * * * php /var/www/gimnasio/current/cron/copia_seguridad.php
+20 2 * * * php /var/www/gimnasio/current/cron/copia_archivos.php
+40 2 * * * php /var/www/gimnasio/current/cron/mantenimiento.php
+0 6 * * * php /var/www/gimnasio/current/cron/tareas.php
+*/5 * * * * php /var/www/gimnasio/current/cron/monitor.php
+```
+
+Las salidas se envían al sistema de cron y a logs. `monitor.php` devuelve error
+si falla DB, disco, backups, copia externa, health o aumenta el número de
+errores. Configurar alerta de correo/SMS en el proveedor; el proyecto no incluye
+una plataforma de observabilidad.
+
+Véanse también `INCIDENTES.md`, `CHECKLIST_PRODUCCION.md` y
+`PILOTO_CLETO_REYES.md`.
+
 Adaptación del portal de inscripciones a cursos para gestionar **venta de productos**
 y **socios/membresías**. Mantiene la arquitectura MVC original: front controller en
 `public/index.php`, modelos con PDO, vistas PHP con Tailwind.
@@ -11,7 +111,7 @@ El control de acceso por huella dactilar es un sistema aparte y no forma parte d
 ## 1. Puesta en marcha
 
 ### Requisitos
-PHP 7.4+ con PDO MySQL, y MySQL 5.7+ / MariaDB 10.2+ (se usa `ADD COLUMN IF NOT EXISTS`).
+PHP 8.1+ con PDO MySQL, y MySQL 8+ / MariaDB 10.4+.
 
 ### Configuración
 
@@ -77,13 +177,16 @@ Aplica los scripts de `app/config/` **en orden**, desde phpMyAdmin:
 | `migracion_v8.sql` … `v16.sql` | Multisede, SEPA, personal y el cambio de `propietario` a `empresa` |
 | `migracion_v17.sql` | **Facturación**: IVA, numeración de tickets y anulación sin borrado |
 | `migracion_v18.sql` | Cambiar la contraseña cierra las sesiones abiertas |
+| `migracion_v20.sql` | **Multiempresa**: empresas, pertenencia de sedes/usuarios/catálogos y auditoría |
+| `migracion_v21.sql` | Integridad de importes/stock, claves de idempotencia e índices de rate limiting |
+| `migracion_v22.sql` | Registro y checksums de migraciones |
 
 > De la v5 en adelante los scripts no llevan `USE`: selecciona la base de datos antes
 > de ejecutarlos (phpMyAdmin lo hace solo; por línea de comandos usa `-D nombre`).
 
-**Haz copia de seguridad antes de la v6.** Es la única que modifica datos existentes:
-convierte los roles `usuario` → `socio` y `profesor` → `recepcion`, y al final reduce
-el ENUM a `('admin','recepcion','socio')`. Todo lo demás solo añade tablas.
+**Haz copia de seguridad antes de las migraciones.** La v20 conserva el histórico,
+crea la empresa inicial y le asigna las sedes y datos existentes; también convierte el
+antiguo rol global `empresa` en `superadmin`.
 
 ### Carpetas de subida
 
@@ -117,13 +220,14 @@ cuando cambia la clave porque cree que alguien ha entrado.
 
 | Rol | Acceso |
 |---|---|
-| `empresa` | Todo, en todas las sedes, más Sedes y cambios de rol. No pertenece a ninguna sede |
+| `superadmin` | Operador interno de la plataforma; no pertenece a una empresa cliente |
+| `direccion` | Todo dentro de su empresa y sus sedes; no pertenece a una sede concreta |
 | `admin` | Todo dentro de **su** sede: productos, ventas, socios, membresías, remesas, reportes, log |
 | `recepcion` | Mostrador de su sede: inicio, ventas y socios |
 | `socio` | Ninguno: existe como dato del negocio, no inicia sesión |
 
-En el controlador esto se decide con tres guardias: `requireEmpresa()`, `requireAdmin()`
-(empresa + admin) y `requirePersonal()` (los tres con acceso).
+El contexto del servidor obtiene usuario, empresa, sede y rol desde la cuenta autenticada;
+ningún `empresa_id` enviado por el navegador decide el ámbito de una operación.
 
 ### Aislamiento entre sedes
 
@@ -132,6 +236,9 @@ también al buscar por id**. Es importante entenderlo: `buscarPorId()` no es sol
 consulta, es la comprobación de permisos de casi todas las acciones del panel ("¿existe
 este socio?" significa "¿existe *en mi sede*?"). Si se le quita el filtro, un id tecleado
 a mano en la petición vuelve a alcanzar a gente de otra sede.
+
+Dirección puede trabajar con todas las sedes de su empresa. Admin y recepción quedan
+atados a su sede. Todos los modelos de negocio aplican además el límite de empresa.
 
 El login y "Mi perfil" usan modelos **sin** sede a propósito: ahí todavía no se sabe de
 qué gimnasio es nadie.
@@ -272,14 +379,13 @@ php pruebas/negocio.php           # …y cualquier otra suite
 ```
 
 **Las pruebas nunca tocan la base de trabajo.** Borran filas para partir de un estado
-conocido, así que corren contra `DB_NAME_PRUEBAS`, que `preparar_base.php` crea como copia
-de la base real (estructura, datos y claves foráneas). El arranque común
+conocido, así que corren contra `DB_NAME_PRUEBAS`, que `preparar_base.php` reconstruye
+desde migraciones y fixtures sintéticos sin leer la base real. El arranque común
 (`pruebas/_arranque.php`) se niega a ejecutarse si `APP_ENV=production` o si el nombre de
 la base de pruebas coincide con el de la de trabajo.
 
-La excepción es `pruebas/acceso.php`, que habla por HTTP con el servidor de desarrollo y
-por tanto usa la base normal; lo único que borra son los registros de intentos fallidos.
-Necesita el servidor levantado: `php -S localhost:8080 -t public`.
+La prueba HTTP también exige `APP_ENV=test` y la cabecera testigo del servidor;
+aborta antes de operar si el servidor no acredita el entorno de pruebas.
 
 | Suite | Qué cubre |
 |---|---|
@@ -287,6 +393,7 @@ Necesita el servidor levantado: `php -S localhost:8080 -t public`.
 | `facturacion` | Numeración, desglose de IVA, anulación sin borrado |
 | `renovaciones` | Renovación automática: a quién sí, a quién no, y que no cobre dos veces |
 | `multisede` | Que una sede no vea ni toque los datos de otra |
+| `multiempresa` | Ataques cruzados por URL, POST, IDs, empresa, sede, ventas, cuotas y SEPA |
 | `personal` | Altas, roles y permisos entre sedes |
 | `sepa` | Mandatos, remesas, fichero XML y devoluciones |
 | `iban` | Validación y enmascarado de cuentas |
@@ -382,11 +489,12 @@ Antes de implementarlo hay que resolver:
 ## 7. Estado y trabajo pendiente
 
 ### Verificado
-- Sintaxis correcta en todos los archivos PHP (`php -l`).
-- Las 10 pantallas del panel renderizan sin errores ni avisos (`php pruebas/render.php`).
-- **222 comprobaciones automáticas en verde** repartidas en 11 suites (ver "Pruebas").
-  Cubren stock y rollback, numeración e IVA, anulación sin borrado, renovación
-  automática, aislamiento entre sedes, SEPA de punta a punta y el acceso en dos pasos.
+- Sintaxis correcta en 117 archivos PHP (`php -l`).
+- Las 11 pantallas del panel, incluida Importaciones, renderizan sin errores ni
+  avisos (`php pruebas/render.php`).
+- **324 comprobaciones automáticas en verde** repartidas en 27 scripts de 4
+  suites (ver "Pruebas"). Cubren además stock y rollback, numeración e IVA,
+  aislamiento, SEPA, acceso en dos pasos y el motor de importación.
 
 ### Pendiente de personalizar
 - **Aviso legal (`app/views/rgpd/rgpd.php`)**: tiene marcadores `[por completar]` en los
@@ -412,17 +520,15 @@ dejar de rastrearlo — avisando antes al equipo, porque al hacer pull git les b
 `.env` local.
 
 ### Heredado del portal de cursos
-Las pantallas de cursos, inscripciones, estudiantes y profesores **siguen enrutadas**
-pero ya no aparecen en el menú. No se ha borrado nada.
+Las rutas, controladores, modelos y vistas de cursos, inscripciones, estudiantes y
+profesores ya no forman parte de la aplicación activa. Las migraciones v1 a v6 y el
+`schema.sql` conservan nombres del proyecto de origen porque documentan la evolución
+histórica de instalaciones existentes; no deben editarse ni borrarse sin comprobar
+primero qué migraciones se han aplicado en producción.
 
-Dos detalles conocidos de esa parte:
-- `AdminController::mostrarEstudiantes()` consulta el rol `usuario`, que tras la v6 ya
-  no existe: devolverá lista vacía.
-- `InscripcionModel::primeroDeEsperaGeneral()`, `primeroDeEsperaEnCurso()` y
-  `obtenerEmailUsuario()` consultan una tabla `inscripcion` y una columna
-  `fecha_inscripcion` que no existen en el esquema (la tabla real es `personas`).
-  Ya estaba roto antes de esta adaptación; la promoción automática de lista de espera
-  falla en silencio.
+`UserModel::eliminarUsuario()` aún contiene limpieza defensiva de tablas antiguas para
+instalaciones que no hayan ejecutado la migración v15. El flujo actual de bajas usa
+anonimización y no depende de esas tablas.
 
 ### Ideas si el proyecto crece
 - **Ticket imprimible**: la venta ya tiene número, desglose de IVA y estado; falta la
@@ -444,3 +550,36 @@ Dos detalles conocidos de esa parte:
   AEAT. Si el gimnasio entra en el ámbito del reglamento, esto hay que abordarlo — y
   conviene consultarlo con el asesor fiscal antes de decidir plazos.
 - **No hay control de acceso** (torniquete, QR o huella) ni app para el socio.
+
+---
+
+## 8. Importaciones masivas (Fase 8)
+
+La importación administrativa requiere el permiso `migrations.manage`; no está
+disponible para recepción, administradores de sede ni socios. La empresa y la
+sede se obtienen de `TenantContext`: las columnas `empresa_id`, `tenant_id` o
+`sede_id` del archivo nunca cambian el contexto autorizado.
+
+Variables de entorno:
+
+```dotenv
+IMPORT_DIR=/var/lib/gimnasio/imports
+IMPORT_MAX_BYTES=10485760
+IMPORT_MAX_ROWS=10000
+IMPORT_RETENTION_DAYS=7
+```
+
+`IMPORT_DIR` debe estar fuera del document root, pertenecer al usuario del
+proceso PHP y usar permisos equivalentes a `0750` para directorios y `0640`
+para archivos. No debe publicarse ni incorporarse a backups indefinidos. El
+cron técnico existente ejecuta `cron/mantenimiento.php`, que elimina staging
+caducado sin borrar el historial ni los mapas de IDs.
+
+La confirmación exige un backup reciente y verificado. En producción el backup
+debe estar además en el almacenamiento externo configurado; un dump alojado
+solo en el servidor no satisface la precondición. El despliegue debe crear el
+directorio, aplicar `migracion_v24.sql` mediante el migrador existente y
+comprobar una simulación antes de cualquier importación real.
+
+El soporte operativo actual es CSV UTF-8. XLSX no se habilita: no existe una
+dependencia mantenible ya instalada y no se incorpora un parser propio.

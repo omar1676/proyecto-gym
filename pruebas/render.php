@@ -28,11 +28,17 @@ $raiz = dirname(__DIR__);
 // Permite renderizar una sola pantalla: php render_test.php mostrarVentas
 $soloMetodo = $argv[1] ?? null;
 
+$sesionesTmp = __DIR__ . '/sesiones_tmp';
+if (!is_dir($sesionesTmp)) mkdir($sesionesTmp, 0700, true);
+session_save_path($sesionesTmp);
 session_start();
+$db = Database::getInstance()->getConnection();
+$idSuperadmin = (int) $db->query("SELECT id_usuario FROM usuario WHERE rol = 'superadmin' ORDER BY id_usuario LIMIT 1")->fetchColumn();
 $_SESSION['logueado']           = true;
-$_SESSION['usuario_id']         = 1;
+$_SESSION['usuario_id']         = $idSuperadmin;
 // Como empresa para poder renderizar también Sedes, que es exclusiva suya.
-$_SESSION['usuario_rol']        = 'empresa';
+$_SESSION['usuario_rol']        = 'superadmin';
+$_SESSION['gimnasio_auth_id']   = 1;
 $_SESSION['usuario_nombre']     = 'admin';
 $_SESSION['usuario_nombre_real'] = 'Admin Sistema';
 $_SESSION['usuario_foto']       = null;
@@ -54,6 +60,7 @@ $pantallas = [
     'Domiciliaciones' => 'mostrarRemesas',
     'Sedes'           => 'mostrarSedes',
     'Personal'        => 'mostrarEmpleados',
+    'Importaciones'   => 'mostrarImportaciones',
 ];
 
 foreach ($pantallas as $nombre => $metodo) {

@@ -55,7 +55,8 @@ $id2 = $venta->registrar([['id_producto' => $idProducto, 'cantidad' => 1]], null
 comprobar('la siguiente venta es la 2', 2, $venta->buscarPorId($id2)['numero']);
 
 // Otra sede lleva su propia numeración: los dos mostradores emiten a la vez.
-$gim    = new GimnasioModel();
+$idEmpresa = (int) $db->query('SELECT MIN(id_empresa) FROM empresa')->fetchColumn();
+$gim    = new GimnasioModel($idEmpresa);
 $idSedeB = $gim->crear(['nombre' => 'TEST Sede facturación', 'razon_social' => '', 'cif' => '',
                         'direccion' => '', 'telefono' => '', 'email' => '']);
 $productoB = new ProductoModel($idSedeB);

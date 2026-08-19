@@ -1,0 +1,4 @@
+external_id,socio_external_id,tarifa,fecha_inicio,fecha_fin,precio_historico,estado
+MEM-0001,S100-00001,"Tarifa migración",2026-01-01,2026-01-31,40.00,vencida
+MEM-0002,S100-00002,"Tarifa migración",2026-02-01,2026-02-28,40.00,vencida
+MEM-0003,S100-00003,"Tarifa migración",2026-08-01,2026-08-31,40.00,activa

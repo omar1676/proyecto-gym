@@ -57,7 +57,7 @@ if ($logoSedeH !== '' && is_file($rutaPublicaH . 'gimnasios/' . $logoSedeH)) {
             $rolSesionH    = $_SESSION['usuario_rol'] ?? '';
             $nombreSesionH = htmlspecialchars($_SESSION['usuario_nombre_real'] ?? $_SESSION['usuario_nombre'] ?? '', ENT_QUOTES, 'UTF-8');
             // Solo el personal tiene perfil: los socios ya no acceden al sistema.
-            if (in_array($rolSesionH, ['empresa', 'admin', 'recepcion'], true)) {
+            if (in_array($rolSesionH, ['superadmin', 'direccion', 'admin', 'recepcion'], true)) {
                 $perfilUrlH = APP_URL . '/index.php?action=perfil';
             } else {
                 $perfilUrlH = null;
@@ -76,13 +76,16 @@ if ($logoSedeH !== '' && is_file($rutaPublicaH . 'gimnasios/' . $logoSedeH)) {
                     <?php endif; ?>
                     <span class="hidden sm:inline">Ver perfil</span>
                 </a>
-                <a href="<?= APP_URL ?>/index.php?action=logout"
+                <form method="POST" action="<?= APP_URL ?>/index.php?action=logout" class="inline-flex">
+                    <?= Csrf::field() ?>
+                <button type="submit"
                     class="flex items-center gap-2 px-[14px] py-[9px] rounded-[10px] bg-white/20 border border-white/40 text-white text-[13.5px] font-bold no-underline whitespace-nowrap hover:bg-white/30 transition-all">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M10 17 15 12 10 7M15 12H3m8-9h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/>
                     </svg>
                     <span class="hidden sm:inline">Cerrar sesión</span>
-                </a>
+                </button>
+                </form>
             <?php else: ?>
                 <a href="<?= APP_URL ?>/index.php?action=login"
                     class="flex items-center gap-2 px-[14px] py-[9px] rounded-[10px] bg-white text-[#000000] text-[13.5px] font-bold no-underline whitespace-nowrap hover:opacity-90 transition-all">

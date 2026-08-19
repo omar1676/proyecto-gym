@@ -2,13 +2,13 @@
 /**
  * instalar.php — script de instalación inicial.
  *
- * Ejecuta una vez en el navegador (https://.../instalar.php) para:
+ * Ejecuta una vez desde la línea de comandos (`php instalar.php`) para:
  *   1. Aplicar la migración base (app/config/migracion.sql).
- *   2. Crear/actualizar tres usuarios de prueba: admin, profesor, usuario
+ *   2. Crear/actualizar tres usuarios iniciales: admin, recepción y socio
  *      (todos con contraseña "admin123").
  *
- * BÓRRALO del servidor cuando termines. Mientras esté subido, cualquiera puede
- * resetear las cuentas de admin/profesor/usuario al valor por defecto.
+ * BÓRRALO del servidor cuando termines. El acceso web está bloqueado y solo se
+ * permite ejecutarlo por CLI.
  *
  * Las migraciones posteriores (v2 a v6) hay que aplicarlas a mano desde
  * phpMyAdmin — ver app/config/migracion_v2.sql … migracion_v6.sql.
@@ -17,6 +17,11 @@
  * migración v6. Aplica esa migración ANTES de ejecutar este script, o el ENUM
  * de `usuario`.`rol` rechazará los valores.
  */
+
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
 
 require_once __DIR__ . '/app/config/database.php';
 

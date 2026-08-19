@@ -1,0 +1,5 @@
+external_id,nombre,apellidos,dni,email,telefono,fecha_alta,estado,sede_externa,empresa_id
+DUP-1,Ana,Prueba,72000001L,fase8.dup1@example.invalid,600111001,2026-01-01,activo,"Sede sintética",1
+DUP-1,Ana,Prueba,72000002C,fase8.dup2@example.invalid,600111002,2026-01-01,activo,"Sede sintética",1
+DUP-3,Otra,Persona,72000001L,fase8.dup3@example.invalid,600111003,2026-01-01,activo,"Sede sintética",1
+DUP-4,Teléfono,Repetido,72000004E,fase8.dup4@example.invalid,600111001,2026-01-01,activo,"Sede sintética",1

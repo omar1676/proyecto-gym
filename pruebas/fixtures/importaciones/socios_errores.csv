@@ -1,0 +1,4 @@
+﻿external_id;nombre;apellidos;dni;email;telefono;fecha_alta;estado;sede_externa;empresa_id
+ERR-1;Nombre;Apellidos;1234;correo-invalido;abc;03/04/2026;desconocido;"Sede sintética";2
+ERR-2;Lucía;;71000002Z;fase8.error2@example.invalid;"600 100 200";2026-02-30;activo;"Sede sintética";2
+ERR-3;José;Núñez;71000003S;fase8.error3@example.invalid;"+34 600 100 201";2026-04-03;activo;"Sede sintética";2

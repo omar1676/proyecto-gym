@@ -111,6 +111,7 @@ $estadosRemesa = [
                 <?php else: ?>
                 <form method="POST" action="index.php?action=admin_remesas" class="mt-5">
                     <?= Csrf::field() ?>
+                    <input type="hidden" name="_operation_id" value="<?= bin2hex(random_bytes(16)) ?>">
                     <input type="hidden" name="accion" value="crear_remesa">
 
                     <div class="overflow-x-auto rounded-[16px] border border-[#e4e4e7]">

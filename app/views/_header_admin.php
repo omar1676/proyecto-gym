@@ -69,7 +69,8 @@ if ($logoSede !== '' && is_file($rutaPublica . 'gimnasios/' . $logoSede)) {
 <header class="flex h-[60px] items-center justify-between bg-[#111318] px-4 text-white z-40 relative">
 
     <!-- Hamburguesa (móvil) -->
-    <button id="btn-menu" onclick="toggleSidebar()" class="js-hamburguesa-admin flex-col gap-1.5 p-2 lg:hidden">
+    <button id="btn-menu" type="button" onclick="toggleSidebar()" aria-label="Abrir menú" aria-controls="sidebar-mobile" aria-expanded="false"
+        class="js-hamburguesa-admin flex-col gap-1.5 p-2 lg:hidden">
         <span class="block h-0.5 w-5 bg-white rounded"></span>
         <span class="block h-0.5 w-5 bg-white rounded"></span>
         <span class="block h-0.5 w-5 bg-white rounded"></span>
@@ -93,20 +94,26 @@ if ($logoSede !== '' && is_file($rutaPublica . 'gimnasios/' . $logoSede)) {
             <span class="text-lg font-extrabold tracking-tight"><?= htmlspecialchars($nombreGimnasio, ENT_QUOTES, 'UTF-8') ?></span>
             <?php endif; ?>
         </a>
-        <?php if ($rolMenu === 'empresa'):
-            // La empresa elige en qué sede trabaja. Sin sede fijada, todas
-            // las consultas van sin filtro y ve el conjunto del grupo.
+        <?php if (in_array($rolMenu, ['superadmin', 'direccion'], true)):
+            // Dirección elige una sede de su empresa o trabaja con todas.
             require_once __DIR__ . '/../helpers/Csrf.php';
             require_once __DIR__ . '/../models/GimnasioModel.php';
-            $sedesMenu  = (new GimnasioModel())->listarActivas();
+            require_once __DIR__ . '/../helpers/TenantContext.php';
+            $ctxMenu = TenantContext::desdeSesion();
+            $sedesMenu  = (new GimnasioModel($ctxMenu->empresaId()))->listarActivas();
             $sedeActiva = (int) ($_SESSION['gimnasio_activo'] ?? 0);
         ?>
         <form method="POST" action="<?= APP_URL ?>/index.php?action=admin_sede_activa"
-              class="ml-3 hidden sm:block">
+              class="ml-2 block max-w-[145px] sm:ml-3 sm:max-w-none">
             <?= Csrf::field() ?>
             <input type="hidden" name="volver_a" value="<?= htmlspecialchars(preg_replace('/[^a-z_]/', '', $_GET['action'] ?? 'admin'), ENT_QUOTES, 'UTF-8') ?>">
-            <select name="id_gimnasio" onchange="this.form.submit()"
-                class="rounded-full border border-white/30 bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white focus:outline-none">
+            <?php if (($_GET['action'] ?? '') === 'admin_socios'): ?>
+            <input type="hidden" name="volver_buscar" value="<?= htmlspecialchars((string) ($_GET['buscar'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="volver_pagina" value="<?= max(1, (int) ($_GET['pagina'] ?? 1)) ?>">
+            <?php endif; ?>
+            <label for="selector-sede-activa" class="sr-only">Sede activa</label>
+            <select id="selector-sede-activa" name="id_gimnasio" onchange="this.form.submit()"
+                class="max-w-full rounded-full border border-white/30 bg-white/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white focus:outline-none sm:px-3 sm:text-[11px]">
                 <option value="0" class="text-neutral-800" <?= $sedeActiva === 0 ? 'selected' : '' ?>>Todas las sedes</option>
                 <?php foreach ($sedesMenu as $sm): ?>
                 <option value="<?= (int) $sm['id_gimnasio'] ?>" class="text-neutral-800"
@@ -157,14 +164,16 @@ if ($logoSede !== '' && is_file($rutaPublica . 'gimnasios/' . $logoSede)) {
         </a>
         <!-- Salir devuelve al acceso del gimnasio, no al de la plataforma:
              el relevo de turno no debería obligar a reabrir el local. -->
-        <a href="<?= APP_URL ?>/index.php?action=logout"
-            title="Cerrar sesión y dejar paso a otro usuario"
+        <form method="POST" action="<?= APP_URL ?>/index.php?action=logout" class="inline-flex">
+            <?= Csrf::field() ?>
+        <button type="submit" title="Cerrar sesión y dejar paso a otro usuario" aria-label="Cerrar sesión"
             class="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition rounded-full px-2.5 py-1.5 text-xs font-bold text-white">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10 17 15 12 10 7M15 12H3m8-9h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/>
             </svg>
             <span class="hidden sm:block">Salir</span>
-        </a>
+        </button>
+        </form>
         <?php endif; ?>
     </div>
 </header>
@@ -178,7 +187,7 @@ if ($logoSede !== '' && is_file($rutaPublica . 'gimnasios/' . $logoSede)) {
     class="fixed top-0 left-0 h-full w-[220px] bg-white shadow-xl z-50 lg:hidden overflow-y-auto">
     <div class="flex items-center justify-between px-4 py-4 border-b border-[#e4e4e7]">
         <span class="text-sm font-bold text-neutral-700"><?= Menu::titulo($rolMenu) ?></span>
-        <button onclick="toggleSidebar()" class="text-neutral-500 hover:text-neutral-700">
+        <button type="button" onclick="toggleSidebar()" aria-label="Cerrar menú" class="text-neutral-500 hover:text-neutral-700">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
             </svg>
@@ -211,7 +220,9 @@ if ($logoSede !== '' && is_file($rutaPublica . 'gimnasios/' . $logoSede)) {
 function toggleSidebar() {
     var sidebar  = document.getElementById('sidebar-mobile');
     var overlay  = document.getElementById('sidebar-overlay');
+    var boton    = document.getElementById('btn-menu');
     sidebar.classList.toggle('open');
     overlay.classList.toggle('open');
+    if (boton) boton.setAttribute('aria-expanded', sidebar.classList.contains('open') ? 'true' : 'false');
 }
 </script>

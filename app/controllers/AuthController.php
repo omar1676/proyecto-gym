@@ -29,12 +29,14 @@ require_once __DIR__ . '/../models/BlackList.php';
 require_once __DIR__ . '/../models/GimnasioModel.php';
 require_once __DIR__ . '/../helpers/Csrf.php';
 require_once __DIR__ . '/../helpers/Sesion.php';
+require_once __DIR__ . '/../helpers/TenantContext.php';
+require_once __DIR__ . '/../helpers/AppLogger.php';
 require_once __DIR__ . '/../helpers/Mailer.php';
 
 class AuthController {
 
     /** Roles con acceso al panel. */
-    private const ROLES_PANEL = ['empresa', 'admin', 'recepcion'];
+    private const ROLES_PANEL = ['superadmin', 'direccion', 'admin', 'recepcion'];
 
     private $userModel;
     private $gimnasioModel;
@@ -69,11 +71,12 @@ class AuthController {
         $_SESSION['usuario_id']          = (int) $user['id_usuario'];
         $_SESSION['usuario_nombre']      = $user['nombre_usuario'];
         $_SESSION['usuario_rol']         = $rol;
+        $_SESSION['empresa_id']          = !empty($user['id_empresa']) ? (int) $user['id_empresa'] : null;
         $_SESSION['usuario_nombre_real'] = trim(($user['nombre'] ?? '') . ' ' . ($user['apellidos'] ?? ''));
         $_SESSION['usuario_foto']        = $user['foto'] ?? null;
         $_SESSION['logueado']            = true;
         $_SESSION['ultimo_acceso']       = time();
-        $_SESSION['gimnasio_id']         = $rol === 'empresa' ? null : $idGimnasio;
+        $_SESSION['gimnasio_id']         = in_array($rol, ['superadmin', 'direccion'], true) ? null : $idGimnasio;
         $_SESSION['gimnasio_nombre']     = '';
         // El logo se guarda aquí para que la cabecera del panel lo pinte sin
         // volver a consultar la ficha en cada página. La empresa no fija sede,
@@ -101,7 +104,8 @@ class AuthController {
     }
 
     private function requireLogin(): void {
-        if (!$this->isLoggedIn()) {
+        if (!$this->isLoggedIn() || !TenantContext::desdeSesion()->autenticado()) {
+            $this->sessionLogout();
             $this->redirigir('login');
         }
     }
@@ -172,7 +176,8 @@ class AuthController {
             $this->redirigir('login');
         };
 
-        if ($this->intentosGimnasioBloqueado($ip)) {
+        if ($this->intentosGimnasioBloqueado($ip, $email)) {
+            AppLogger::write('SECURITY', 'gym_login_rate_limited', ['ip' => $ip]);
             $fallar('Demasiados intentos fallidos. Espera 15 minutos.');
         }
         if ($email === '' || $contrasena === '') {
@@ -189,6 +194,7 @@ class AuthController {
         }
 
         session_regenerate_id(true);
+        $this->limpiarIntentosGimnasio($email);
         $_SESSION['gimnasio_auth_id']     = (int) $gimnasio['id_gimnasio'];
         $_SESSION['gimnasio_auth_nombre'] = $gimnasio['nombre'];
 
@@ -224,6 +230,9 @@ class AuthController {
      * la del gimnasio. Es lo que hay que usar al cerrar el local.
      */
     public function salirGimnasio(): void {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
+            $this->redirigir('login_gimnasio');
+        }
         $this->sessionLogout();
         $this->redirigir('login');
     }
@@ -240,20 +249,31 @@ class AuthController {
         }
     }
 
-    private function intentosGimnasioBloqueado(string $ip, int $maximo = 8, int $minutos = 15): bool {
+    private function intentosGimnasioBloqueado(string $ip, string $email, int $maximo = 8, int $minutos = 15): bool {
         try {
             $db = Database::getInstance()->getConnection();
             $stmt = $db->prepare(
-                "SELECT COUNT(*) FROM intentos_gimnasio
-                 WHERE ip_address = :ip AND fecha_intento > DATE_SUB(NOW(), INTERVAL :min MINUTE)"
+                "SELECT SUM(email = :email) AS por_email, SUM(ip_address = :ip) AS por_ip
+                 FROM intentos_gimnasio WHERE fecha_intento > DATE_SUB(NOW(), INTERVAL :min MINUTE)"
             );
             $stmt->bindValue(':ip', $ip);
+            $stmt->bindValue(':email', mb_strtolower(trim($email)));
             $stmt->bindValue(':min', $minutos, PDO::PARAM_INT);
             $stmt->execute();
-            return (int) $stmt->fetchColumn() >= $maximo;
+            $conteos = $stmt->fetch();
+            return (int) ($conteos['por_email'] ?? 0) >= $maximo || (int) ($conteos['por_ip'] ?? 0) >= 30;
         } catch (\PDOException $e) {
             error_log('intentosGimnasioBloqueado error: ' . $e->getMessage());
             return false;
+        }
+    }
+
+    private function limpiarIntentosGimnasio(string $email): void {
+        try {
+            Database::getInstance()->getConnection()->prepare('DELETE FROM intentos_gimnasio WHERE email = :email')
+                ->execute([':email' => mb_strtolower(trim($email))]);
+        } catch (\PDOException $e) {
+            AppLogger::write('ERROR', 'gym_rate_limit_cleanup_failed');
         }
     }
 
@@ -269,7 +289,7 @@ class AuthController {
             $this->redirigir('login_gimnasio');
         }
 
-        $usuario    = trim($_POST['usuario']    ?? '');
+        $usuario    = mb_strtolower(trim($_POST['usuario'] ?? ''));
         $contrasena =      $_POST['contrasena'] ?? '';
         $ip         = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
 
@@ -290,6 +310,7 @@ class AuthController {
         };
 
         if ($this->blacklist->estaBloqueado($ip, $usuario)) {
+            AppLogger::write('SECURITY', 'employee_login_rate_limited', ['ip' => $ip]);
             $fallar('Cuenta bloqueada por múltiples intentos fallidos. Inténtalo de nuevo en 15 minutos.');
         }
         if ($usuario === '' || $contrasena === '') {
@@ -314,15 +335,20 @@ class AuthController {
             $fallar('Tu acceso está bloqueado. Habla con la administración del gimnasio.');
         }
 
-        // El empleado tiene que ser de este gimnasio. La empresa es la
-        // excepción: no está asignado a ninguno y entra por cualquiera.
-        if (($user['rol'] ?? '') !== 'empresa'
-            && (int) ($user['id_gimnasio'] ?? 0) !== (int) $gimnasio['id_gimnasio']) {
+        // Personal de sede: coincidencia exacta. Dirección: cualquier sede de
+        // su empresa. El superadmin es el único rol que puede entrar por todas.
+        $rol = $user['rol'] ?? '';
+        $mismaSede = (int) ($user['id_gimnasio'] ?? 0) === (int) $gimnasio['id_gimnasio'];
+        $mismaEmpresa = (int) ($user['id_empresa'] ?? 0) > 0
+            && (int) $user['id_empresa'] === (int) ($gimnasio['id_empresa'] ?? 0);
+        if (($rol === 'direccion' && !$mismaEmpresa)
+            || (!in_array($rol, ['superadmin', 'direccion'], true) && !$mismaSede)) {
             $this->blacklist->registrarIntentoFallido($ip, $usuario);
             $fallar('Esta cuenta no pertenece a ' . $gimnasio['nombre'] . '.');
         }
 
         $this->sessionLogin($user);
+        $this->blacklist->limpiarIntentos($ip, $usuario);
         $_SESSION['mantener_sesion'] = isset($_POST['mantener_sesion']);
 
         // El gimnasio identificado se conserva durante toda la sesión: es lo
@@ -343,6 +369,9 @@ class AuthController {
      * Para salir también del gimnasio está `salir_gimnasio`.
      */
     public function cerrarSesion(): void {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
+            $this->redirigir($this->isLoggedIn() ? 'admin' : 'login');
+        }
         $idGimnasio = (int) ($_SESSION['gimnasio_auth_id'] ?? $_SESSION['gimnasio_id'] ?? 0);
         $gimnasio   = $idGimnasio > 0 ? $this->gimnasioModel->buscarPorId($idGimnasio) : null;
 
@@ -419,7 +448,10 @@ class AuthController {
         }
         $this->blacklist->registrarIntentoFallido($ip, 'recuperar:' . $ip);
 
-        $user = $this->userModel->buscarPorCorreo($correo);
+        $gimnasio = $this->gimnasioDeSesion();
+        $user = $gimnasio
+            ? (new UserModel(null, (int) $gimnasio['id_empresa']))->buscarPorCorreo($correo)
+            : null;
         // Solo se envía enlace al personal: un socio no tiene dónde entrar.
         if ($user && in_array($user['rol'] ?? '', self::ROLES_PANEL, true)) {
             $token  = bin2hex(random_bytes(32));
@@ -550,8 +582,9 @@ class AuthController {
         $correo    = trim(strtolower($_POST['correo'] ?? ''));
         $telefono  = trim($_POST['telefono']  ?? '') ?: null;
 
-        $nueva     = $_POST['contrasena']           ?? '';
-        $confirmar = $_POST['confirmar_contrasena'] ?? '';
+        $actual    = $_POST['contrasena_actual']    ?? '';
+        $nueva     = $_POST['contrasena_nueva']     ?? '';
+        $confirmar = $_POST['contrasena_confirmar'] ?? '';
 
         $errores = [];
         if ($nombre === '' || $apellidos === '') {
@@ -563,6 +596,9 @@ class AuthController {
             $errores[] = 'Ese correo ya está registrado en otra cuenta.';
         }
         if ($nueva !== '' || $confirmar !== '') {
+            if ($actual === '' || !password_verify($actual, $usuario['contrasena'] ?? '')) {
+                $errores[] = 'La contraseña actual no es correcta.';
+            }
             if (strlen($nueva) < 8)    $errores[] = 'La contraseña debe tener al menos 8 caracteres.';
             if ($nueva !== $confirmar) $errores[] = 'Las contraseñas no coinciden.';
         }

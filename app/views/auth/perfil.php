@@ -6,12 +6,6 @@ if (!isset($errores))  $errores  = [];
 if (!isset($exito))    $exito    = null;
 
 $pageTitle = 'Mi perfil';
-$headerLink = [
-    'href'  => 'index.php?action=logout',
-    'label' => 'Cerrar sesión',
-    'icon'  => 'https://cdn-icons-png.flaticon.com/512/747/747376.png',
-];
-
 require __DIR__ . '/../_header.php';
 
 function valPerfil($campo, $usuario) {

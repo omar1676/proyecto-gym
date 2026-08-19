@@ -25,13 +25,17 @@ Options -Indexes
 # Carpetas con código y datos: no deben servirse nunca por web.
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^(app|pruebas|\.git)(/|$) - [F,L]
+    RewriteRule ^(app|copias|cron|ops|pruebas|tests|recursos|storage|\.git|\.git\.bak)(/|$) - [F,L]
 </IfModule>
 
 # Respaldo por si mod_rewrite no estuviera activo.
 <IfModule mod_alias.c>
-    RedirectMatch 404 ^/(app|pruebas|\.git)(/|$)
+    RedirectMatch 404 ^/(app|copias|cron|ops|pruebas|tests|recursos|storage|\.git|\.git\.bak)(/|$)
 </IfModule>
+
+<Files "instalar.php">
+    Require all denied
+</Files>
 
 # Cabeceras de seguridad básicas.
 <IfModule mod_headers.c>

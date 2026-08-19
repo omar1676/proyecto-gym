@@ -13,7 +13,11 @@ class Database
         // pruebas/_arranque.php) y entonces se conecta a la base de pruebas.
         // Nunca a la de trabajo: las suites borran filas para dejar el estado
         // limpio, y hacerlo sobre datos reales sería un desastre.
-        $base = (defined('MODO_PRUEBAS') && MODO_PRUEBAS && defined('DB_NAME_PRUEBAS') && DB_NAME_PRUEBAS !== '')
+        $modoPruebas = (defined('MODO_PRUEBAS') && MODO_PRUEBAS) || APP_ENV === 'test';
+        if ($modoPruebas && APP_ENV === 'production') {
+            throw new RuntimeException('Las pruebas no pueden usar APP_ENV=production.');
+        }
+        $base = ($modoPruebas && defined('DB_NAME_PRUEBAS') && DB_NAME_PRUEBAS !== '')
             ? DB_NAME_PRUEBAS
             : DB_NAME;
 

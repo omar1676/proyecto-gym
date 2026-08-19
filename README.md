@@ -12,7 +12,7 @@ Requiere PHP 7.4+ con PDO MySQL y MySQL 5.7+ / MariaDB 10.2+.
 
 ```bash
 cp .env.example .env      # y ajusta credenciales, APP_URL, APP_NOMBRE, SMTP…
-php instalar.php          # crea las tablas y el usuario inicial
+php instalar.php          # solo CLI; crea las tablas y usuarios iniciales
 php -S localhost:8080 -t public
 ```
 
@@ -32,6 +32,10 @@ php -S localhost:8080 -t public
 php pruebas/negocio.php
 php pruebas/acceso.php     # necesita el servidor levantado en el 8080
 ```
+
+Las suites que modifican datos usan exclusivamente `DB_NAME_PRUEBAS` y abortan
+si coincide con `DB_NAME` o si `APP_ENV=production`. Prepara esa base con
+`php pruebas/preparar_base.php` antes de ejecutarlas.
 
 ## Documentación
 

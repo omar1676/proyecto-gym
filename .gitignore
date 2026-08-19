@@ -4,9 +4,13 @@
 /.git.bak/
 # Volcados de la base: llevan datos personales e IBAN. Nunca al repositorio.
 /copias/
+/restauraciones/
 /vendor/
 *.log
 /storage/logs/
+/storage/sessions/
+/storage/imports/
+/pruebas/sesiones_tmp/
 .DS_Store
 Thumbs.db
 .idea/

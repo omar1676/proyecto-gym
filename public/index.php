@@ -14,6 +14,21 @@ ob_start();
 
 require_once __DIR__ . '/../app/controllers/AuthController.php';
 require_once __DIR__ . '/../app/controllers/AdminController.php';
+require_once __DIR__ . '/../app/helpers/SecurityHeaders.php';
+require_once __DIR__ . '/../app/helpers/ErrorHandler.php';
+SecurityHeaders::apply();
+ErrorHandler::register();
+
+$requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+if (($_GET['action'] ?? '') === 'health' || rtrim($requestPath, '/') === '/health') {
+    require_once __DIR__ . '/../app/helpers/HealthCheck.php';
+    $health = HealthCheck::run();
+    http_response_code($health['ok'] ? 200 : 503);
+    header('Content-Type: application/json; charset=UTF-8');
+    header('Cache-Control: no-store');
+    echo json_encode(['status' => $health['ok'] ? 'ok' : 'unavailable']);
+    exit;
+}
 
 /*
  * En desarrollo los errores se ven en pantalla; en producción NO.
@@ -21,6 +36,10 @@ require_once __DIR__ . '/../app/controllers/AdminController.php';
  * tablas y a veces la consulta entera al primero que pase por la web.
  */
 error_reporting(E_ALL);
+if (defined('LOG_DIR') && is_dir(LOG_DIR) && is_writable(LOG_DIR)) {
+    ini_set('log_errors', '1');
+    ini_set('error_log', rtrim(LOG_DIR, '/\\') . DIRECTORY_SEPARATOR . 'php-' . date('Y-m-d') . '.log');
+}
 if (APP_ENV === 'development') {
     ini_set('display_errors', '1');
 } else {
@@ -78,6 +97,13 @@ $rutas = [
     'admin_socio_prueba'        => ['admin', 'iniciarPruebaSocio'],
     'admin_membresia_contratar' => ['admin', 'contratarMembresia'],
     'admin_membresias'          => ['admin', 'mostrarMembresias'],
+
+    /* Importaciones masivas (solo dirección/superadmin) */
+    'admin_importaciones'             => ['admin', 'mostrarImportaciones'],
+    'admin_importacion_subir'         => ['admin', 'subirImportacion'],
+    'admin_importacion_dry_run'       => ['admin', 'simularImportacion'],
+    'admin_importacion_confirmar'     => ['admin', 'confirmarImportacion'],
+    'admin_importacion_descartar'     => ['admin', 'descartarImportacion'],
 
     /* Domiciliación SEPA */
     'admin_mandato_crear'    => ['admin', 'crearMandato'],

@@ -18,27 +18,26 @@
 
 require_once __DIR__ . '/../app/config/config.php';
 require_once __DIR__ . '/../app/config/database.php';
+require_once __DIR__ . '/../app/helpers/BackupStorage.php';
+require_once __DIR__ . '/../app/helpers/AppLogger.php';
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
-    exit("Solo por línea de comandos.\n");
+    fwrite(STDERR, "Solo por línea de comandos.\n");
+    exit(1);
 }
 
 $inicio  = microtime(true);
 $destino = rtrim(COPIAS_DIR, "/\\");
 
-if (!is_dir($destino) && !@mkdir($destino, 0750, true)) {
-    exit("No se pudo crear la carpeta de copias: {$destino}\n");
-}
-if (!is_writable($destino)) {
-    exit("La carpeta de copias no tiene permisos de escritura: {$destino}\n");
-}
+try { BackupStorage::ensureDirectory($destino); }
+catch (Throwable $e) { AppLogger::error('backup_database_failed', ['reason' => $e->getMessage()]); fwrite(STDERR, "ERROR: {$e->getMessage()}\n"); exit(1); }
 
 // Si la carpeta acabara dentro de public/ por un COPIAS_DIR mal puesto, el
 // volcado entero (con los IBAN dentro) quedaría descargable desde la web.
 protegerCarpeta($destino);
 
-$archivo = $destino . DIRECTORY_SEPARATOR . 'copia_' . DB_NAME . '_' . date('Y-m-d_His') . '.sql';
+$archivo = $destino . DIRECTORY_SEPARATOR . 'backup_db_' . date('Y-m-d_His') . '.sql';
 
 // Con --php se salta mysqldump. Sirve para comprobar que la vía de emergencia
 // funciona en este servidor ANTES de necesitarla.
@@ -47,15 +46,38 @@ $hecho = (!$forzarPhp && volcarConMysqldump($archivo)) || volcarConPhp($archivo)
 
 if (!$hecho || !is_file($archivo) || filesize($archivo) === 0) {
     @unlink($archivo);
-    exit("ERROR: no se pudo generar la copia.\n");
+    AppLogger::error('backup_database_failed', ['reason' => 'dump_failed']);
+    fwrite(STDERR, "ERROR: no se pudo generar la copia.\n");
+    exit(1);
 }
 
 $archivo = comprimir($archivo);
-$borradas = rotar($destino, COPIAS_DIAS);
+if (!validarDump($archivo)) {
+    @unlink($archivo);
+    AppLogger::error('backup_database_failed', ['reason' => 'validation_failed']);
+    fwrite(STDERR, "ERROR: la copia no superó la validación de contenido.\n");
+    exit(1);
+}
+try {
+    $hash = BackupStorage::checksum($archivo);
+    $externa = BackupStorage::externalCopy($archivo);
+    $borradas = BackupStorage::rotate($destino, 'backup_db_');
+    if ($externa !== null) BackupStorage::rotate(COPIAS_EXTERNAS_DIR, 'backup_db_');
+} catch (Throwable $e) {
+    AppLogger::error('backup_database_failed', ['reason' => $e->getMessage()]);
+    fwrite(STDERR, "ERROR: {$e->getMessage()}\n");
+    exit(1);
+}
+
+AppLogger::info('backup_database_ok', [
+    'file' => basename($archivo), 'bytes' => filesize($archivo),
+    'sha256' => $hash, 'external' => $externa !== null, 'deleted' => $borradas,
+]);
 
 printf(
-    "Copia hecha: %s (%s) en %.1f s. Copias antiguas borradas: %d\n",
-    basename($archivo), tamanoLegible(filesize($archivo)), microtime(true) - $inicio, $borradas
+    "Copia verificada: %s (%s), SHA-256 %s, externa %s, en %.1f s. Rotadas: %d\n",
+    basename($archivo), tamanoLegible(filesize($archivo)), $hash,
+    $externa !== null ? 'sí' : 'NO CONFIGURADA', microtime(true) - $inicio, $borradas
 );
 
 /* ------------------------------------------------------------------------- */
@@ -86,17 +108,19 @@ function volcarConMysqldump(string $archivo): bool
     ];
 
     foreach ($candidatos as $binario) {
-        $orden = escapeshellarg($binario)
-            . ' --host=' . escapeshellarg(DB_HOST)
-            . ' --port=' . escapeshellarg((string) DB_PORT)
-            . ' --user=' . escapeshellarg(DB_USER)
-            . (DB_PASS !== '' ? ' --password=' . escapeshellarg(DB_PASS) : '')
-            . ' --single-transaction --routines --default-character-set=utf8mb4 '
-            . escapeshellarg(DB_NAME)
-            . ' > ' . escapeshellarg($archivo) . ' 2>' . (DIRECTORY_SEPARATOR === '\\' ? 'NUL' : '/dev/null');
-
+        $orden = [$binario, '--host=' . DB_HOST, '--port=' . DB_PORT, '--user=' . DB_USER,
+            '--single-transaction', '--routines', '--default-character-set=utf8mb4', DB_NAME];
+        $entorno = getenv();
+        if (DB_PASS !== '') $entorno['MYSQL_PWD'] = DB_PASS;
+        $pipes = [];
+        $proceso = @proc_open($orden, [0=>['pipe','r'],1=>['file',$archivo,'wb'],2=>['pipe','w']], $pipes, null, $entorno);
         $salida = 1;
-        @exec($orden, $lineas, $salida);
+        if (is_resource($proceso)) {
+            fclose($pipes[0]);
+            stream_get_contents($pipes[2]);
+            fclose($pipes[2]);
+            $salida = proc_close($proceso);
+        }
         if ($salida === 0 && is_file($archivo) && filesize($archivo) > 0) {
             return true;
         }
@@ -174,6 +198,24 @@ function comprimir(string $archivo): string
     gzclose($gz);
     unlink($archivo);
     return $archivo . '.gz';
+}
+
+function validarDump(string $archivo): bool
+{
+    if (!is_file($archivo) || filesize($archivo) < 200) return false;
+    if (str_ends_with($archivo, '.gz')) {
+        $f = @gzopen($archivo, 'rb');
+        if (!$f) return false;
+        $inicio = '';
+        while (!gzeof($f) && strlen($inicio) < 1048576) $inicio .= gzread($f, 65536);
+        gzclose($f);
+    } else {
+        $f = @fopen($archivo, 'rb');
+        if (!$f) return false;
+        $inicio = fread($f, 1048576);
+        fclose($f);
+    }
+    return stripos($inicio, 'CREATE TABLE') !== false && stripos($inicio, 'SET ') !== false;
 }
 
 /** Borra las copias más viejas que $dias. Devuelve cuántas ha borrado. */

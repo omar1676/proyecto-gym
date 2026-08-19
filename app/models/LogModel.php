@@ -17,9 +17,11 @@ require_once __DIR__ . '/../config/database.php';
 
 class LogModel {
     private $db;
+    private $idEmpresa;
 
-    public function __construct() {
+    public function __construct(?int $idEmpresa = null) {
         $this->db = Database::getInstance()->getConnection();
+        $this->idEmpresa = $idEmpresa;
     }
 
     /**
@@ -52,13 +54,19 @@ class LogModel {
         ?int    $idGimnasio = null
     ): void {
         try {
+            $empresa = $this->idEmpresa;
+            if ($empresa === null && $idGimnasio !== null) {
+                $q = $this->db->prepare('SELECT id_empresa FROM gimnasio WHERE id_gimnasio = :id');
+                $q->execute([':id' => $idGimnasio]);
+                $empresa = (int) $q->fetchColumn() ?: null;
+            }
             $stmt = $this->db->prepare(
                 "INSERT INTO log_actividad
                  (id_usuario, id_usuario_afectado, accion, entidad, id_entidad,
-                  detalle, valor_anterior, valor_nuevo, ip, id_gimnasio, fecha)
+                  detalle, valor_anterior, valor_nuevo, ip, id_gimnasio, id_empresa, fecha)
                  VALUES
                  (:id_usuario, :id_afectado, :accion, :entidad, :id_entidad,
-                  :detalle, :valor_anterior, :valor_nuevo, :ip, :id_gimnasio, NOW())"
+                  :detalle, :valor_anterior, :valor_nuevo, :ip, :id_gimnasio, :id_empresa, NOW())"
             );
             $stmt->execute([
                 ':id_usuario'     => $idUsuario ?: null,
@@ -71,6 +79,7 @@ class LogModel {
                 ':valor_nuevo'    => $valorNuevo    !== null ? mb_substr($valorNuevo, 0, 255)    : null,
                 ':ip'             => $_SERVER['REMOTE_ADDR'] ?? null,
                 ':id_gimnasio'    => $idGimnasio ?: null,
+                ':id_empresa'     => $empresa,
             ]);
         } catch (\PDOException $e) {
             // El log nunca debe tumbar la operación que lo genera.
@@ -104,6 +113,10 @@ class LogModel {
         if ($idGimnasio !== null) {
             $sql .= " AND l.id_gimnasio = :id_gimnasio";
             $params[':id_gimnasio'] = $idGimnasio;
+        }
+        if ($this->idEmpresa !== null) {
+            $sql .= " AND l.id_empresa = :id_empresa";
+            $params[':id_empresa'] = $this->idEmpresa;
         }
         if (!empty($filtros['id_usuario'])) {
             $sql .= " AND l.id_usuario = :id_autor";
@@ -162,6 +175,10 @@ class LogModel {
         if ($idGimnasio !== null) {
             $sql .= " AND l.id_gimnasio = :id_gimnasio";
             $params[':id_gimnasio'] = $idGimnasio;
+        }
+        if ($this->idEmpresa !== null) {
+            $sql .= " AND l.id_empresa = :id_empresa";
+            $params[':id_empresa'] = $this->idEmpresa;
         }
         $sql .= " ORDER BY u.nombre ASC";
 

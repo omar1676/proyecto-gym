@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/Csrf.php';
 /**
  * Menu — los enlaces del panel según el rol.
  *
@@ -24,6 +25,7 @@ class Menu
         'sedes'      => 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 11h.01M15 11h.01',
         'reportes'   => 'M4 19h16M7 16V9m5 7V5m5 11v-4',
         'log'        => 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 0 2-2h2a2 2 0 0 0 2 2m-6 9l2 2 4-4',
+        'migraciones'=> 'M12 3v12m0 0-4-4m4 4 4-4M5 19h14',
         'salir'      => 'M10 17 15 12 10 7M15 12H3m8-9h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6',
     ];
 
@@ -42,11 +44,13 @@ class Menu
         $personal   = ['admin_empleados',  'empleados',  'Personal',       'personal'];
         $reportes   = ['admin_reportes',   'reportes',   'Reportes',       'reportes'];
         $historial  = ['admin_log',        'log',        'Historial',      'log'];
+        $migraciones= ['admin_importaciones','migraciones','Importaciones','migraciones'];
 
         switch ($rol) {
-            case 'empresa':
+            case 'superadmin':
+            case 'direccion':
                 return [$inicio, $ventas, $productos, $socios, $membresias, $remesas,
-                        ['admin_sedes', 'sedes', 'Sedes', 'sedes'], $personal, $reportes, $historial];
+                        ['admin_sedes', 'sedes', 'Sedes', 'sedes'], $personal, $reportes, $historial, $migraciones];
             case 'admin':
                 return [$inicio, $ventas, $productos, $socios, $membresias, $remesas,
                         $personal, $reportes, $historial];
@@ -62,7 +66,7 @@ class Menu
     /** Título de la sección del menú según el rol. */
     public static function titulo(string $rol): string
     {
-        return in_array($rol, ['empresa', 'admin', 'recepcion'], true) ? 'Gestión' : 'Mi cuenta';
+        return in_array($rol, ['superadmin', 'direccion', 'admin', 'recepcion'], true) ? 'Gestión' : 'Mi cuenta';
     }
 
     public static function render(string $rol, string $paginaActiva): string
@@ -74,9 +78,16 @@ class Menu
             $items .= self::enlace($base . $accion, $etiqueta, self::ICONOS[$icono], $clave === $paginaActiva);
         }
 
+        // Logout es siempre POST + CSRF, también en el menú lateral. Antes
+        // este elemento era un enlace GET que el backend rechazaba y parecía
+        // que "Salir" no funcionaba.
         $items .= '<div class="mt-4 border-t border-[#e4e4e7] pt-3">'
-                . self::enlace($base . 'logout', 'Salir', self::ICONOS['salir'], false)
-                . '</div>';
+                . '<form method="POST" action="' . htmlspecialchars($base . 'logout', ENT_QUOTES, 'UTF-8') . '">'
+                . Csrf::field()
+                . '<button type="submit" class="flex w-full items-center gap-3 rounded-full px-3 py-2.5 text-left text-sm text-neutral-700 transition hover:bg-neutral-100">'
+                . '<svg xmlns="http://www.w3.org/2000/svg" class="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">'
+                . '<path stroke-linecap="round" stroke-linejoin="round" d="' . self::ICONOS['salir'] . '"/>'
+                . '</svg><span>Salir</span></button></form></div>';
 
         return $items;
     }

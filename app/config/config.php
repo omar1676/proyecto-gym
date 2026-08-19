@@ -19,6 +19,20 @@ foreach ($lineas as $linea) {
     $_ENV[$clave] = $valor;
 }
 
+$clavesEntorno = [
+    'APP_ENV', 'APP_URL', 'APP_NOMBRE', 'APP_LOGO', 'APP_ZONA_HORARIA',
+    'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASS', 'DB_CHARSET', 'DB_NAME_PRUEBAS',
+    'SESION_MINUTOS', 'SESSION_DIR', 'MAIL_FROM', 'MAIL_NOMBRE', 'MAIL_SMTP_HOST', 'MAIL_SMTP_PUERTO',
+    'MAIL_SMTP_USUARIO', 'MAIL_SMTP_CLAVE', 'MAIL_SMTP_SEGURIDAD',
+    'COPIAS_DIR', 'COPIAS_EXTERNAS_DIR', 'COPIAS_DIARIAS', 'COPIAS_SEMANALES', 'COPIAS_MENSUALES',
+    'LOG_DIR', 'LOG_DIAS', 'LOG_MAX_BYTES', 'LOG_ERRORS_HORA_MAX', 'DISCO_LIBRE_MINIMO_PCT', 'MONITOR_URL',
+    'IMPORT_DIR', 'IMPORT_MAX_BYTES', 'IMPORT_MAX_ROWS', 'IMPORT_RETENTION_DAYS',
+];
+foreach ($clavesEntorno as $claveEntorno) {
+    $valorEntorno = getenv($claveEntorno);
+    if ($valorEntorno !== false && $valorEntorno !== '') $_ENV[$claveEntorno] = $valorEntorno;
+}
+
 define('DB_HOST',    $_ENV['DB_HOST']    ?? 'localhost');
 define('DB_PORT',    $_ENV['DB_PORT']    ?? '3306');
 define('DB_NAME',    $_ENV['DB_NAME']    ?? 'portal_de_cursos');
@@ -55,6 +69,7 @@ define('APP_LOGO', basename(trim((string) ($_ENV['APP_LOGO'] ?? ''))));
 // Minutos de inactividad antes de cerrar la sesión del panel. En un mostrador
 // abierto al público conviene que no sea muy alto.
 define('SESION_MINUTOS', (int) ($_ENV['SESION_MINUTOS'] ?? 120));
+define('SESSION_DIR', trim((string) ($_ENV['SESSION_DIR'] ?? '')));
 
 /* --- Correo saliente ---------------------------------------------------------
  *
@@ -78,6 +93,24 @@ define('MAIL_SMTP_SEGURIDAD', strtolower($_ENV['MAIL_SMTP_SEGURIDAD'] ?? 'tls'))
 // cuántos días se conservan antes de borrar las viejas.
 define('COPIAS_DIR',  ($_ENV['COPIAS_DIR'] ?? '') ?: (__DIR__ . '/../../copias'));
 define('COPIAS_DIAS', (int) ($_ENV['COPIAS_DIAS'] ?? 30));
+define('COPIAS_EXTERNAS_DIR', trim((string) ($_ENV['COPIAS_EXTERNAS_DIR'] ?? '')));
+define('COPIAS_DIARIAS', max(1, (int) ($_ENV['COPIAS_DIARIAS'] ?? 7)));
+define('COPIAS_SEMANALES', max(0, (int) ($_ENV['COPIAS_SEMANALES'] ?? 4)));
+define('COPIAS_MENSUALES', max(0, (int) ($_ENV['COPIAS_MENSUALES'] ?? 6)));
+
+define('LOG_DIR', ($_ENV['LOG_DIR'] ?? '') ?: (__DIR__ . '/../../storage/logs'));
+define('LOG_DIAS', max(1, (int) ($_ENV['LOG_DIAS'] ?? 30)));
+define('LOG_MAX_BYTES', max(1048576, (int) ($_ENV['LOG_MAX_BYTES'] ?? 10485760)));
+define('LOG_ERRORS_HORA_MAX', max(1, (int) ($_ENV['LOG_ERRORS_HORA_MAX'] ?? 50)));
+define('DISCO_LIBRE_MINIMO_PCT', max(1, min(50, (int) ($_ENV['DISCO_LIBRE_MINIMO_PCT'] ?? 15))));
+define('MONITOR_URL', rtrim((string) ($_ENV['MONITOR_URL'] ?? ''), '/'));
+
+// Staging temporal de importaciones. Debe vivir fuera de public/ y se limpia
+// automáticamente al vencer cada batch.
+define('IMPORT_DIR', ($_ENV['IMPORT_DIR'] ?? '') ?: (__DIR__ . '/../../storage/imports'));
+define('IMPORT_MAX_BYTES', max(1024, (int) ($_ENV['IMPORT_MAX_BYTES'] ?? 10485760)));
+define('IMPORT_MAX_ROWS', max(1, min(100000, (int) ($_ENV['IMPORT_MAX_ROWS'] ?? 10000))));
+define('IMPORT_RETENTION_DAYS', max(1, min(90, (int) ($_ENV['IMPORT_RETENTION_DAYS'] ?? 7))));
 
 /* --- Credenciales de prueba (SOLO desarrollo) -------------------------------
  *

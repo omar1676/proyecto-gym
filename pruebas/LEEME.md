@@ -1,39 +1,104 @@
-# Pruebas
+# Pruebas automatizadas
 
-Scripts de comprobación manual. No hay framework: se ejecutan con el PHP de línea de
-comandos y sacan por pantalla qué pasa y qué falla.
+Las pruebas usan exclusivamente `DB_NAME_PRUEBAS` con `APP_ENV=test`. El
+arranque aborta si el nombre coincide con `DB_NAME`; `preparar_base.php`
+reconstruye la base con esquema, migraciones y datos sintéticos, sin copiar ni
+leer datos de la base de trabajo.
 
-**Se ejecutan contra la base de datos configurada en `.env`.** No los lances contra
-producción: `negocio.php` y `suplementos.php` crean y borran registros del socio de
-pruebas (id 3) y dejan una venta anulada.
-
-## Cómo lanzarlos
-
-```bash
-php pruebas/negocio.php       # ventas, stock, transacciones y membresías
-php pruebas/suplementos.php   # cuota base + plus de artes marciales
-php pruebas/render.php        # renderiza las 7 pantallas del panel
+```powershell
+C:\xampp\php\php.exe pruebas\preparar_base.php
+C:\xampp\php\php.exe tests\run.php
 ```
 
-En Windows con XAMPP: `C:\xampp\php\php.exe pruebas\negocio.php`
+La organización mantenible está en `tests/Unit`, `tests/Integration`,
+`tests/Security` y `tests/Functional`. El runner también incorpora los scripts
+históricos válidos de `pruebas/`.
 
-`render.php` acepta el nombre de un método para probar una sola pantalla:
+## Carga funcional del piloto
 
-```bash
-php pruebas/render.php mostrarVentas
+Para medir listados y búsquedas con volumen sintético (siempre en la base de
+pruebas), reconstruye primero el fixture y después ejecuta la carga y el
+benchmark:
+
+```powershell
+C:\xampp\php\php.exe pruebas\preparar_base.php
+C:\xampp\php\php.exe pruebas\carga_piloto.php
+C:\xampp\php\php.exe pruebas\rendimiento_piloto.php
 ```
 
-> Ejecútalo así, una pantalla por proceso, si quieres pasarlas todas. En una sola
-> ejecución solo funciona la primera: cada pantalla incluye `_header_admin.php`, que
-> declara funciones a nivel global y no se puede incluir dos veces en la misma petición.
-> En la aplicación real no ocurre porque cada petición carga una única vista.
+La carga crea 5 empresas, 14 sedes, 5.000 socios, 7.500 membresías, 210
+productos, 6.000 ventas y 12.000 eventos de auditoría. Es reproducible: para
+repetirla hay que reconstruir la base con `preparar_base.php`; el cargador se
+niega a duplicar sus datos.
 
-## Qué cubren
+## Rendimiento Fase 7
 
-| Script | Comprobaciones |
-|---|---|
-| `negocio.php` | Venta con descuento de stock, precios congelados, rollback por stock insuficiente, anulación con devolución, contratación y renovación encadenada |
-| `suplementos.php` | Cuota base 40 €, plus 25 €/mes, total 65 €, plus multiplicado por meses en trimestral, suma en reportes |
-| `render.php` | Que las 7 pantallas rendericen sin errores ni avisos y cierren el HTML |
+La ampliación mantiene los datos en la base de pruebas y lleva la empresa
+inicial a 5.000 socios para medir paginación real, búsquedas y HTML:
 
-Son repetibles: limpian el estado del socio de pruebas antes de empezar.
+```powershell
+C:\xampp\php\php.exe pruebas\preparar_base.php
+C:\xampp\php\php.exe pruebas\carga_piloto.php
+C:\xampp\php\php.exe pruebas\carga_fase7.php
+C:\xampp\php\php.exe pruebas\rendimiento_fase7.php
+```
+
+La ruta histórica sin paginar puede medirse una sola vez con
+`rendimiento_fase7.php --include-legacy`; se omite por defecto porque con 5.000
+filas su ejecución es intencionadamente muy lenta.
+
+Con el servidor local arrancado en `APP_ENV=test`, la medición HTTP se ejecuta
+en otra terminal:
+
+```powershell
+$env:APP_ENV='test'
+$env:TEST_BASE_URL='http://127.0.0.1:8094/index.php'
+C:\xampp\php\php.exe pruebas\rendimiento_http_fase7.php
+```
+
+## Prueba HTTP
+
+El servidor debe acreditar `APP_ENV=test`; en otro caso `acceso.php` aborta
+antes de enviar accesos o limpiar intentos. En Windows/XAMPP:
+
+```powershell
+New-Item -ItemType Directory -Force pruebas\sesiones_tmp
+$env:APP_ENV='test'
+$env:APP_URL='http://127.0.0.1:8091'
+C:\xampp\php\php.exe -S 127.0.0.1:8091 -t public
+```
+
+En otra terminal:
+
+```powershell
+$env:APP_ENV='test'
+$env:TEST_BASE_URL='http://127.0.0.1:8091/index.php'
+C:\xampp\php\php.exe pruebas\acceso.php
+```
+
+## Sonda del arnés
+
+Este comando debe terminar con código 1. Demuestra que una aserción rota no
+produce un falso positivo:
+
+```powershell
+C:\xampp\php\php.exe tests\Unit\ValidationTest.php --force-failure
+```
+
+## Importaciones masivas — Fase 8
+
+Los fixtures son exclusivamente sintéticos y pueden regenerarse de forma
+determinista. El importador solo se prueba contra `DB_NAME_PRUEBAS`:
+
+```powershell
+C:\xampp\php\php.exe pruebas\generar_fixtures_importacion.php
+C:\xampp\php\php.exe pruebas\preparar_base.php
+C:\xampp\php\php.exe tests\run.php
+C:\xampp\php\php.exe pruebas\rendimiento_importacion_fase8.php
+```
+
+`rendimiento_importacion_fase8.php` aborta si no está en `APP_ENV=test`, crea
+su propia empresa y sede sintéticas, mide 5.000 socios y elimina ese tenant al
+terminar. Los archivos de entrada permanecen en `pruebas/fixtures/importaciones`;
+los temporales del motor se guardan fuera de `public/` y se purgan mediante
+`cron/mantenimiento.php`.

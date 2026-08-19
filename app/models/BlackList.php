@@ -10,6 +10,7 @@ class Blacklist {
     }
 
     public function registrarIntentoFallido($ip, $usuario = null) {
+        $usuario = $usuario !== null ? mb_strtolower(trim((string) $usuario)) : null;
         $stmt = $this->db->prepare(
             "INSERT INTO intentos_login (ip_address, usuario, fecha_intento)
              VALUES (?, ?, NOW())"
@@ -18,15 +19,18 @@ class Blacklist {
     }
 
     public function estaBloqueado($ip, $usuario = null) {
+        $usuario = $usuario !== null ? mb_strtolower(trim((string) $usuario)) : null;
         $this->limpiarIntentosAntiguos($ip, $usuario);
 
         if ($usuario) {
-            $stmt = $this->db->prepare(
-                "SELECT COUNT(*) as intentos FROM intentos_login
-                 WHERE usuario = ?
-                 AND fecha_intento > DATE_SUB(NOW(), INTERVAL ? SECOND)"
-            );
-            $stmt->execute([$usuario, $this->tiempo_bloqueo]);
+            $stmt = $this->db->prepare("SELECT
+                SUM(usuario = ?) AS intentos_usuario,
+                SUM(ip_address = ?) AS intentos_ip
+                FROM intentos_login WHERE fecha_intento > DATE_SUB(NOW(), INTERVAL ? SECOND)");
+            $stmt->execute([$usuario, $ip, $this->tiempo_bloqueo]);
+            $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+            return (int) ($resultado['intentos_usuario'] ?? 0) >= $this->max_intentos
+                || (int) ($resultado['intentos_ip'] ?? 0) >= 25;
         } else {
             $stmt = $this->db->prepare(
                 "SELECT COUNT(*) as intentos FROM intentos_login
@@ -41,6 +45,7 @@ class Blacklist {
     }
 
     public function getIntentosRestantes($ip, $usuario = null) {
+        $usuario = $usuario !== null ? mb_strtolower(trim((string) $usuario)) : null;
         if ($usuario) {
             $stmt = $this->db->prepare(
                 "SELECT COUNT(*) as intentos FROM intentos_login
@@ -62,6 +67,7 @@ class Blacklist {
     }
 
     public function limpiarIntentos($ip, $usuario = null) {
+        $usuario = $usuario !== null ? mb_strtolower(trim((string) $usuario)) : null;
         if ($usuario) {
             $stmt = $this->db->prepare("DELETE FROM intentos_login WHERE usuario = ?");
             $stmt->execute([$usuario]);
