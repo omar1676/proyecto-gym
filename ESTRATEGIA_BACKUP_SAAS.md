@@ -2,6 +2,32 @@
 
 Documento de diseño. No implementa restauración destructiva por empresa.
 
+## Estado comprobado
+
+| Capacidad | Estado | Evidencia/límite |
+|---|---|---|
+| Backup global MySQL comprimido, manifiesto y SHA-256 | IMPLEMENTADO Y PROBADO LOCALMENTE | Scripts y ensayo de fases anteriores; no acredita proveedor real |
+| Backup de uploads/configuración no secreta | IMPLEMENTADO Y PROBADO LOCALMENTE | Excluye caché/log/sesiones; destino externo real pendiente |
+| Restauración global en base independiente | PROBADO LOCALMENTE | RTO y restore en infraestructura final no verificados |
+| Copia externa | DISEÑADO/CONFIGURABLE | `COPIAS_EXTERNAS_DIR`; no verificado fuera del servidor de producción |
+| Retención global | IMPLEMENTADA COMO BASE LOCAL | Política 7/4/6 propuesta; cron real pendiente |
+| Export lógico por empresa | DISEÑADO | No existe exportador transaccional completo |
+| Restauración selectiva por empresa | DISEÑADA | No implementada ni probada; no ofrecer como capacidad operativa |
+| Cifrado con clave externa | DISEÑADO | Proveedor y gestión de claves pendientes |
+
+Antes del piloto real son obligatorios la copia externa y un restore medido en
+el entorno objetivo. “Probado localmente” no se presentará como garantía SaaS.
+
+## Criterios para implementar backup por empresa en una fase futura
+
+- Grafo completo de tablas y regla tenant (`empresa_id` o sede validada) versionado.
+- Snapshot consistente, manifiesto, recuentos, claves estables y checksums.
+- Test con dos empresas que demuestre cero filas cruzadas.
+- Cifrado y destino externo con auditoría de descarga/caducidad.
+- Restore solo en base temporal hasta disponer de merge idempotente y conciliado.
+- Pruebas de conflictos de IDs, ventas recientes, stock, anonimización y auditoría.
+- RTO/RPO y responsabilidad contractual aprobados antes de ofrecer el servicio.
+
 ## A. Backup global
 
 Debe capturar en una ventana consistente:

@@ -13,7 +13,7 @@ verificación del servidor futuro.
   árbol actual; tests, instalador y recursos históricos excluidos de la release.
 - [OK] `.env.example` no contiene secretos reales.
 - [OK] Base de test separada y bloqueo contra pruebas destructivas.
-- [OK] Migraciones hasta v25 aplicadas y registradas sin checksums distintos.
+- [OK] Migraciones hasta v26 aplicadas y registradas sin checksums distintos (verificación local F12).
 - [OK] Backup MySQL comprimido, validado y con SHA-256.
 - [OK] Backup de uploads/configuración no secreta con manifiesto y SHA-256.
 - [PENDIENTE] Configurar y verificar `COPIAS_EXTERNAS_DIR` fuera del servidor.

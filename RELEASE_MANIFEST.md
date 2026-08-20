@@ -2,16 +2,17 @@
 
 ## Identidad
 
-- Versión de aplicación: `0.8.0-fase9`.
-- Migración más reciente: `migracion_v25.sql`.
-- Tag de release anotado: `v0.8.0-fase9`.
-- Commit de release: la referencia autoritativa es el commit al que apunta el
-  tag anotado `v0.8.0-fase9`; se obtiene con
-  `git rev-parse v0.8.0-fase9^{commit}`.
+- Versión declarada por la aplicación: `0.9.0-fase10`.
+- Migración más reciente: `migracion_v26.sql`.
+- Último tag de release anotado: `v0.9.0-fase10`.
+- El commit exacto del tag se obtiene con
+  `git rev-parse v0.9.0-fase10^{commit}`. Fases 11–12 añaden preparación y una
+  corrección neutral de mensajes; no se ha creado un tag nuevo.
 - Fecha de saneamiento: 20/08/2026 (Europe/Madrid).
 
-La Fase 9.5 no cambia la versión ni el esquema porque solo sanea Git,
-secretos, procedencia y empaquetado.
+La Fase 12 no cambia la versión ni añade funciones de negocio. El despliegue
+piloto debe identificar además el commit exacto, no solo el contenido de
+`VERSION`.
 
 ## Requisitos
 
@@ -51,17 +52,18 @@ reales dentro de la release.
 pero se excluye de la release productiva. La instalación productiva debe usar
 el procedimiento de `DESPLIEGUE.md` y `ops/migrate.php`.
 
-## Evidencia final de Fase 9.5
+## Evidencia local final de Fase 12
 
-- Tests: 4 suites, 32 scripts, 379 comprobaciones y 0 fallos.
+- Tests: 4 suites, 37 scripts, 464 comprobaciones y 0 fallos.
 - HTTP: 37 correctas, 0 fallidas.
 - Render: 12 pantallas correctas.
 - Smoke: 11 comprobaciones correctas.
-- Lint: 130 archivos PHP, 0 fallos.
-- Migraciones: `pending=[]`, `checksum_mismatch=[]`, última v25.
+- Lint: 145 archivos PHP, 0 fallos.
+- Migraciones: `pending=[]`, `checksum_mismatch=[]`, última v26.
+- Segundo gimnasio sintético: 16 comprobaciones, 0 fallos; fixture eliminada.
 
-La misma regresión pasó antes y después del saneamiento. Las cifras no son una
-promesa sobre otro servidor.
+Las cifras corresponden a la ejecución local del 20/08/2026 y no son una
+promesa sobre staging o producción.
 
 ## Exclusiones obligatorias
 

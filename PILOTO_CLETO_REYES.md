@@ -16,13 +16,17 @@ controlará huellas ni sustituirá procesos críticos hasta decisión formal.
 - Instalar monitor, backups y cron técnico; mantener cron de negocio en simulación.
 - Verificar desde la red del gimnasio login, permisos, impresión/exportación y rendimiento.
 
-## 3. Operación paralela
+## 3. Operación paralela por puertas de control
 
-1. Semana 1: datos ficticios y flujos guiados.
-2. Semana 2: empleados de prueba; ventas controladas de importe pequeño registradas también en el sistema actual.
-3. Semanas 3-4: subconjunto acordado de socios/ventas, siempre con conciliación diaria.
-4. Comparar ventas, caja, stock, cuotas, remesas y auditoría; registrar toda diferencia.
-5. Corregir y repetir regresión/staging antes de desplegar cada cambio.
+1. Etapa 0: requisitos, fuente de verdad, soporte y freeze aprobados.
+2. Etapa 1: staging con datos sintéticos, restore, aislamiento y regresión verificados.
+3. Etapa 2: empleados completan flujos guiados y se registra tiempo/error real.
+4. Etapa 3: subconjunto autorizado pasa perfilado, dry-run, muestreo y conciliación.
+5. Etapa 4: operaciones controladas se registran según la matriz de fuente de verdad.
+6. Etapa 5: decisión GO/NO-GO basada en evidencias de `GO_NO_GO_PILOTO.md`.
+
+No se asignan semanas o número de ciclos por anticipado. Cada etapa avanza solo
+cuando se cumplen sus criterios y existe responsable de la evidencia.
 
 ## 4. Controles diarios
 
@@ -34,8 +38,8 @@ controlará huellas ni sustituirá procesos críticos hasta decisión formal.
 
 ## 5. Decisión
 
-Tras al menos dos ciclos sin diferencias críticas: evaluar estabilidad, tiempos,
-incidentes, restauración y aceptación del personal. La sustitución progresiva
-requiere aprobación explícita, plan de migración de datos y rollback. Si aparecen
-diferencias de caja, aislamiento o pérdida de datos, congelar ampliación y seguir
-con el sistema actual.
+Evaluar estabilidad, tiempos, incidentes, restauración y aceptación del personal
+con los criterios objetivos de `GO_NO_GO_PILOTO.md`. La sustitución progresiva
+requiere aprobación explícita, plan de migración y rollback. Si aparecen
+diferencias de caja, aislamiento o pérdida de datos, congelar la ampliación y
+seguir con el sistema actual.

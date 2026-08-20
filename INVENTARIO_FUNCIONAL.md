@@ -12,7 +12,7 @@ no equivalencia universal con otros productos.
 | Multiempresa y multisede | COMPLETO | Todos | `TenantContext` limita empresa y sede | `multiempresa.php`, `multisede.php` | Superadmin global sin panel comercial | P0 |
 | Matriz de autorización | COMPLETO | Todos | Rol almacenado en BD | `autorizacion.php`, HTTP | Portal de socio aún no existe | P0 |
 | Listado y búsqueda de socios | COMPLETO | Dirección, admin, recepción | Empresa/sede del contexto | `SociosPaginationTest`, Functional | 50 filas/página; búsqueda `%texto%` no es full-text | P0 |
-| Alta y edición de socio | COMPLETO | Dirección, admin, recepción | Alta en sede activa; edición filtrada | Functional, multiempresa | No hay importación masiva | P0 |
+| Alta y edición de socio | COMPLETO | Dirección, admin, recepción | Alta en sede activa; edición filtrada | Functional, multiempresa | Importación CSV es un flujo técnico separado | P0 |
 | Baja y anonimización RGPD | PARCIAL | Modelo interno | Filtrada por tenant | `multiempresa.php` | Existe lógica de modelo, no un flujo administrativo completo expuesto | P1 |
 | Cuotas, suplementos y precios | COMPLETO | Dirección, admin | Catálogo de empresa y, cuando aplica, sede | `suplementos.php`, permisos | Sin promociones ni reglas comerciales avanzadas | P0 |
 | Contratación y renovación | COMPLETO | Dirección, admin, recepción | Socio y cuota del ámbito | `negocio.php`, `renovaciones.php` | No hay congelación/suspensión temporal | P0 |
@@ -23,7 +23,7 @@ no equivalencia universal con otros productos.
 | Stock transaccional y concurrencia | COMPLETO | Dirección, admin | Producto de la sede | `ConcurrencyStockTest`, Integrity | No hay movimientos de almacén independientes | P0 |
 | Anulación de venta | COMPLETO | Dirección, admin | Ticket de la sede | `facturacion.php`, autorización | Anulación completa, no parcial | P0 |
 | Numeración, IVA y exportación CSV | PARCIAL | Dirección, admin | Serie por sede | `facturacion.php`, render | No genera factura legal/PDF ni integra fiscalidad externa | P1 |
-| Caja y resumen por método de pago | PARCIAL | Dirección, admin | Sede/empresa | Functional | Sin apertura, cierre, arqueo ni diferencias de caja | P1 |
+| Caja y resumen por método de pago | COMPLETO técnico; política pendiente | Dirección, admin | Sede/empresa | `CashTest`, `CashConcurrencyTest`, Functional | Debe decidirse si vender/cobrar exige caja abierta | P0 de decisión |
 | Mandatos y remesas SEPA | COMPLETO para fichero | Dirección, admin | Acreedor y recibos por sede | `sepa.php`, multiempresa | Envío al banco y conciliación siguen siendo externos/manuales | P0 |
 | Gestión de empleados | COMPLETO | Dirección, admin según ámbito | Empresa/sede y reglas de rol | `personal.php`, autorización | Sin turnos ni planificación laboral | P1 |
 | Gestión y marca de sedes | COMPLETO | Dirección/superadmin | Solo propia empresa | `personal.php`, multisede | Configuración comercial de empresa limitada | P1 |

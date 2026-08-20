@@ -5,8 +5,8 @@ funciones se ha implementado automáticamente en Fase 7.
 
 | CANDIDATO | VALOR | COMPLEJIDAD | DEPENDENCIAS | RIESGO | PRIORIDAD | FASE PROPUESTA |
 |---|---|---|---|---|---|---|
-| Importación masiva | Reduce alta manual y permite migración | Alta | Exportaciones autorizadas, staging, mapeos | Duplicados y datos sucios | P0 para sustitución | Migración controlada |
-| Caja: apertura/cierre/arqueo | Cuadre diario de recepción | Media | Definir flujo y responsables | Diferencias contables | P1 | Tras piloto |
+| Ampliar migración a histórico económico | Evita alta manual del histórico | Alta | Export autorizado, mapeo, staging, conciliación | Duplicados y datos ambiguos | P0 solo si se exige para sustitución | Migración controlada |
+| Política operativa de caja | Alinear la caja ya implementada con turnos reales | Baja técnica; decisión de negocio | Definir obligatoriedad, relevos y diferencias | Operar fuera de sesión o cuadrar mal | P0 de decisión | Etapa 0 del piloto |
 | Factura legal/PDF | Necesidad fiscal potencial | Alta | Requisitos de gestoría y normativa | Cumplimiento fiscal | P1 por validar | Fase fiscal |
 | Histórico de accesos | Soporte y trazabilidad de entradas | Alta | Proveedor y eventos normalizados | Privacidad y duplicados | P1 tras integración | Fase acceso |
 | Entrada manual auditada | Resolver incidencias de acceso | Media | Políticas y autorización | Abuso interno | P1 | Fase acceso |
@@ -31,6 +31,6 @@ funciones se ha implementado automáticamente en Fase 7.
 ## Orden recomendado
 
 1. Completar piloto y cerrar P0/P1 observados por usuarios.
-2. Acordar caja/fiscalidad y estrategia de migración.
+2. Acordar política de caja, fiscalidad y estrategia de migración.
 3. Ejecutar fase independiente de acceso con proveedor documentado.
 4. Añadir comunicación y autoservicio solo cuando los datos y procesos sean estables.

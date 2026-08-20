@@ -9,7 +9,7 @@ ha navegado, consultado ni intentado acceder a FitCloud.
 | Tarifas/cuotas | Tipos, precios, duración y suplementos | Presente | Sí, piloto | P0 | Validación con usuarios | Piloto funcional |
 | Cobros | Efectivo, datáfono, transferencia y SEPA | Presente | Sí, piloto | P0 | Conciliación operativa | Piloto/pospiloto |
 | Facturación | Ticket numerado, IVA y CSV; no factura legal/PDF | Presente | Determinar con dirección/gestoría | P1 | Requisitos fiscales y series | Fase fiscal independiente |
-| Caja | Totales por periodo y método; sin arqueo | Presente | Probablemente sí para sustitución | P1 | Flujo real de cierre | Tras piloto |
+| Caja | Apertura/cierre por sede, movimientos, arqueo y diferencias; falta decidir si abrir es obligatorio | Presente | Sí para operación controlada | P0 de decisión | Regla real de turno/caja | Antes de etapa paralela |
 | Ventas | Venta transaccional, anulación e idempotencia | Presente | Sí, piloto | P0 | Ninguna nueva | Fase 7 completada |
 | Inventario/stock | Stock por sede, mínimos y concurrencia | Presente | Sí | P1 | Definir compras/ajustes | Tras feedback |
 | Histórico | Auditoría y listados de ventas/membresías | Presente | Sí | P1 | Paginación/exportación adicional | Tras piloto |
