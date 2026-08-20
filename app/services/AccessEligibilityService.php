@@ -74,8 +74,8 @@ final class AccessEligibilityService
                 self::REVISAR,
                 $estado['recibos_devueltos'] > 0 ? 'RETURNED_PAYMENT' : 'PAYMENT_REVIEW',
                 $estado['recibos_devueltos'] > 0
-                    ? 'Recibo devuelto; la política de Cleto debe decidir el margen antes de bloquear.'
-                    : 'Existe deuda pendiente; la política de Cleto debe decidir el margen antes de bloquear.',
+                    ? 'Recibo devuelto; la política comercial de la empresa debe decidir el margen antes de bloquear.'
+                    : 'Existe deuda pendiente; la política comercial de la empresa debe decidir el margen antes de bloquear.',
                 $idSocio,
                 $sedeSocio,
                 $version
@@ -127,8 +127,8 @@ final class AccessEligibilityService
                 self::REVISAR,
                 (int) ($economico['devueltos'] ?? 0) > 0 ? 'RETURNED_PAYMENT' : 'PAYMENT_REVIEW',
                 (int) ($economico['devueltos'] ?? 0) > 0
-                    ? 'Recibo devuelto; pendiente de política comercial de Cleto.'
-                    : 'Deuda pendiente; pendiente de política comercial de Cleto.',
+                    ? 'Recibo devuelto; pendiente de política comercial de la empresa.'
+                    : 'Deuda pendiente; pendiente de política comercial de la empresa.',
                 $idSocio,
                 $sede,
                 $version
