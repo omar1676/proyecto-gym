@@ -1,17 +1,18 @@
 # Fuente de verdad durante la convivencia
 
 Hasta que dirección firme otra decisión, el sistema actual sigue siendo la
-fuente operativa. El nuevo sistema es observación/contraste; no se resuelven
-diferencias copiando “el valor que parezca correcto”.
+fuente operativa **en todas las áreas durante Etapa 1**. El nuevo sistema es
+observación/contraste/simulación; no se resuelven diferencias copiando “el
+valor que parezca correcto”.
 
 | Área | Sistema actual | Nuestro sistema | Fuente oficial durante piloto | Método de conciliación |
 |---|---|---|---|---|
 | Identidad/datos del socio | Opera hoy | Replica subconjunto autorizado | Sistema actual hasta acta de corte | Recuento, duplicados y muestra campo a campo |
 | Membresías | Opera hoy | Registra pruebas controladas | Sistema actual inicialmente | Socio, tarifa, inicio, fin, estado e importe |
 | Cobros/impagos | Sistema actual y banco | Modelo económico en contraste | Sistema actual/banco | Obligaciones y cobros por estado/importe |
-| Caja | Registro actual | Apertura/movimientos/cierre piloto | PENDIENTE de dirección antes de duplicar | Saldo inicial, efectivo, métodos, declarado y diferencia |
+| Caja | Registro actual | Solo simulación con datos sintéticos | Sistema actual | Saldo inicial, efectivo, métodos, declarado y diferencia; no duplicar operación real |
 | Ventas | Opera hoy | Ventas controladas | Sistema actual inicialmente | Número, líneas, total, método y anulación; nunca doble cobro |
-| Stock | Sistema/recuento actual | Descuento transaccional piloto | PENDIENTE de corte | Unidades iniciales, movimientos y recuento final |
+| Stock | Sistema/recuento actual | Solo simulación con datos sintéticos | Sistema/recuento actual | Unidades iniciales, movimientos y recuento final; no replicar descuento real |
 | SEPA/remesas | Sistema actual/banco | Muestra no enviada | Sistema actual/banco | Lotes, recibos, estados e importes; no doble presentación |
 | Informes/fiscal | Sistema actual/gestoría | Solo contraste | Sistema actual/gestoría | Periodo, ventas/cobros/IVA y criterio profesional |
 | Accesos/DORLET | FitCloud/DORLET | Desconectado | Sistema actual | No aplica; no enviar órdenes ni biometría |

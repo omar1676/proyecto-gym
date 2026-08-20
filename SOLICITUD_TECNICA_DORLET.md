@@ -1,5 +1,8 @@
 # Solicitud técnica final a DORLET/instalador
 
+**Estado Fase 13: NO ENVIADA.** No se ha aportado evidencia de envío ni
+respuesta. El texto queda preparado exclusivamente para envío humano autorizado.
+
 No enviar sin autorización de Cleto y sin completar los campos. No adjuntar
 socios, huellas, credenciales, backups ni datos de terceros.
 

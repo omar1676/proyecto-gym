@@ -50,6 +50,20 @@ class Mailer
             return true;
         }
 
+        // Staging solo puede escribir a buzones de prueba autorizados. No se
+        // aceptan dominios comodín y, sin SMTP, tampoco se usa mail() como
+        // fallback: una configuración incompleta no debe avisar a socios.
+        if (defined('APP_ENV') && APP_ENV === 'staging') {
+            $permitidos = array_values(array_filter(array_map(
+                static fn(string $email): string => strtolower(trim($email)),
+                explode(',', defined('STAGING_MAIL_ALLOWLIST') ? STAGING_MAIL_ALLOWLIST : '')
+            )));
+            if (!in_array(strtolower($para), $permitidos, true) || !Smtp::configurado()) {
+                error_log('Mailer: envío de staging bloqueado; destinatario no autorizado o SMTP no configurado.');
+                return false;
+            }
+        }
+
         $from = self::from();
 
         // Con SMTP configurado se envía por ahí; si no, se cae a mail().

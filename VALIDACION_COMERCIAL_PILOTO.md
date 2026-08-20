@@ -1,5 +1,8 @@
 # Validación comercial del piloto
 
+**Estado Fase 13: PENDIENTE.** No se ha realizado ni atribuido a dirección una
+conversación comercial real; la siguiente sección sigue siendo un guion.
+
 No evalúa solo si “gusta”. Busca evidencia de problema, uso, riesgo y decisión
 de compra/continuidad sin prometer funciones futuras.
 

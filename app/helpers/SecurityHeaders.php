@@ -14,7 +14,7 @@ final class SecurityHeaders
     public static function apply(): void
     {
         if (PHP_SAPI === 'cli' || headers_sent()) return;
-        if (APP_ENV === 'production' && !self::https()) {
+        if (in_array(APP_ENV, ['staging', 'production'], true) && !self::https()) {
             $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
             if ($host !== '' && preg_match('/^[a-z0-9.-]+(?::\d+)?$/i', $host)) {
                 header('Location: https://' . $host . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);

@@ -40,13 +40,17 @@ const DIA_REMESA = 1;
 const DIAS_AVISO = 7;
 
 $argumentos = array_slice($argv, 1);
-$simular    = in_array('--simular', $argumentos, true);
+$simulacionStaging = APP_ENV === 'staging';
+$simular    = $simulacionStaging || in_array('--simular', $argumentos, true);
 $tareas     = array_values(array_filter($argumentos, function ($a) { return substr($a, 0, 2) !== '--'; }));
 if (empty($tareas)) {
     $tareas = ['renovar', 'avisar', 'remesa'];
 }
 
 $log = new LogModel();
+if ($simulacionStaging) {
+    registrar('STAGING: simulación económica forzada; no se renovará, enviará correo ni creará remesa.');
+}
 registrar('Tareas automáticas · ' . date('d/m/Y H:i') . ($simular ? ' (SIMULACIÓN)' : ''));
 
 $sedes = (new GimnasioModel())->listarActivas();

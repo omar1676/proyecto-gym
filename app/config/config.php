@@ -23,7 +23,7 @@ $clavesEntorno = [
     'APP_ENV', 'APP_URL', 'APP_NOMBRE', 'APP_LOGO', 'APP_ZONA_HORARIA',
     'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASS', 'DB_CHARSET', 'DB_NAME_PRUEBAS',
     'SESION_MINUTOS', 'SESSION_DIR', 'MAIL_FROM', 'MAIL_NOMBRE', 'MAIL_SMTP_HOST', 'MAIL_SMTP_PUERTO',
-    'MAIL_SMTP_USUARIO', 'MAIL_SMTP_CLAVE', 'MAIL_SMTP_SEGURIDAD',
+    'MAIL_SMTP_USUARIO', 'MAIL_SMTP_CLAVE', 'MAIL_SMTP_SEGURIDAD', 'STAGING_MAIL_ALLOWLIST',
     'COPIAS_DIR', 'COPIAS_EXTERNAS_DIR', 'COPIAS_DIARIAS', 'COPIAS_SEMANALES', 'COPIAS_MENSUALES',
     'LOG_DIR', 'LOG_DIAS', 'LOG_MAX_BYTES', 'LOG_ERRORS_HORA_MAX', 'DISCO_LIBRE_MINIMO_PCT', 'MONITOR_URL',
     'IMPORT_DIR', 'IMPORT_MAX_BYTES', 'IMPORT_MAX_ROWS', 'IMPORT_RETENTION_DAYS',
@@ -90,6 +90,9 @@ define('MAIL_SMTP_USUARIO', $_ENV['MAIL_SMTP_USUARIO'] ?? '');
 define('MAIL_SMTP_CLAVE',   $_ENV['MAIL_SMTP_CLAVE']   ?? '');
 // 'tls' (STARTTLS, puerto 587), 'ssl' (puerto 465) o '' (sin cifrar).
 define('MAIL_SMTP_SEGURIDAD', strtolower($_ENV['MAIL_SMTP_SEGURIDAD'] ?? 'tls'));
+// En staging no se permite enviar a una dirección que no aparezca aquí de
+// forma exacta. Vacío bloquea todo el correo y nunca cae al mail() del sistema.
+define('STAGING_MAIL_ALLOWLIST', trim((string) ($_ENV['STAGING_MAIL_ALLOWLIST'] ?? '')));
 
 // Copias de seguridad: carpeta donde se dejan (fuera de public/ por defecto) y
 // cuántos días se conservan antes de borrar las viejas.
@@ -123,6 +126,11 @@ define('IMPORT_RETENTION_DAYS', max(1, min(90, (int) ($_ENV['IMPORT_RETENTION_DA
  */
 $accessControlMode = strtolower(trim((string) ($_ENV['ACCESS_CONTROL_MODE'] ?? 'disabled')));
 if (!in_array($accessControlMode, ['disabled', 'shadow', 'active'], true)) {
+    $accessControlMode = 'disabled';
+}
+// El piloto Etapa 0–1 no puede activar ni siquiera por error una cola de
+// acceso físico. Staging se abre en una fase posterior y con contrato aparte.
+if (APP_ENV === 'staging') {
     $accessControlMode = 'disabled';
 }
 $accessControlProvider = strtolower(trim((string) ($_ENV['ACCESS_CONTROL_PROVIDER'] ?? 'mock')));

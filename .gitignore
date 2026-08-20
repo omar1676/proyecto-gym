@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.staging.example
 *.bak
 
 # Copias, dumps, archivos históricos y paquetes generados.
@@ -23,6 +24,7 @@
 /storage/sessions/
 /storage/imports/
 /storage/uploads/
+/storage/staging-*/
 /pruebas/sesiones_tmp/
 
 # Credenciales, certificados y bases locales.
