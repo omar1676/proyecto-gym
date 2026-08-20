@@ -1,7 +1,11 @@
 # Etapa 1 — observación y comparación
 
-Estado al 20/08/2026: **PENDIENTE**. No se ha observado a Pedro, Dani ni a
+Estado al 20/08/2026 (Fase 14): **PENDIENTE DE VISITA**. No se ha observado a Pedro, Dani ni a
 ningún empleado real. No hay tiempos, opiniones ni capturas reales.
+
+No se convierte ningún tiempo técnico de scripts en tiempo humano. La visita
+solo comenzará cuando staging real sea accesible o se acuerde expresamente una
+observación exclusiva del sistema actual.
 
 ## Reglas de la sesión
 

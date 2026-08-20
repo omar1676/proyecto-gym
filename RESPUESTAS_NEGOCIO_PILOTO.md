@@ -1,7 +1,8 @@
 # Respuestas de negocio del piloto
 
-Fecha de revisión: 20/08/2026. Este documento transcribe únicamente evidencia
-aportada. Las restricciones técnicas de la Fase 13 no se convierten en una
+Fecha de revisión: 20/08/2026 (Fase 14). No se aportaron respuestas nuevas; se
+conservan los estados anteriores. Este documento transcribe únicamente evidencia
+aportada. Las restricciones técnicas de las fases 13–14 no se convierten en una
 decisión de negocio por inferencia.
 
 | # | Pregunta prioritaria | Estado | Respuesta/evidencia disponible | Falta confirmar por |
