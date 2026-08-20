@@ -12,6 +12,7 @@ final class Authorization
             'informes.view', 'informes.export', 'empleados.manage', 'sedes.manage',
             'auditoria.view', 'remesas.manage', 'mandatos.create', 'config.manage',
             'migrations.manage', 'caja.view', 'caja.operate', 'caja.adjust',
+            'access.view', 'access.manage', 'access.sync', 'access.audit',
         ],
         'admin' => [
             'dashboard.view', 'socios.view', 'socios.create', 'socios.edit',
@@ -20,6 +21,7 @@ final class Authorization
             'informes.view', 'informes.export', 'empleados.manage',
             'auditoria.view', 'remesas.manage', 'mandatos.create',
             'caja.view', 'caja.operate', 'caja.adjust',
+            'access.view', 'access.audit',
         ],
         'recepcion' => [
             'dashboard.view', 'socios.view', 'socios.create', 'socios.edit',

@@ -27,6 +27,8 @@ $clavesEntorno = [
     'COPIAS_DIR', 'COPIAS_EXTERNAS_DIR', 'COPIAS_DIARIAS', 'COPIAS_SEMANALES', 'COPIAS_MENSUALES',
     'LOG_DIR', 'LOG_DIAS', 'LOG_MAX_BYTES', 'LOG_ERRORS_HORA_MAX', 'DISCO_LIBRE_MINIMO_PCT', 'MONITOR_URL',
     'IMPORT_DIR', 'IMPORT_MAX_BYTES', 'IMPORT_MAX_ROWS', 'IMPORT_RETENTION_DAYS',
+    'ACCESS_CONTROL_MODE', 'ACCESS_CONTROL_PROVIDER', 'ACCESS_CONTROL_ACTIVE_CONFIRM',
+    'ACCESS_CONTROL_MAX_ATTEMPTS', 'ACCESS_CONTROL_BACKOFF_SECONDS',
 ];
 foreach ($clavesEntorno as $claveEntorno) {
     $valorEntorno = getenv($claveEntorno);
@@ -111,6 +113,30 @@ define('IMPORT_DIR', ($_ENV['IMPORT_DIR'] ?? '') ?: (__DIR__ . '/../../storage/i
 define('IMPORT_MAX_BYTES', max(1024, (int) ($_ENV['IMPORT_MAX_BYTES'] ?? 10485760)));
 define('IMPORT_MAX_ROWS', max(1, min(100000, (int) ($_ENV['IMPORT_MAX_ROWS'] ?? 10000))));
 define('IMPORT_RETENTION_DAYS', max(1, min(90, (int) ($_ENV['IMPORT_RETENTION_DAYS'] ?? 7))));
+
+/* --- Control de acceso físico ------------------------------------------------
+ *
+ * Esta configuración solo habilita la infraestructura propia y el provider
+ * mock. No existe un adaptador DORLET ni una operación de apertura remota.
+ * Una instalación nueva siempre nace disabled. Active exige además una
+ * confirmación separada para impedir activaciones accidentales.
+ */
+$accessControlMode = strtolower(trim((string) ($_ENV['ACCESS_CONTROL_MODE'] ?? 'disabled')));
+if (!in_array($accessControlMode, ['disabled', 'shadow', 'active'], true)) {
+    $accessControlMode = 'disabled';
+}
+$accessControlProvider = strtolower(trim((string) ($_ENV['ACCESS_CONTROL_PROVIDER'] ?? 'mock')));
+if (!preg_match('/^[a-z0-9_-]{1,32}$/', $accessControlProvider)) {
+    $accessControlProvider = 'mock';
+}
+define('ACCESS_CONTROL_MODE', $accessControlMode);
+define('ACCESS_CONTROL_PROVIDER', $accessControlProvider);
+define(
+    'ACCESS_CONTROL_ACTIVE_CONFIRM',
+    filter_var($_ENV['ACCESS_CONTROL_ACTIVE_CONFIRM'] ?? false, FILTER_VALIDATE_BOOLEAN)
+);
+define('ACCESS_CONTROL_MAX_ATTEMPTS', max(1, min(10, (int) ($_ENV['ACCESS_CONTROL_MAX_ATTEMPTS'] ?? 5))));
+define('ACCESS_CONTROL_BACKOFF_SECONDS', max(5, min(3600, (int) ($_ENV['ACCESS_CONTROL_BACKOFF_SECONDS'] ?? 60))));
 
 /* --- Credenciales de prueba (SOLO desarrollo) -------------------------------
  *

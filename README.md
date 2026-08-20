@@ -1,6 +1,6 @@
 # Proyecto Gym — Centro Deportivo Cleto Reyes
 
-Versión actual: **0.8.0-fase9**. La Fase 9 separa contrato, obligación y cobro; añade caja por sede/turno y autorización lógica explicable, sin integrar DORLET ni biometría. Consulta `MODELO_ECONOMICO.md` y `OPERATIVA_CAJA.md`.
+Versión actual: **0.9.0-fase10**. La Fase 10 prepara una frontera genérica de control de acceso, provider mock, outbox e integración shadow; no conecta DORLET, lectores, controladoras ni biometría. Consulta `ADR_ACCESS_CONTROL_PROVIDER.md` y `CONTROL_ACCESO_RUNBOOK.md`.
 
 Panel de gestión para un gimnasio multisede: socios y membresías, venta de productos,
 empleados, remesas SEPA y control de acceso desde el panel.

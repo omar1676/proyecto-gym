@@ -1,6 +1,6 @@
 # ADR: abstracción futura de control de acceso
 
-- Estado: **PROPUESTO — SOLO DISEÑO**.
+- Estado: **SUPERADO POR `ADR_ACCESS_CONTROL_PROVIDER.md`**.
 - No hay SDK, red, hardware, huellas ni llamadas DORLET implementadas.
 
 ## Contexto
@@ -28,8 +28,9 @@ AccessControlProvider
   syncPermissions(externalIdentity, policy)
 ```
 
-No se crea esta interfaz en PHP todavía para evitar código muerto hasta conocer
-el contrato real del proveedor.
+La interfaz genérica ya existe en PHP y se valida exclusivamente con un mock sin
+red. El contrato real del proveedor continúa sin verificarse y no se ha creado
+ningún adaptador físico.
 
 ## Modelo futuro mínimo
 

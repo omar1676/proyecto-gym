@@ -457,44 +457,37 @@ color.
 
 ---
 
-## 6. Integración futura con el control de accesos (IDEMIA + Dorlet)
+## 6. Integración futura con control de accesos
 
-Pendiente, pero conviene fijar el criterio antes de empezar:
+Fase 10 incorpora únicamente una frontera genérica, un provider mock y modo
+shadow. **No existe integración DORLET/IDEMIA ni se conoce aún su interfaz
+real.** No se presupone API, SDK, acceso SQL, arquitectura de red ni conducta
+offline.
 
-**La plantilla biométrica NO debe guardarse en esta base de datos.** Se queda en el
-sistema IDEMIA/Dorlet. Aquí solo se guardaría el identificador del titular en Dorlet
-—un número— para poder vincularlo con el socio.
+La plantilla biométrica nunca se guarda en esta base. Como máximo se conserva
+un identificador externo opaco ligado a empresa, sede y socio.
 
-La arquitectura prevista es que el panel hable con Dorlet, no con el lector:
-
+```text
+Panel PHP → AccessDecision → outbox → AccessControlProvider → mock
+                                                        ↘ real: NO IMPLEMENTADO
 ```
-Panel PHP (socios y cuotas) ←→ Dorlet (accesos) ←→ IDEMIA (huella)
-```
 
-Al contratar o renovar, el panel escribiría en Dorlet la fecha de caducidad del titular
-copiando `fecha_fin`. Dorlet cierra el acceso solo al llegar ese día, sin procesos
-diarios ni dependencia de que este servidor esté vivo. Que el estado de la membresía se
-calcule por fecha es justo lo que hace esto posible.
-
-Antes de implementarlo hay que resolver:
-- Producto y versión de Dorlet, y si hay módulo de integración contratado.
-- Modelo del terminal IDEMIA.
-- **Conectividad**: Dorlet estará en la red local del gimnasio y el panel en un hosting
-  externo. Es el mayor obstáculo práctico — requiere VPN, un agente local que sincronice,
-  o mover el panel a un servidor dentro del gimnasio.
-- Requisitos de RGPD del tratamiento biométrico (ver sección 7).
+Antes de cualquier adaptador físico deben completarse
+`CONTROL_ACCESO_INVENTARIO.md`, `CONTROL_ACCESO_RUNBOOK.md` y los criterios del
+proveedor. El modo por defecto es `disabled`; shadow no envía operaciones.
 
 ---
 
 ## 7. Estado y trabajo pendiente
 
 ### Verificado
-- Sintaxis correcta en 117 archivos PHP (`php -l`).
-- Las 11 pantallas del panel, incluida Importaciones, renderizan sin errores ni
+- Sintaxis correcta en 143 archivos PHP (`php -l`).
+- Las 12 pantallas del panel, incluida Importaciones, renderizan sin errores ni
   avisos (`php pruebas/render.php`).
-- **324 comprobaciones automáticas en verde** repartidas en 27 scripts de 4
+- **448 comprobaciones automáticas en verde** repartidas en 36 scripts de 4
   suites (ver "Pruebas"). Cubren además stock y rollback, numeración e IVA,
-  aislamiento, SEPA, acceso en dos pasos y el motor de importación.
+  aislamiento, SEPA, acceso en dos pasos, el motor de importación y la frontera
+  de control de acceso en `disabled`/`shadow`/mock.
 
 ### Pendiente de personalizar
 - **Aviso legal (`app/views/rgpd/rgpd.php`)**: tiene marcadores `[por completar]` en los
