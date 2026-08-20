@@ -13,10 +13,19 @@ require_once __DIR__ . '/../helpers/Iban.php';
 class GimnasioModel
 {
     private $db;
+    private $idEmpresa;
 
-    public function __construct()
+    public function __construct(?int $idEmpresa = null)
     {
         $this->db = Database::getInstance()->getConnection();
+        $this->idEmpresa = $idEmpresa;
+    }
+
+    private function filtroEmpresa(string $alias = 'g'): string
+    {
+        if ($this->idEmpresa === null) return '';
+        $prefijo = $alias === '' ? '' : $alias . '.';
+        return ' AND ' . $prefijo . 'id_empresa = ' . (int) $this->idEmpresa;
     }
 
     /** Sedes con el recuento de socios, empleados y productos de cada una. */
@@ -32,7 +41,7 @@ class GimnasioModel
                             AND u.rol IN ('admin','recepcion'))                        AS num_empleados,
                         (SELECT COUNT(*) FROM producto p
                           WHERE p.id_gimnasio = g.id_gimnasio)                         AS num_productos
-                 FROM gimnasio g
+                 FROM gimnasio g WHERE 1 = 1" . $this->filtroEmpresa('g') . "
                  ORDER BY g.activo DESC, g.nombre ASC"
             )->fetchAll();
         } catch (\PDOException $e) {
@@ -46,8 +55,8 @@ class GimnasioModel
     {
         try {
             return $this->db->query(
-                "SELECT id_gimnasio, nombre, slug, logo, color_primario, color_texto
-                 FROM gimnasio WHERE activo = 1 ORDER BY nombre ASC"
+                "SELECT id_gimnasio, id_empresa, nombre, slug, logo, color_primario, color_texto
+                 FROM gimnasio WHERE activo = 1" . $this->filtroEmpresa('') . " ORDER BY nombre ASC"
             )->fetchAll();
         } catch (\PDOException $e) {
             error_log('GimnasioModel::listarActivas error: ' . $e->getMessage());
@@ -88,7 +97,7 @@ class GimnasioModel
             if ($contrasena !== '') {
                 $stmt = $this->db->prepare(
                     "UPDATE gimnasio SET email_acceso = :email, contrasena_acceso = :clave
-                     WHERE id_gimnasio = :id"
+                     WHERE id_gimnasio = :id" . $this->filtroEmpresa('')
                 );
                 return $stmt->execute([
                     ':email' => strtolower(trim($email)),
@@ -97,7 +106,7 @@ class GimnasioModel
                 ]);
             }
             $stmt = $this->db->prepare(
-                "UPDATE gimnasio SET email_acceso = :email WHERE id_gimnasio = :id"
+                "UPDATE gimnasio SET email_acceso = :email WHERE id_gimnasio = :id" . $this->filtroEmpresa('')
             );
             return $stmt->execute([':email' => strtolower(trim($email)), ':id' => $id]);
         } catch (\PDOException $e) {
@@ -119,6 +128,11 @@ class GimnasioModel
             return null;
         }
         if ((int) $gimnasio['activo'] !== 1) {
+            return null;
+        }
+        $stmtEmpresa = $this->db->prepare("SELECT 1 FROM empresa WHERE id_empresa = :id AND estado = 'activa'");
+        $stmtEmpresa->execute([':id' => (int) ($gimnasio['id_empresa'] ?? 0)]);
+        if (!$stmtEmpresa->fetchColumn()) {
             return null;
         }
         if (!password_verify($contrasena, $gimnasio['contrasena_acceso'])) {
@@ -182,12 +196,12 @@ class GimnasioModel
         try {
             if ($logo === null) {
                 $stmt = $this->db->prepare(
-                    "UPDATE gimnasio SET color_primario = :cp, color_texto = :ct WHERE id_gimnasio = :id"
+                    "UPDATE gimnasio SET color_primario = :cp, color_texto = :ct WHERE id_gimnasio = :id" . $this->filtroEmpresa('')
                 );
                 return $stmt->execute([':cp' => $colorPrimario, ':ct' => $colorTexto, ':id' => $id]);
             }
             $stmt = $this->db->prepare(
-                "UPDATE gimnasio SET logo = :logo, color_primario = :cp, color_texto = :ct WHERE id_gimnasio = :id"
+                "UPDATE gimnasio SET logo = :logo, color_primario = :cp, color_texto = :ct WHERE id_gimnasio = :id" . $this->filtroEmpresa('')
             );
             return $stmt->execute([':logo' => $logo, ':cp' => $colorPrimario, ':ct' => $colorTexto, ':id' => $id]);
         } catch (\PDOException $e) {
@@ -199,7 +213,7 @@ class GimnasioModel
     public function quitarLogo(int $id): bool
     {
         try {
-            return $this->db->prepare("UPDATE gimnasio SET logo = NULL WHERE id_gimnasio = :id")
+            return $this->db->prepare("UPDATE gimnasio SET logo = NULL WHERE id_gimnasio = :id" . $this->filtroEmpresa(''))
                             ->execute([':id' => $id]);
         } catch (\PDOException $e) {
             error_log('GimnasioModel::quitarLogo error: ' . $e->getMessage());
@@ -209,7 +223,7 @@ class GimnasioModel
 
     public function buscarPorId(int $id): ?array
     {
-        $stmt = $this->db->prepare("SELECT * FROM gimnasio WHERE id_gimnasio = :id LIMIT 1");
+        $stmt = $this->db->prepare("SELECT * FROM gimnasio WHERE id_gimnasio = :id" . $this->filtroEmpresa('') . " LIMIT 1");
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch();
         return $row ?: null;
@@ -218,7 +232,8 @@ class GimnasioModel
     public function nombreExiste(string $nombre, int $excluirId = 0): bool
     {
         $stmt = $this->db->prepare(
-            "SELECT id_gimnasio FROM gimnasio WHERE nombre = :nombre AND id_gimnasio <> :id LIMIT 1"
+            "SELECT id_gimnasio FROM gimnasio WHERE nombre = :nombre AND id_gimnasio <> :id"
+            . $this->filtroEmpresa('') . " LIMIT 1"
         );
         $stmt->execute([':nombre' => $nombre, ':id' => $excluirId]);
         return (bool) $stmt->fetch();
@@ -228,10 +243,11 @@ class GimnasioModel
     {
         try {
             $stmt = $this->db->prepare(
-                "INSERT INTO gimnasio (nombre, slug, razon_social, cif, direccion, telefono, email)
-                 VALUES (:nombre, :slug, :razon_social, :cif, :direccion, :telefono, :email)"
+                "INSERT INTO gimnasio (id_empresa, nombre, slug, razon_social, cif, direccion, telefono, email)
+                 VALUES (:id_empresa, :nombre, :slug, :razon_social, :cif, :direccion, :telefono, :email)"
             );
             $stmt->execute([
+                ':id_empresa'  => $this->idEmpresa,
                 ':nombre'       => $datos['nombre'],
                 ':slug'         => $this->generarSlug($datos['nombre']),
                 ':razon_social' => $datos['razon_social'] ?: null,
@@ -259,7 +275,7 @@ class GimnasioModel
                     direccion    = :direccion,
                     telefono     = :telefono,
                     email        = :email
-                 WHERE id_gimnasio = :id"
+                 WHERE id_gimnasio = :id" . $this->filtroEmpresa('')
             );
             return $stmt->execute([
                 ':nombre'       => $datos['nombre'],
@@ -285,7 +301,7 @@ class GimnasioModel
     {
         try {
             $stmt = $this->db->prepare(
-                "UPDATE gimnasio SET activo = NOT activo WHERE id_gimnasio = :id"
+                "UPDATE gimnasio SET activo = NOT activo WHERE id_gimnasio = :id" . $this->filtroEmpresa('')
             );
             return $stmt->execute([':id' => $id]);
         } catch (\PDOException $e) {
@@ -297,7 +313,7 @@ class GimnasioModel
     public function contarActivas(): int
     {
         try {
-            return (int) $this->db->query("SELECT COUNT(*) FROM gimnasio WHERE activo = 1")->fetchColumn();
+            return (int) $this->db->query("SELECT COUNT(*) FROM gimnasio WHERE activo = 1" . $this->filtroEmpresa(''))->fetchColumn();
         } catch (\PDOException $e) {
             error_log('GimnasioModel::contarActivas error: ' . $e->getMessage());
             return 0;

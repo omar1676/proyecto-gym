@@ -48,6 +48,16 @@ class Sesion
 
         $segundos = self::minutosInactividad() * 60;
 
+        // El PHP de XAMPP puede apuntar a un directorio global no escribible
+        // desde el runner aislado. En test se usa siempre una carpeta local;
+        // producción y desarrollo conservan la configuración del servidor.
+        if (defined('SESSION_DIR') && SESSION_DIR !== '' && is_dir(SESSION_DIR)) {
+            ini_set('session.save_path', SESSION_DIR);
+        } elseif (defined('APP_ENV') && APP_ENV === 'test') {
+            $testSessions = dirname(__DIR__, 2) . '/pruebas/sesiones_tmp';
+            if (is_dir($testSessions)) ini_set('session.save_path', $testSessions);
+        }
+
         ini_set('session.use_only_cookies', '1');
         ini_set('session.use_strict_mode', '1');   // rechaza ids de sesión inventados
         ini_set('session.gc_maxlifetime', (string) $segundos);

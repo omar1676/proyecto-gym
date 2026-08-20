@@ -19,6 +19,7 @@ require_once __DIR__ . '/../config/database.php';
 class UserModel {
     private $db;
     private $idGimnasio;
+    private $idEmpresa;
 
     /**
      * $idGimnasio limita los listados y altas a una sede (null = todas, solo
@@ -27,15 +28,22 @@ class UserModel {
      * Ojo: buscarPorUsuario() y buscarPorCorreo() NO filtran a propósito —
      * las usa el login, cuando todavía no se sabe de qué gimnasio es nadie.
      */
-    public function __construct(?int $idGimnasio = null) {
+    public function __construct(?int $idGimnasio = null, ?int $idEmpresa = null) {
         $this->db = Database::getInstance()->getConnection();
         $this->idGimnasio = $idGimnasio;
+        $this->idEmpresa = $idEmpresa;
+        if ($this->idEmpresa === null && $this->idGimnasio !== null) {
+            $stmt = $this->db->prepare('SELECT id_empresa FROM gimnasio WHERE id_gimnasio = :id');
+            $stmt->execute([':id' => $this->idGimnasio]);
+            $this->idEmpresa = (int) $stmt->fetchColumn() ?: null;
+        }
     }
 
     private function filtroSede(string $alias = ''): string {
-        if ($this->idGimnasio === null) return '';
         $prefijo = $alias === '' ? '' : $alias . '.';
-        return ' AND ' . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio;
+        if ($this->idGimnasio !== null) return ' AND ' . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio;
+        if ($this->idEmpresa !== null) return ' AND ' . $prefijo . 'id_empresa = ' . (int) $this->idEmpresa;
+        return '';
     }
 
     /**
@@ -57,11 +65,12 @@ class UserModel {
         try {
             $stmt = $this->db->prepare(
                 'INSERT INTO usuario
-                 (nombre, apellidos, dni, telefono, iban, email, nombre_usuario, contrasena, foto, id_gimnasio)
+                 (id_empresa, nombre, apellidos, dni, telefono, iban, email, nombre_usuario, contrasena, foto, id_gimnasio)
                  VALUES
-                 (:nombre, :apellidos, :dni, :telefono, :iban, :email, :usuario, :contrasena, :foto, :id_gimnasio)'
+                 (:id_empresa, :nombre, :apellidos, :dni, :telefono, :iban, :email, :usuario, :contrasena, :foto, :id_gimnasio)'
             );
             return $stmt->execute([
+                ':id_empresa'  => $this->idEmpresa,
                 ':nombre'      => $nombre,
                 ':apellidos'   => $apellidos,
                 ':dni'         => $dni,
@@ -86,7 +95,7 @@ class UserModel {
     }
 
     public function buscarPorCorreo(string $correo) {
-        $stmt = $this->db->prepare('SELECT * FROM usuario WHERE email = :email LIMIT 1');
+        $stmt = $this->db->prepare('SELECT * FROM usuario WHERE email = :email' . $this->filtroSede() . ' LIMIT 1');
         $stmt->execute([':email' => $correo]);
         return $stmt->fetch();
     }
@@ -222,11 +231,12 @@ class UserModel {
         try {
             $stmt = $this->db->prepare(
                 'INSERT INTO usuario
-                 (nombre, apellidos, dni, telefono, email, nombre_usuario, contrasena, rol, id_gimnasio)
+                 (id_empresa, nombre, apellidos, dni, telefono, email, nombre_usuario, contrasena, rol, id_gimnasio)
                  VALUES
-                 (:nombre, :apellidos, :dni, :telefono, :email, :usuario, :contrasena, :rol, :id_gimnasio)'
+                 (:id_empresa, :nombre, :apellidos, :dni, :telefono, :email, :usuario, :contrasena, :rol, :id_gimnasio)'
             );
             $stmt->execute([
+                ':id_empresa'  => $this->idEmpresa,
                 ':nombre'      => $nombre,
                 ':apellidos'   => $apellidos,
                 ':dni'         => $dni,
@@ -252,7 +262,7 @@ class UserModel {
                     g.nombre AS gimnasio_nombre
              FROM usuario u
              LEFT JOIN gimnasio g ON g.id_gimnasio = u.id_gimnasio
-             WHERE u.rol IN ('empresa','admin','recepcion')" . $this->filtroSede('u');
+             WHERE u.rol IN ('superadmin','direccion','admin','recepcion')" . $this->filtroSede('u');
         $params = [];
 
         if ($busqueda !== '') {
@@ -261,7 +271,7 @@ class UserModel {
             $b = '%' . $busqueda . '%';
             $params = [':b1' => $b, ':b2' => $b, ':b3' => $b, ':b4' => $b];
         }
-        $sql .= " ORDER BY FIELD(u.rol,'empresa','admin','recepcion'), u.apellidos ASC";
+        $sql .= " ORDER BY FIELD(u.rol,'superadmin','direccion','admin','recepcion'), u.apellidos ASC";
 
         try {
             $stmt = $this->db->prepare($sql);
@@ -286,7 +296,7 @@ class UserModel {
         string $rol,
         ?int $idGimnasio
     ): bool {
-        if (!in_array($rol, ['empresa', 'admin', 'recepcion'], true)) {
+        if (!in_array($rol, ['direccion', 'admin', 'recepcion'], true)) {
             return false;
         }
         try {
@@ -297,9 +307,10 @@ class UserModel {
                     email       = :email,
                     telefono    = :telefono,
                     rol         = :rol,
+                    id_empresa  = :id_empresa,
                     id_gimnasio = :id_gimnasio
                  WHERE id_usuario = :id
-                   AND rol IN (\'empresa\',\'admin\',\'recepcion\')' . $this->filtroSede()
+                   AND rol IN (\'direccion\',\'admin\',\'recepcion\')' . $this->filtroSede()
             );
             return $stmt->execute([
                 ':nombre'      => $nombre,
@@ -307,7 +318,8 @@ class UserModel {
                 ':email'       => $email,
                 ':telefono'    => $telefono,
                 ':rol'         => $rol,
-                ':id_gimnasio' => $rol === 'empresa' ? null : $idGimnasio,
+                ':id_empresa'  => $this->idEmpresa,
+                ':id_gimnasio' => $rol === 'direccion' ? null : $idGimnasio,
                 ':id'          => $id,
             ]);
         } catch (\PDOException $e) {
@@ -321,7 +333,7 @@ class UserModel {
         try {
             $stmt = $this->db->prepare(
                 "SELECT COUNT(*) FROM usuario
-                 WHERE rol IN ('empresa','admin') AND activo = 1 AND id_usuario <> :id"
+                 WHERE rol IN ('superadmin','direccion','admin') AND activo = 1 AND id_usuario <> :id" . $this->filtroSede()
             );
             $stmt->execute([':id' => $excluirId]);
             return (int) $stmt->fetchColumn();
@@ -332,26 +344,26 @@ class UserModel {
     }
 
     public function usuarioExiste(string $usuario): bool {
-        $stmt = $this->db->prepare('SELECT id_usuario FROM usuario WHERE nombre_usuario = :u LIMIT 1');
+        $stmt = $this->db->prepare('SELECT id_usuario FROM usuario WHERE nombre_usuario = :u' . $this->filtroSede() . ' LIMIT 1');
         $stmt->execute([':u' => $usuario]);
         return (bool) $stmt->fetch();
     }
 
     public function correoExiste(string $correo): bool {
-        $stmt = $this->db->prepare('SELECT id_usuario FROM usuario WHERE email = :e LIMIT 1');
+        $stmt = $this->db->prepare('SELECT id_usuario FROM usuario WHERE email = :e' . $this->filtroSede() . ' LIMIT 1');
         $stmt->execute([':e' => $correo]);
         return (bool) $stmt->fetch();
     }
 
     public function dniExiste(string $dni): bool {
-        $stmt = $this->db->prepare('SELECT id_usuario FROM usuario WHERE dni = :d LIMIT 1');
+        $stmt = $this->db->prepare('SELECT id_usuario FROM usuario WHERE dni = :d' . $this->filtroSede() . ' LIMIT 1');
         $stmt->execute([':d' => $dni]);
         return (bool) $stmt->fetch();
     }
 
     public function correoExisteOtroUsuario(string $correo, int $idUsuario): bool {
         $stmt = $this->db->prepare(
-            'SELECT id_usuario FROM usuario WHERE email = :email AND id_usuario <> :id LIMIT 1'
+            'SELECT id_usuario FROM usuario WHERE email = :email AND id_usuario <> :id' . $this->filtroSede() . ' LIMIT 1'
         );
         $stmt->execute([':email' => $correo, ':id' => $idUsuario]);
         return (bool) $stmt->fetch();
@@ -581,11 +593,10 @@ class UserModel {
     }
 
     public function eliminarUsuario(int $id): bool {
+        $usuario = $this->buscarPorId($id);
+        if (!$usuario) return false;
         try {
-            $foto = null;
-            $stmt = $this->db->prepare('SELECT foto FROM usuario WHERE id_usuario = :id LIMIT 1');
-            $stmt->execute([':id' => $id]);
-            $foto = $stmt->fetchColumn() ?: null;
+            $foto = $usuario['foto'] ?? null;
 
             $this->db->beginTransaction();
 

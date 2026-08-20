@@ -148,7 +148,7 @@ require __DIR__ . '/../_header_admin.php';
                                                 onsubmit="return confirm('¿Quitar la imagen de este producto?');">
                                                 <?= Csrf::field() ?>
                                                 <input type="hidden" name="id_producto" value="<?= (int) $producto['id_producto'] ?>">
-                                                <button type="submit" title="Quitar imagen"
+                                                <button type="submit" title="Quitar imagen" aria-label="Quitar imagen de <?= htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8') ?>"
                                                     class="text-neutral-500 hover:text-red-500 transition text-xs">✕</button>
                                             </form>
                                             <?php endif; ?>
@@ -173,11 +173,12 @@ require __DIR__ . '/../_header_admin.php';
                                             <?= Csrf::field() ?>
                                             <input type="hidden" name="accion" value="actualizar_stock">
                                             <input type="hidden" name="id_producto" value="<?= (int) $producto['id_producto'] ?>">
-                                            <input type="number" name="stock" min="0" max="99999"
+                                            <label for="stock-producto-<?= (int) $producto['id_producto'] ?>" class="sr-only">Stock de <?= htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8') ?></label>
+                                            <input type="number" id="stock-producto-<?= (int) $producto['id_producto'] ?>" name="stock" min="0" max="99999"
                                                 value="<?= (int) $producto['stock'] ?>"
                                                 class="w-20 rounded-lg border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#4f46e5]
                                                     <?= $bajoMinimo ? 'border-[#111318] text-[#111318] font-bold' : 'border-[#e4e4e7] text-neutral-700' ?>">
-                                            <button type="submit" title="Guardar stock"
+                                            <button type="submit" title="Guardar stock" aria-label="Guardar stock de <?= htmlspecialchars($producto['nombre'], ENT_QUOTES, 'UTF-8') ?>"
                                                 class="rounded-md bg-[#e4e4e7] px-2 py-1 text-xs font-bold text-[#111318] hover:bg-[#4338ca] transition">✓</button>
                                         </form>
                                     </td>
@@ -206,7 +207,7 @@ require __DIR__ . '/../_header_admin.php';
                                                 "stock_minimo" => (int) $producto["stock_minimo"],
                                                 "estado"       => $producto["estado"],
                                                 "categoria"    => (int) ($producto["id_categoria"] ?? 0),
-                                            ], JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?>)'
+                                            ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?>)'
                                             class="rounded-full border border-[#e4e4e7] px-3 py-1 text-xs font-bold text-neutral-500 hover:bg-neutral-50 transition">
                                             Editar
                                         </button>

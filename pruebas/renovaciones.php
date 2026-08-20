@@ -25,7 +25,7 @@ function comprobar(string $d, $esperado, $real) {
 }
 
 // --- Estado de partida -------------------------------------------------------
-$db->exec("DELETE FROM socio_membresia WHERE id_socio IN (SELECT id_usuario FROM usuario WHERE nombre_usuario LIKE 'test_%')");
+pruebasLimpiarMembresias($db, "sm.id_socio IN (SELECT id_usuario FROM usuario WHERE nombre_usuario LIKE 'test_%')");
 $db->exec("DELETE FROM usuario WHERE nombre_usuario LIKE 'test_%'");
 
 $membresias = new MembresiaModel(1);
@@ -101,7 +101,7 @@ $membresiasB = new MembresiaModel(999);
 comprobar('otra sede no ve estas renovaciones', 0, count($membresiasB->listarParaRenovar(3)));
 
 // --- Limpieza ----------------------------------------------------------------
-$db->exec("DELETE FROM socio_membresia WHERE id_socio IN (SELECT id_usuario FROM usuario WHERE nombre_usuario LIKE 'test_%')");
+pruebasLimpiarMembresias($db, "sm.id_socio IN (SELECT id_usuario FROM usuario WHERE nombre_usuario LIKE 'test_%')");
 $db->exec("DELETE FROM usuario WHERE nombre_usuario LIKE 'test_%'");
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";

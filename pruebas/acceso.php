@@ -11,9 +11,10 @@
  * Requiere el servidor levantado en localhost:8080 y los datos de ejemplo.
  */
 
+putenv('APP_ENV=test');
 require_once dirname(__DIR__) . '/app/config/database.php';
 
-$base = 'http://localhost:8080/index.php';
+$base = getenv('TEST_BASE_URL') ?: 'http://127.0.0.1:8091/index.php';
 $ok = 0; $fallos = 0;
 
 /**
@@ -22,17 +23,19 @@ $ok = 0; $fallos = 0;
  * comprobaciones fallarían por el bloqueo y no por lo que quieren medir.
  */
 /*
- * Esta suite es la excepción: NO usa _arranque.php ni la base de pruebas.
- * Habla por HTTP con el servidor de desarrollo, y ese servidor trabaja contra
- * la base normal, así que las comprobaciones tienen que mirar ahí. Lo único
- * que borra son los registros de intentos fallidos, que son temporales.
- *
- * Aun así no debe correr nunca contra un sitio en producción: dispara accesos
- * fallidos a propósito y limpiaría el control de fuerza bruta.
+ * El proceso PHP que sirve estas peticiones DEBE ejecutarse con APP_ENV=test.
+ * SecurityHeaders añade X-App-Environment: test: sin esa prueba positiva la
+ * suite aborta antes de borrar intentos o enviar credenciales.
  */
 require_once __DIR__ . '/../app/config/config.php';
-if (PHP_SAPI !== 'cli' || APP_ENV === 'production') {
-    fwrite(STDERR, "\n  Esta prueba provoca accesos fallidos: no se ejecuta en producción.\n\n");
+if (PHP_SAPI !== 'cli' || APP_ENV !== 'test') {
+    fwrite(STDERR, "\n  Esta prueba solo se ejecuta con APP_ENV=test.\n\n");
+    exit(1);
+}
+
+$sonda = pedir($base . '?action=login_gimnasio');
+if (stripos($sonda['cuerpo'], 'X-App-Environment: test') === false) {
+    fwrite(STDERR, "\n  ABORTADO: el servidor HTTP no acredita APP_ENV=test.\n\n");
     exit(1);
 }
 
@@ -94,9 +97,16 @@ function pedir(string $url, ?array $post = null, string $galleta = '') {
         curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post));
     }
     $resp = curl_exec($ch);
+    $estado = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     preg_match('/^Location:\s*(.+)$/mi', $resp, $m);
-    return ['cuerpo' => (string) $resp, 'destino' => trim($m[1] ?? '')];
+    return ['cuerpo' => (string) $resp, 'destino' => trim($m[1] ?? ''), 'estado' => $estado];
+}
+
+function testigoPanel(string $galleta): string {
+    global $base;
+    $r = pedir("$base?action=admin", null, $galleta);
+    return preg_match('/name="_csrf" value="([a-f0-9]{64})"/', $r['cuerpo'], $m) ? $m[1] : '';
 }
 
 function galletaNueva(): string {
@@ -212,6 +222,9 @@ $r  = pedir("$base?action=autenticar", ['usuario' => 'daniel', 'contrasena' => '
 comprobar('daniel entra', strpos($r['destino'], 'action=admin') !== false, "-> {$r['destino']}");
 
 $r = pedir("$base?action=logout", null, $ck);
+$sigue = pedir("$base?action=admin", null, $ck);
+comprobar('logout por GET sin CSRF no cierra la sesión', $sigue['estado'] === 200);
+$r = pedir("$base?action=logout", ['_csrf' => testigoPanel($ck)], $ck);
 comprobar('al salir vuelve al login del gimnasio, no al de la plataforma',
     strpos($r['destino'], 'login_gimnasio') !== false, "-> {$r['destino']}");
 
@@ -226,6 +239,9 @@ comprobar('kevin entra sin repetir las credenciales del gimnasio',
 
 echo "\n== SALIDA COMPLETA: cerrar el local ==\n";
 $r = pedir("$base?action=salir_gimnasio", null, $ck);
+$sigue = pedir("$base?action=admin", null, $ck);
+comprobar('cerrar el gimnasio por GET sin CSRF se rechaza', $sigue['estado'] === 200);
+$r = pedir("$base?action=salir_gimnasio", ['_csrf' => testigoPanel($ck)], $ck);
 comprobar('salir del gimnasio lleva a la pantalla inicial',
     strpos($r['destino'], 'action=login') !== false && strpos($r['destino'], 'login_gimnasio') === false,
     "-> {$r['destino']}");
@@ -267,5 +283,33 @@ $r = pedir("$base?action=autenticar",
     ['usuario' => 'daniel', 'contrasena' => '1234', '_csrf' => 'no-vale'], $ck);
 comprobar('sin testigo tampoco entra el empleado',
     strpos($r['destino'], 'action=admin') === false, "-> {$r['destino']}");
+
+echo "\n== AUTORIZACIÓN Y CSRF DEL PANEL ==\n";
+$ckRecepcion = entrarGimnasio(CLETO_EMAIL, CLETO_CLAVE);
+pedir("$base?action=autenticar", ['usuario' => 'kevin', 'contrasena' => '1234'], $ckRecepcion);
+$r = pedir("$base?action=admin_productos", null, $ckRecepcion);
+comprobar('recepción no puede gestionar productos', $r['estado'] === 403, "-> HTTP {$r['estado']}");
+$r = pedir("$base?action=admin_importaciones", null, $ckRecepcion);
+comprobar('recepción no puede gestionar importaciones', $r['estado'] === 403, "-> HTTP {$r['estado']}");
+$r = pedir("$base?action=admin_venta_anular", ['id_venta' => 1, '_csrf' => testigoPanel($ckRecepcion)], $ckRecepcion);
+comprobar('recepción no puede anular ventas', $r['estado'] === 403, "-> HTTP {$r['estado']}");
+
+$ckAdmin = entrarGimnasio(CLETO_EMAIL, CLETO_CLAVE);
+pedir("$base?action=autenticar", ['usuario' => 'daniel', 'contrasena' => '1234'], $ckAdmin);
+$stockAntes = (int) Database::getInstance()->getConnection()->query('SELECT stock FROM producto WHERE id_producto = 1')->fetchColumn();
+pedir("$base?action=admin_productos", [
+    'accion' => 'actualizar_stock', 'id_producto' => 1, 'stock' => $stockAntes + 999, '_csrf' => 'incorrecto'
+], $ckAdmin);
+$stockDespues = (int) Database::getInstance()->getConnection()->query('SELECT stock FROM producto WHERE id_producto = 1')->fetchColumn();
+comprobar('un POST sensible con CSRF incorrecto no cambia stock', $stockAntes === $stockDespues);
+
+$ckDireccion = entrarGimnasio(CLETO_EMAIL, CLETO_CLAVE);
+pedir("$base?action=autenticar", ['usuario' => 'empresa', 'contrasena' => 'admin123'], $ckDireccion);
+$r = pedir("$base?action=admin_importaciones", null, $ckDireccion);
+comprobar('dirección puede abrir importaciones', $r['estado'] === 200);
+
+$r = pedir("$base?action=logout", ['_csrf' => testigoPanel($ckAdmin)], $ckAdmin);
+$r = pedir("$base?action=admin", null, $ckAdmin);
+comprobar('tras logout no se puede reutilizar el panel', strpos($r['destino'], 'action=login') !== false);
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";

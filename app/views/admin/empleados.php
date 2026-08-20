@@ -4,7 +4,8 @@ require_once __DIR__ . '/../../helpers/Csrf.php';
 require __DIR__ . '/../_header_admin.php';
 
 $etiquetasRol = [
-    'empresa' => ['Empresa',     'bg-[#111318] text-white'],
+    'superadmin' => ['Superadmin', 'bg-[#111318] text-white'],
+    'direccion'  => ['Dirección',  'bg-[#111318] text-white'],
     'admin'       => ['Administrador', 'bg-[#eef2ff] text-[#4f46e5]'],
     'recepcion'   => ['Recepción',   'bg-[#f4f4f5] text-neutral-600'],
 ];
@@ -101,7 +102,7 @@ $etiquetasRol = [
                                     <span class="rounded-full px-3 py-1 text-xs font-bold <?= $et[1] ?>"><?= $et[0] ?></span>
                                 </td>
                                 <td class="px-5 py-3 text-neutral-500">
-                                    <?= $rol === 'empresa'
+                                    <?= in_array($rol, ['superadmin', 'direccion'], true)
                                         ? '<span class="text-xs italic text-neutral-500">Todas</span>'
                                         : htmlspecialchars($emp['gimnasio_nombre'] ?? '—', ENT_QUOTES, 'UTF-8') ?>
                                 </td>
@@ -136,7 +137,7 @@ $etiquetasRol = [
                                             "rol"       => $emp["rol"],
                                             "sede"      => (int) ($emp["id_gimnasio"] ?? 0),
                                             "esYo"      => $esYo,
-                                        ], JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?>)'
+                                        ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?>)'
                                         class="rounded-full border border-[#e4e4e7] px-3 py-1 text-xs font-bold text-neutral-500 hover:bg-neutral-50 transition">
                                         Editar
                                     </button>
@@ -313,7 +314,7 @@ $etiquetasRol = [
                         class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
                         <option value="recepcion">Recepción</option>
                         <option value="admin">Administrador</option>
-                        <option value="empresa">Empresa (acceso a todas las sedes)</option>
+                        <option value="direccion">Dirección (todas las sedes de la empresa)</option>
                     </select>
                     <p id="ed-emp-aviso-rol" class="mt-1 text-[11px] text-neutral-500"></p>
                 </div>
@@ -371,12 +372,12 @@ function editarEmpleado(datos) {
     document.getElementById('modal-editar-empleado').classList.remove('hidden');
 }
 
-// La empresa no pertenece a ninguna sede: las ve todas.
+// Dirección no pertenece a una sede: ve las de su empresa.
 function alternarSedeEmpleado() {
     var selRol = document.getElementById('ed-emp-rol');
     var caja   = document.getElementById('ed-emp-sede-wrap');
     if (!selRol || !caja) return;
-    caja.style.display = selRol.value === 'empresa' ? 'none' : '';
+    caja.style.display = selRol.value === 'direccion' ? 'none' : '';
 }
 </script>
 

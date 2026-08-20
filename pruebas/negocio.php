@@ -67,7 +67,7 @@ comprobar('stock devuelto', $antesAnular + 2, (int) $productos->buscarPorId(1)['
 echo "\n== MEMBRESIAS ==\n";
 // Parte de cero: las renovaciones encadenan, así que sin limpiar las
 // contrataciones previas las fechas esperadas se desplazarían en cada pasada.
-Database::getInstance()->getConnection()->exec("DELETE FROM socio_membresia WHERE id_socio = 3");
+pruebasLimpiarMembresias(Database::getInstance()->getConnection(), 'sm.id_socio = 3');
 $err = '';
 $idM = $membres->contratar(3, 1, 'efectivo', $err);   // socio 3, tipo Mensual
 comprobar('membresia contratada', true, $idM !== null);

@@ -1,0 +1,20 @@
+<VirtualHost *:80>
+    ServerName gimnasio.example.com
+    Redirect permanent / https://gimnasio.example.com/
+</VirtualHost>
+<VirtualHost *:443>
+    ServerName gimnasio.example.com
+    DocumentRoot /var/www/gimnasio/current/public
+    SSLEngine on
+    # Certificados administrados por Certbot/proveedor.
+    <Directory /var/www/gimnasio/current/public>
+        AllowOverride All
+        Require all granted
+        Options -Indexes
+    </Directory>
+    <Directory /var/www/gimnasio/current>
+        Require all denied
+    </Directory>
+    ErrorLog /var/log/apache2/gimnasio-error.log
+    CustomLog /var/log/apache2/gimnasio-access.log combined
+</VirtualHost>

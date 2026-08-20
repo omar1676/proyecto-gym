@@ -1,14 +1,55 @@
+# Configuración y secretos. Solo el contrato sin valores reales se versiona.
 .env
-.env.*.bak
-# Copia del repositorio anterior (proyecto de clase), solo respaldo local.
-/.git.bak/
-# Volcados de la base: llevan datos personales e IBAN. Nunca al repositorio.
+.env.*
+!.env.example
+*.bak
+
+# Copias, dumps, archivos históricos y paquetes generados.
 /copias/
-/vendor/
+/backups/
+/restauraciones/
+/releases/
+*.sql
+!app/config/*.sql
+*.sql.gz
+*.zip
+*.tar.gz
+*.tgz
+*.gz
+
+# Datos de ejecución y entradas privadas.
 *.log
 /storage/logs/
+/storage/sessions/
+/storage/imports/
+/storage/uploads/
+/pruebas/sesiones_tmp/
+
+# Credenciales, certificados y bases locales.
+*.pem
+*.key
+*.pfx
+*.p12
+*.sqlite
+*.sqlite3
+*.db
+
+# Dependencias y resultados locales.
+/vendor/
+.phpunit.result.cache
+/coverage/
+
+# Temporales, editores y sistema operativo.
+*.tmp
+*.temp
+*.swp
+*.swo
+*.orig
+*.rej
+*~
 .DS_Store
 Thumbs.db
+Desktop.ini
 .idea/
 .vscode/
-*.swp
+*.code-workspace

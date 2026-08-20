@@ -29,8 +29,7 @@ function comprobar(string $d, $esperado, $real) {
 }
 
 // --- Estado de partida -------------------------------------------------------
-$db->exec("DELETE FROM venta_linea WHERE id_venta IN (SELECT id_venta FROM venta WHERE id_gimnasio = 1)");
-$db->exec("DELETE FROM venta WHERE id_gimnasio = 1");
+pruebasLimpiarVentas($db, 'v.id_gimnasio = 1');
 $db->exec("DELETE FROM producto WHERE nombre LIKE 'TEST %'");
 
 $producto = new ProductoModel(1);
@@ -55,7 +54,8 @@ $id2 = $venta->registrar([['id_producto' => $idProducto, 'cantidad' => 1]], null
 comprobar('la siguiente venta es la 2', 2, $venta->buscarPorId($id2)['numero']);
 
 // Otra sede lleva su propia numeración: los dos mostradores emiten a la vez.
-$gim    = new GimnasioModel();
+$idEmpresa = (int) $db->query('SELECT MIN(id_empresa) FROM empresa')->fetchColumn();
+$gim    = new GimnasioModel($idEmpresa);
 $idSedeB = $gim->crear(['nombre' => 'TEST Sede facturación', 'razon_social' => '', 'cif' => '',
                         'direccion' => '', 'telefono' => '', 'email' => '']);
 $productoB = new ProductoModel($idSedeB);
@@ -105,8 +105,7 @@ comprobar('la sede B no puede anular la venta de A', false, $ventaB->anular($id2
 comprobar('la venta de A sigue activa', 'activa', $venta->buscarPorId($id2)['estado']);
 
 // --- Limpieza ----------------------------------------------------------------
-$db->exec("DELETE FROM venta_linea WHERE id_venta IN (SELECT id_venta FROM venta WHERE id_gimnasio IN (1, $idSedeB))");
-$db->exec("DELETE FROM venta    WHERE id_gimnasio IN (1, $idSedeB)");
+pruebasLimpiarVentas($db, "v.id_gimnasio IN (1, $idSedeB)");
 $db->exec("DELETE FROM producto WHERE nombre LIKE 'TEST %'");
 $db->exec("DELETE FROM gimnasio WHERE id_gimnasio = $idSedeB");
 

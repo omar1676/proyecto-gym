@@ -17,7 +17,7 @@ function comprobar(string $d, $esperado, $real) {
 
 // Limpia las membresías del socio de pruebas para partir de cero.
 $db = Database::getInstance()->getConnection();
-$db->exec("DELETE FROM socio_membresia WHERE id_socio = 3");
+pruebasLimpiarMembresias($db, 'sm.id_socio = 3');
 
 $tipos = $m->listarTiposActivos();
 $sups  = $m->listarSuplementosActivos();
@@ -41,7 +41,7 @@ comprobar('sin suplemento',     '0.00',  $v['precio_suplemento']);
 comprobar('nombre suplemento vacio', '', (string) $v['nombre_suplemento']);
 
 echo "\n== MENSUAL + ARTES MARCIALES ==\n";
-$db->exec("DELETE FROM socio_membresia WHERE id_socio = 3");
+pruebasLimpiarMembresias($db, 'sm.id_socio = 3');
 $err = '';
 $m->contratar(3, (int) $mensual['id_tipo_membresia'], 'datafono', $err, (int) $plus['id_suplemento']);
 $v = $m->vigenteDeSocio(3);
@@ -51,7 +51,7 @@ comprobar('TOTAL 65 €',          '65.00', number_format((float) $v['precio_pag
 comprobar('nombre del plus congelado', $plus['nombre'], $v['nombre_suplemento']);
 
 echo "\n== TRIMESTRAL + PLUS (el plus se multiplica por los meses) ==\n";
-$db->exec("DELETE FROM socio_membresia WHERE id_socio = 3");
+pruebasLimpiarMembresias($db, 'sm.id_socio = 3');
 $err = '';
 $m->contratar(3, (int) $trimestral['id_tipo_membresia'], 'efectivo', $err, (int) $plus['id_suplemento']);
 $v = $m->vigenteDeSocio(3);
@@ -67,6 +67,6 @@ comprobar('el listado muestra el plus', $plus['nombre'], $fila['nombre_suplement
 comprobar('ingresos del mes incluyen el plus', true, $m->sumarIngresosDelMes() >= 170.00);
 
 // Deja el socio de pruebas limpio.
-$db->exec("DELETE FROM socio_membresia WHERE id_socio = 3");
+pruebasLimpiarMembresias($db, 'sm.id_socio = 3');
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";

@@ -26,7 +26,7 @@ function comprobar(string $d, $esperado, $real) {
 }
 
 $idSocio = 3;
-$db->exec("DELETE FROM socio_membresia WHERE id_socio = $idSocio");
+pruebasLimpiarMembresias($db, "sm.id_socio = $idSocio");
 
 $dias = MembresiaModel::DIAS_PRUEBA;
 echo "== APERTURA DE PRUEBA ($dias días) ==\n";
@@ -70,7 +70,7 @@ foreach ($m->listarSocios() as $s) { if ((int) $s['id_usuario'] === $idSocio) $f
 comprobar('el listado la marca caducada', 'prueba_caducada', $fila['estado_membresia']);
 
 echo "\n== CONVERSIÓN: el trabajador confirma el pago dentro de plazo ==\n";
-$db->exec("DELETE FROM socio_membresia WHERE id_socio = $idSocio");
+pruebasLimpiarMembresias($db, "sm.id_socio = $idSocio");
 $err = '';
 $m->iniciarPrueba($idSocio, $err);
 
@@ -91,6 +91,6 @@ $fila = null;
 foreach ($m->listarSocios() as $s) { if ((int) $s['id_usuario'] === $idSocio) $fila = $s; }
 comprobar('el socio pasa a activa', 'activa', $fila['estado_membresia']);
 
-$db->exec("DELETE FROM socio_membresia WHERE id_socio = $idSocio");
+pruebasLimpiarMembresias($db, "sm.id_socio = $idSocio");
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";

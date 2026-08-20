@@ -24,7 +24,8 @@ function comprobar(string $d, $esperado, $real) {
     else { $fallos++; echo "  FALLO $d — esperaba [$esperado], obtuve [$real]\n"; }
 }
 
-$gim = new GimnasioModel();
+$idEmpresa = (int) $db->query('SELECT MIN(id_empresa) FROM empresa')->fetchColumn();
+$gim = new GimnasioModel($idEmpresa);
 
 // --- Estado de partida -------------------------------------------------------
 $db->exec("DELETE FROM usuario  WHERE nombre_usuario LIKE 'test_%'");
@@ -111,13 +112,13 @@ comprobar('se actualiza el email', 'test_recep2@test.es', $editado['email']);
 $userA->actualizarEmpleado($idRecep, 'Test', 'Recepcion Editada', 'test_recep2@test.es', null, 'admin', $idSedeA);
 comprobar('se puede ascender a admin', 'admin', $userA->buscarPorId($idRecep)['rol']);
 
-// Ascender a empresa deja al usuario sin sede, así que a partir de ahí ya no
+// Ascender a dirección deja al usuario sin sede, así que a partir de ahí ya no
 // es "de la sede A" y solo lo alcanza un modelo sin filtro. Es justo lo que
-// pasa en el panel: los roles solo los cambia la empresa, que trabaja sin sede.
-$userEmpresa = new UserModel(null);
-$userEmpresa->actualizarEmpleado($idRecep, 'Test', 'Recepcion Editada', 'test_recep2@test.es', null, 'empresa', $idSedeA);
+// pasa en el panel: los roles solo los cambia dirección, que trabaja sin sede.
+$userEmpresa = new UserModel(null, $idEmpresa);
+$userEmpresa->actualizarEmpleado($idRecep, 'Test', 'Recepcion Editada', 'test_recep2@test.es', null, 'direccion', $idSedeA);
 $tras = $userEmpresa->buscarPorId($idRecep);
-comprobar('la empresa queda sin sede', true, $tras['id_gimnasio'] === null);
+comprobar('dirección queda sin sede', true, $tras['id_gimnasio'] === null);
 
 // Volvemos a dejarlo como recepción de la sede A.
 $userEmpresa->actualizarEmpleado($idRecep, 'Test', 'Recepcion Editada', 'test_recep2@test.es', null, 'recepcion', $idSedeA);
@@ -126,12 +127,12 @@ comprobar('vuelve a ser de la sede A', $idSedeA, $userA->buscarPorId($idRecep)['
 echo "\n== NO QUEDARSE SIN ADMINISTRADORES ==\n";
 $gestores = $userA->contarGestoresActivos();
 comprobar('hay gestores activos en el sistema', true, $gestores > 0);
-comprobar('excluyendo a uno siguen quedando otros', true, $userA->contarGestoresActivos($idAdmin) > 0);
+comprobar('excluyendo al único admin de la sede no queda otro', 0, $userA->contarGestoresActivos($idAdmin));
 
 // Bloqueamos a todos menos al admin de prueba para simular el caso límite.
-$db->exec("UPDATE usuario SET activo = 0 WHERE rol IN ('empresa','admin') AND id_usuario <> $idAdmin");
+$db->exec("UPDATE usuario SET activo = 0 WHERE rol IN ('superadmin','direccion','admin') AND id_usuario <> $idAdmin");
 comprobar('si solo queda uno, el contador excluyéndolo es 0', 0, $userA->contarGestoresActivos($idAdmin));
-$db->exec("UPDATE usuario SET activo = 1 WHERE rol IN ('empresa','admin')");
+$db->exec("UPDATE usuario SET activo = 1 WHERE rol IN ('superadmin','direccion','admin')");
 
 echo "\n== BLOQUEO DE ACCESO ==\n";
 $userA->toggleActivo($idRecep);

@@ -43,6 +43,13 @@ class Mailer
             return false;
         }
 
+        // Las pruebas usan direcciones sintéticas @test.invalid y no deben
+        // abrir SMTP ni invocar mail(). Además de evitar envíos accidentales,
+        // mantiene rápidos y deterministas los flujos funcionales del piloto.
+        if (defined('APP_ENV') && APP_ENV === 'test') {
+            return true;
+        }
+
         $from = self::from();
 
         // Con SMTP configurado se envía por ahí; si no, se cae a mail().

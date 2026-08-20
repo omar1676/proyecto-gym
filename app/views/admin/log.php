@@ -5,10 +5,11 @@ if (!isset($pageTitle)) $pageTitle = 'Historial de actividad';
 $paginaActiva = 'log';
 require __DIR__ . '/../_header_admin.php';
 
-$esEmpresa = ($_SESSION['usuario_rol'] ?? '') === 'empresa';
+$esEmpresa = in_array($_SESSION['usuario_rol'] ?? '', ['superadmin', 'direccion'], true);
 
 $coloresRol = [
-    'empresa' => 'bg-[#111318] text-white',
+    'superadmin' => 'bg-[#111318] text-white',
+    'direccion' => 'bg-[#111318] text-white',
     'admin'       => 'bg-[#404040] text-white',
     'recepcion'   => 'bg-[#dcfce7] text-[#15803d]',
     'socio'       => 'bg-[#f4f4f5] text-neutral-500',

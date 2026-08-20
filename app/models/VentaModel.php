@@ -1,4 +1,6 @@
 <?php
+require_once dirname(__DIR__) . '/helpers/Money.php';
+require_once dirname(__DIR__) . '/services/CashMovementRecorder.php';
 /**
  * VentaModel — acceso a las tablas `venta` y `venta_linea`.
  *
@@ -21,14 +23,21 @@ class VentaModel
     private $db;
     private $tabla = 'venta';
     private $idGimnasio;
+    private $idEmpresa;
 
     private const METODOS_VALIDOS = ['efectivo', 'datafono', 'transferencia'];
 
     /** Ver ProductoModel::__construct para el criterio de aislamiento por sede. */
-    public function __construct(?int $idGimnasio = null)
+    public function __construct(?int $idGimnasio = null, ?int $idEmpresa = null)
     {
         $this->db = Database::getInstance()->getConnection();
         $this->idGimnasio = $idGimnasio;
+        $this->idEmpresa = $idEmpresa;
+        if ($this->idEmpresa === null && $this->idGimnasio !== null) {
+            $stmt = $this->db->prepare('SELECT id_empresa FROM gimnasio WHERE id_gimnasio = :id');
+            $stmt->execute([':id' => $this->idGimnasio]);
+            $this->idEmpresa = (int) $stmt->fetchColumn() ?: null;
+        }
     }
 
     /** Serie de facturación. Una sola por ahora; la columna admite más. */
@@ -36,9 +45,13 @@ class VentaModel
 
     private function filtroSede(string $alias = 'v'): string
     {
-        if ($this->idGimnasio === null) return '';
         $prefijo = $alias === '' ? '' : $alias . '.';
-        return ' AND ' . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio;
+        if ($this->idGimnasio !== null) return ' AND ' . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio;
+        if ($this->idEmpresa !== null) {
+            return ' AND ' . $prefijo . 'id_gimnasio IN (SELECT id_gimnasio FROM gimnasio WHERE id_empresa = '
+                . (int) $this->idEmpresa . ')';
+        }
+        return '';
     }
 
     /**
@@ -50,6 +63,18 @@ class VentaModel
     {
         $prefijo = $alias === '' ? '' : $alias . '.';
         return " AND " . $prefijo . "estado = 'activa'";
+    }
+
+    private function usuarioEnAmbito(int $idUsuario, ?string $rol = null): bool
+    {
+        $sql = 'SELECT 1 FROM usuario WHERE id_usuario = :id';
+        if ($rol !== null) $sql .= ' AND rol = :rol';
+        $sql .= $this->filtroSede('') . ' LIMIT 1';
+        $stmt = $this->db->prepare($sql);
+        $params = [':id' => $idUsuario];
+        if ($rol !== null) $params[':rol'] = $rol;
+        $stmt->execute($params);
+        return (bool) $stmt->fetchColumn();
     }
 
     /**
@@ -66,7 +91,8 @@ class VentaModel
         ?int $idSocio,
         string $metodoPago,
         ?int $idUsuarioRegistro,
-        string &$error
+        string &$error,
+        ?string $idempotencyKey = null
     ): ?int {
         if (!in_array($metodoPago, self::METODOS_VALIDOS, true)) {
             $error = 'Método de pago no válido.';
@@ -86,6 +112,28 @@ class VentaModel
         if (empty($items)) {
             $error = 'Añade al menos un producto con cantidad mayor que 0.';
             return null;
+        }
+        if ($idempotencyKey !== null) {
+            $stmt = $this->db->prepare("SELECT id_venta FROM venta WHERE id_gimnasio = :sede AND idempotency_key = :clave LIMIT 1");
+            $stmt->execute([':sede' => $this->idGimnasio, ':clave' => $idempotencyKey]);
+            $existente = (int) $stmt->fetchColumn();
+            if ($existente > 0) return $existente;
+        }
+
+        if ($idSocio && !$this->usuarioEnAmbito($idSocio, 'socio')) {
+            $error = 'El socio no pertenece al ámbito activo.';
+            return null;
+        }
+        if ($idUsuarioRegistro && $this->idEmpresa !== null) {
+            $stmt = $this->db->prepare(
+                "SELECT 1 FROM usuario WHERE id_usuario = :id
+                 AND (rol = 'superadmin' OR id_empresa = :empresa) LIMIT 1"
+            );
+            $stmt->execute([':id' => $idUsuarioRegistro, ':empresa' => $this->idEmpresa]);
+            if (!$stmt->fetchColumn()) {
+                $error = 'El usuario que registra la venta no pertenece al ámbito activo.';
+                return null;
+            }
         }
 
         try {
@@ -110,9 +158,9 @@ class VentaModel
 
             $stmtVenta = $this->db->prepare(
                 "INSERT INTO {$this->tabla}
-                 (id_socio, id_usuario_registro, metodo_pago, total, id_gimnasio, serie, ejercicio, numero)
+                 (id_socio, id_usuario_registro, metodo_pago, total, id_gimnasio, serie, ejercicio, numero, idempotency_key)
                  VALUES
-                 (:id_socio, :id_usuario_registro, :metodo_pago, 0.00, :id_gimnasio, :serie, :ejercicio, :numero)"
+                 (:id_socio, :id_usuario_registro, :metodo_pago, 0.00, :id_gimnasio, :serie, :ejercicio, :numero, :idempotency_key)"
             );
             $stmtVenta->execute([
                 ':id_socio'            => $idSocio ?: null,
@@ -122,6 +170,7 @@ class VentaModel
                 ':serie'               => self::SERIE,
                 ':ejercicio'           => $ejercicio,
                 ':numero'              => $numero,
+                ':idempotency_key'     => $idempotencyKey,
             ]);
             $idVenta = (int) $this->db->lastInsertId();
 
@@ -144,9 +193,9 @@ class VentaModel
                   :subtotal, :base_linea, :cuota_iva)"
             );
 
-            $total = 0.00;
-            $totalBase = 0.00;
-            $totalIva  = 0.00;
+            $totalCents = 0;
+            $totalBaseCents = 0;
+            $totalIvaCents  = 0;
 
             foreach ($items as $idProducto => $cantidad) {
                 $stmtProducto->execute([':id' => $idProducto]);
@@ -180,15 +229,20 @@ class VentaModel
                 // El precio guardado es PVP con IVA incluido: es lo que se
                 // teclea en el mostrador y lo que paga el cliente. La base se
                 // saca hacia atrás, así el desglose nunca altera el cobro.
-                $precio   = (float) $producto['precio'];
-                $iva      = (float) $producto['iva'];
-                $subtotal = round($precio * $cantidad, 2);
-                $base     = round($subtotal / (1 + $iva / 100), 2);
-                $cuota    = round($subtotal - $base, 2);
+                $precioCents   = Money::cents($producto['precio']);
+                $ivaBasis      = (int) round(((float) $producto['iva']) * 100);
+                $subtotalCents = $precioCents * $cantidad;
+                $baseCents     = (int) round($subtotalCents * 10000 / (10000 + $ivaBasis));
+                $cuotaCents    = $subtotalCents - $baseCents;
+                $precio = Money::decimal($precioCents);
+                $iva = $producto['iva'];
+                $subtotal = Money::decimal($subtotalCents);
+                $base = Money::decimal($baseCents);
+                $cuota = Money::decimal($cuotaCents);
 
-                $total     += $subtotal;
-                $totalBase += $base;
-                $totalIva  += $cuota;
+                $totalCents     += $subtotalCents;
+                $totalBaseCents += $baseCents;
+                $totalIvaCents  += $cuotaCents;
 
                 $stmtLinea->execute([
                     ':id_venta'        => $idVenta,
@@ -209,16 +263,25 @@ class VentaModel
                   WHERE id_venta = :id"
             );
             $stmtTotal->execute([
-                ':total' => $total,
-                ':base'  => $totalBase,
-                ':iva'   => $totalIva,
+                ':total' => Money::decimal($totalCents),
+                ':base'  => Money::decimal($totalBaseCents),
+                ':iva'   => Money::decimal($totalIvaCents),
                 ':id'    => $idVenta,
             ]);
+
+            if ($this->idEmpresa !== null && $this->idGimnasio !== null) {
+                (new CashMovementRecorder((int) $this->idEmpresa, (int) $this->idGimnasio, $this->db))
+                    ->registrar(
+                        'venta', $metodoPago, $totalCents, $idVenta, null,
+                        $idUsuarioRegistro, 'Venta ' . self::SERIE . '-' . $ejercicio . '-' . str_pad((string) $numero, 6, '0', STR_PAD_LEFT),
+                        null, 'venta-' . $idVenta
+                    );
+            }
 
             $this->db->commit();
             return $idVenta;
 
-        } catch (\PDOException $e) {
+        } catch (\Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
             error_log('VentaModel::registrar error: ' . $e->getMessage());
             $error = 'No se pudo registrar la venta. Inténtalo de nuevo.';
@@ -242,7 +305,9 @@ class VentaModel
     public function listarLineas(int $idVenta): array
     {
         $stmt = $this->db->prepare(
-            "SELECT * FROM venta_linea WHERE id_venta = :id ORDER BY id_linea ASC"
+            "SELECT vl.* FROM venta_linea vl
+             INNER JOIN venta v ON v.id_venta = vl.id_venta
+             WHERE vl.id_venta = :id" . $this->filtroSede('v') . " ORDER BY vl.id_linea ASC"
         );
         $stmt->execute([':id' => $idVenta]);
         return $stmt->fetchAll();
@@ -263,7 +328,7 @@ class VentaModel
             );
             $stmt->execute([':desde' => $desde, ':hasta' => $hasta]);
             return $stmt->fetchAll();
-        } catch (\PDOException $e) {
+        } catch (\Throwable $e) {
             error_log('VentaModel::listarPorRango error: ' . $e->getMessage());
             return [];
         }
@@ -373,13 +438,21 @@ class VentaModel
         if ($venta === null || ($venta['estado'] ?? 'activa') !== 'activa') {
             return false;
         }
+        if ($idUsuario && $this->idEmpresa !== null) {
+            $stmtUsuario = $this->db->prepare(
+                "SELECT 1 FROM usuario WHERE id_usuario = :id
+                 AND (rol = 'superadmin' OR id_empresa = :empresa) LIMIT 1"
+            );
+            $stmtUsuario->execute([':id' => $idUsuario, ':empresa' => $this->idEmpresa]);
+            if (!$stmtUsuario->fetchColumn()) return false;
+        }
 
         try {
             $this->db->beginTransaction();
 
             $lineas = $this->listarLineas($idVenta);
             $stmtDevolver = $this->db->prepare(
-                "UPDATE producto SET stock = stock + :cantidad WHERE id_producto = :id"
+                "UPDATE producto SET stock = stock + :cantidad WHERE id_producto = :id" . $this->filtroSede('')
             );
             foreach ($lineas as $linea) {
                 if (empty($linea['id_producto'])) continue;
@@ -407,12 +480,20 @@ class VentaModel
             $ok = $stmt->rowCount() > 0;
 
             if ($ok) {
+                if ($this->idEmpresa !== null && $this->idGimnasio !== null) {
+                    (new CashMovementRecorder((int) $this->idEmpresa, (int) $this->idGimnasio, $this->db))
+                        ->registrar(
+                            'anulacion_venta', (string) $venta['metodo_pago'], -Money::cents($venta['total']),
+                            $idVenta, null, $idUsuario, 'Anulación ' . self::referencia($venta),
+                            $motivo !== '' ? $motivo : null, 'anulacion-venta-' . $idVenta
+                        );
+                }
                 $this->db->commit();
                 return true;
             }
             $this->db->rollBack();
             return false;
-        } catch (\PDOException $e) {
+        } catch (\Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
             error_log('VentaModel::anular error: ' . $e->getMessage());
             return false;

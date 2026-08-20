@@ -21,6 +21,7 @@
  * intentos fallidos) no depende ningún dato del negocio.
  */
 
+putenv('APP_ENV=test');
 define('MODO_PRUEBAS', true);
 
 require_once __DIR__ . '/../app/config/config.php';
@@ -35,8 +36,8 @@ if (PHP_SAPI !== 'cli') {
     pruebasAbortar('Las pruebas solo se ejecutan por línea de comandos.');
 }
 
-if (APP_ENV === 'production') {
-    pruebasAbortar('APP_ENV=production. Las pruebas borran filas: nunca deben correr en el servidor.');
+if (APP_ENV !== 'test') {
+    pruebasAbortar('APP_ENV debe ser test. Nunca se ejecutan pruebas con configuración de trabajo o producción.');
 }
 
 if (DB_NAME_PRUEBAS === '' || DB_NAME_PRUEBAS === DB_NAME) {
@@ -62,3 +63,29 @@ if ($baseReal !== DB_NAME_PRUEBAS) {
 // Va por STDERR y no por la salida normal: render.php arranca una sesión justo
 // después, y cualquier cosa escrita en STDOUT le impediría fijar las cookies.
 fwrite(STDERR, '· base de pruebas: ' . $baseReal . "\n");
+
+/** Limpieza explícita del histórico económico sintético antes de borrar ventas. */
+function pruebasLimpiarVentas(PDO $db, string $condicionVenta): void
+{
+    $db->exec("DELETE cm FROM caja_movimiento cm INNER JOIN venta v ON v.id_venta=cm.id_venta WHERE " . $condicionVenta);
+    $db->exec("DELETE vl FROM venta_linea vl INNER JOIN venta v ON v.id_venta=vl.id_venta WHERE " . $condicionVenta);
+    $db->exec("DELETE v FROM venta v WHERE " . $condicionVenta);
+}
+
+/** Limpieza de contratos sintéticos respetando las FK del histórico económico. */
+function pruebasLimpiarMembresias(PDO $db, string $condicionMembresia): void
+{
+    $db->exec("DELETE cm FROM caja_movimiento cm INNER JOIN cobro c ON c.id_cobro=cm.id_cobro INNER JOIN socio_membresia sm ON sm.id_socio_membresia=c.id_socio_membresia WHERE " . $condicionMembresia);
+    $db->exec("DELETE c FROM cobro c INNER JOIN socio_membresia sm ON sm.id_socio_membresia=c.id_socio_membresia WHERE " . $condicionMembresia);
+    $db->exec("DELETE o FROM obligacion_pago o INNER JOIN socio_membresia sm ON sm.id_socio_membresia=o.id_socio_membresia WHERE " . $condicionMembresia);
+    $db->exec("DELETE sm FROM socio_membresia sm WHERE " . $condicionMembresia);
+}
+
+/** Limpieza de remesas sintéticas sin desactivar la integridad referencial. */
+function pruebasLimpiarRemesas(PDO $db, string $condicionRemesa): void
+{
+    $db->exec("DELETE cm FROM caja_movimiento cm INNER JOIN cobro c ON c.id_cobro=cm.id_cobro INNER JOIN remesa_recibo rr ON rr.id_recibo=c.id_remesa_recibo INNER JOIN remesa r ON r.id_remesa=rr.id_remesa WHERE " . $condicionRemesa);
+    $db->exec("DELETE c FROM cobro c INNER JOIN remesa_recibo rr ON rr.id_recibo=c.id_remesa_recibo INNER JOIN remesa r ON r.id_remesa=rr.id_remesa WHERE " . $condicionRemesa);
+    $db->exec("DELETE rr FROM remesa_recibo rr INNER JOIN remesa r ON r.id_remesa=rr.id_remesa WHERE " . $condicionRemesa);
+    $db->exec("DELETE r FROM remesa r WHERE " . $condicionRemesa);
+}

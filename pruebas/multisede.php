@@ -28,12 +28,12 @@ function comprobar(string $d, $esperado, $real) {
 }
 
 // --- Preparación: dos sedes limpias -----------------------------------------
-$db->exec("DELETE FROM venta_linea WHERE id_venta IN (SELECT id_venta FROM venta WHERE id_gimnasio > 1)");
-$db->exec("DELETE FROM venta     WHERE id_gimnasio > 1");
+pruebasLimpiarVentas($db, 'v.id_gimnasio > 1');
 $db->exec("DELETE FROM producto  WHERE nombre LIKE 'TEST %'");
 $db->exec("DELETE FROM log_actividad WHERE accion LIKE 'TEST %'");
 $db->exec("DELETE FROM gimnasio  WHERE nombre = 'Sede de pruebas'");
-$db->exec("INSERT INTO gimnasio (nombre) VALUES ('Sede de pruebas')");
+$idEmpresa = (int) $db->query('SELECT MIN(id_empresa) FROM empresa')->fetchColumn();
+$db->exec("INSERT INTO gimnasio (id_empresa, nombre) VALUES ($idEmpresa, 'Sede de pruebas')");
 $sedeB = (int) $db->lastInsertId();
 $sedeA = (int) $db->query("SELECT MIN(id_gimnasio) FROM gimnasio")->fetchColumn();
 
@@ -89,15 +89,15 @@ $prodTodos = new ProductoModel(null);
 comprobar('la empresa ve los productos de ambas sedes', 2, count($prodTodos->listarTodos('TEST')));
 
 echo "\n== HISTORIAL: quién, sobre quién y qué cambió ==\n";
-$log = new LogModel();
+$log = new LogModel($idEmpresa);
 $log->registrarCambio(
     1, 'TEST Cambio de vencimiento', 'Membresía de Omar',
     3, 'socio', 3, '2026-08-30', '2026-09-30', $sedeA
 );
 $entradas = $log->listar(10, $sedeA, ['buscar' => 'TEST Cambio']);
 $e = $entradas[0] ?? [];
-comprobar('queda registrado quién actúa',   'admin', $e['autor_usuario'] ?? '');
-comprobar('queda registrado sobre quién',   'Socio', $e['afectado_nombre'] ?? '');
+comprobar('queda registrado quién actúa',   'daniel', $e['autor_usuario'] ?? '');
+comprobar('queda registrado sobre quién',   'Omar', $e['afectado_nombre'] ?? '');
 comprobar('guarda el valor anterior',       '2026-08-30', $e['valor_anterior'] ?? '');
 comprobar('guarda el valor nuevo',          '2026-09-30', $e['valor_nuevo'] ?? '');
 comprobar('guarda la sede',                 $sedeA, $e['id_gimnasio'] ?? '');
@@ -106,8 +106,7 @@ $entradasB = $log->listar(10, $sedeB, ['buscar' => 'TEST Cambio']);
 comprobar('el historial de B no ve la entrada de A', 0, count($entradasB));
 
 // --- Limpieza ---------------------------------------------------------------
-$db->exec("DELETE FROM venta_linea WHERE id_venta IN (SELECT id_venta FROM venta WHERE id_gimnasio = $sedeB OR id_venta = " . (int) $idVentaOk . ")");
-$db->exec("DELETE FROM venta WHERE id_gimnasio = $sedeB OR id_venta = " . (int) $idVentaOk);
+pruebasLimpiarVentas($db, "v.id_gimnasio = $sedeB OR v.id_venta = " . (int) $idVentaOk);
 $db->exec("DELETE FROM producto WHERE nombre LIKE 'TEST %'");
 $db->exec("DELETE FROM log_actividad WHERE accion LIKE 'TEST %'");
 $db->exec("DELETE FROM gimnasio WHERE id_gimnasio = $sedeB");

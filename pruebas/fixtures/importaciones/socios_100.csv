@@ -1,0 +1,102 @@
+﻿external_id;nombre;apellidos;dni;email;telefono;fecha_alta;estado;sede_externa;empresa_id
+S100-00001;Lucía;"Pérez Núñez";50000001W;s100.00001@example.invalid;"+34 600000001";2026-01-01;activo;"Sede sintética";999999
+S100-00002;Iñigo;"Martín Sáez";50000002A;s100.00002@example.invalid;600-000-002;2026-02-02;activo;"Sede sintética";999999
+S100-00003;"María José";"Gómez León";50000003G;s100.00003@example.invalid;"+34 600000003";2026-03-03;activo;"Sede sintética";999999
+S100-00004;Óscar;"Muñoz García";50000004M;s100.00004@example.invalid;600-000-004;2026-04-04;activo;"Sede sintética";999999
+S100-00005;Nuria;"Pérez Núñez";50000005Y;s100.00005@example.invalid;"+34 600000005";2026-05-05;activo;"Sede sintética";999999
+S100-00006;Raúl;"Martín Sáez";50000006F;s100.00006@example.invalid;600-000-006;2026-06-06;activo;"Sede sintética";999999
+S100-00007;Sofía;"Gómez León";50000007P;s100.00007@example.invalid;"+34 600000007";2026-07-07;activo;"Sede sintética";999999
+S100-00008;Álvaro;"Muñoz García";50000008D;s100.00008@example.invalid;600-000-008;2026-08-08;activo;"Sede sintética";999999
+S100-00009;Lucía;"Pérez Núñez";50000009X;s100.00009@example.invalid;"+34 600000009";2026-09-09;activo;"Sede sintética";999999
+S100-00010;Iñigo;"Martín Sáez";50000010B;s100.00010@example.invalid;600-000-010;2026-10-10;activo;"Sede sintética";999999
+S100-00011;"María José";"Gómez León";50000011N;s100.00011@example.invalid;"+34 600000011";2026-11-11;inactivo;"Sede sintética";999999
+S100-00012;Óscar;"Muñoz García";50000012J;s100.00012@example.invalid;600-000-012;2026-12-12;activo;"Sede sintética";999999
+S100-00013;Nuria;"Pérez Núñez";50000013Z;s100.00013@example.invalid;"+34 600000013";2026-01-13;activo;"Sede sintética";999999
+S100-00014;Raúl;"Martín Sáez";50000014S;s100.00014@example.invalid;600-000-014;2026-02-14;activo;"Sede sintética";999999
+S100-00015;Sofía;"Gómez León";50000015Q;s100.00015@example.invalid;"+34 600000015";2026-03-15;activo;"Sede sintética";999999
+S100-00016;Álvaro;"Muñoz García";50000016V;s100.00016@example.invalid;600-000-016;2026-04-16;activo;"Sede sintética";999999
+S100-00017;Lucía;"Pérez Núñez";50000017H;s100.00017@example.invalid;"+34 600000017";2026-05-17;activo;"Sede sintética";999999
+S100-00018;Iñigo;"Martín Sáez";50000018L;s100.00018@example.invalid;600-000-018;2026-06-18;activo;"Sede sintética";999999
+S100-00019;"María José";"Gómez León";50000019C;s100.00019@example.invalid;"+34 600000019";2026-07-19;activo;"Sede sintética";999999
+S100-00020;Óscar;"Muñoz García";50000020K;s100.00020@example.invalid;600-000-020;2026-08-20;activo;"Sede sintética";999999
+S100-00021;Nuria;"Pérez Núñez";50000021E;s100.00021@example.invalid;"+34 600000021";2026-09-21;activo;"Sede sintética";999999
+S100-00022;Raúl;"Martín Sáez";50000022T;s100.00022@example.invalid;600-000-022;2026-10-22;inactivo;"Sede sintética";999999
+S100-00023;Sofía;"Gómez León";50000023R;s100.00023@example.invalid;"+34 600000023";2026-11-23;activo;"Sede sintética";999999
+S100-00024;Álvaro;"Muñoz García";50000024W;s100.00024@example.invalid;600-000-024;2026-12-24;activo;"Sede sintética";999999
+S100-00025;Lucía;"Pérez Núñez";50000025A;s100.00025@example.invalid;"+34 600000025";2026-01-25;activo;"Sede sintética";999999
+S100-00026;Iñigo;"Martín Sáez";50000026G;s100.00026@example.invalid;600-000-026;2026-02-26;activo;"Sede sintética";999999
+S100-00027;"María José";"Gómez León";50000027M;s100.00027@example.invalid;"+34 600000027";2026-03-27;activo;"Sede sintética";999999
+S100-00028;Óscar;"Muñoz García";50000028Y;s100.00028@example.invalid;600-000-028;2026-04-28;activo;"Sede sintética";999999
+S100-00029;Nuria;"Pérez Núñez";50000029F;s100.00029@example.invalid;"+34 600000029";2026-05-01;activo;"Sede sintética";999999
+S100-00030;Raúl;"Martín Sáez";50000030P;s100.00030@example.invalid;600-000-030;2026-06-02;activo;"Sede sintética";999999
+S100-00031;Sofía;"Gómez León";50000031D;s100.00031@example.invalid;"+34 600000031";2026-07-03;activo;"Sede sintética";999999
+S100-00032;Álvaro;"Muñoz García";50000032X;s100.00032@example.invalid;600-000-032;2026-08-04;activo;"Sede sintética";999999
+S100-00033;Lucía;"Pérez Núñez";50000033B;s100.00033@example.invalid;"+34 600000033";2026-09-05;inactivo;"Sede sintética";999999
+S100-00034;Iñigo;"Martín Sáez";50000034N;s100.00034@example.invalid;600-000-034;2026-10-06;activo;"Sede sintética";999999
+S100-00035;"María José";"Gómez León";50000035J;s100.00035@example.invalid;"+34 600000035";2026-11-07;activo;"Sede sintética";999999
+S100-00036;Óscar;"Muñoz García";50000036Z;s100.00036@example.invalid;600-000-036;2026-12-08;activo;"Sede sintética";999999
+S100-00037;Nuria;"Pérez Núñez";50000037S;s100.00037@example.invalid;"+34 600000037";2026-01-09;activo;"Sede sintética";999999
+S100-00038;Raúl;"Martín Sáez";50000038Q;s100.00038@example.invalid;600-000-038;2026-02-10;activo;"Sede sintética";999999
+S100-00039;Sofía;"Gómez León";50000039V;s100.00039@example.invalid;"+34 600000039";2026-03-11;activo;"Sede sintética";999999
+S100-00040;Álvaro;"Muñoz García";50000040H;s100.00040@example.invalid;600-000-040;2026-04-12;activo;"Sede sintética";999999
+S100-00041;Lucía;"Pérez Núñez";50000041L;s100.00041@example.invalid;"+34 600000041";2026-05-13;activo;"Sede sintética";999999
+S100-00042;Iñigo;"Martín Sáez";50000042C;s100.00042@example.invalid;600-000-042;2026-06-14;activo;"Sede sintética";999999
+S100-00043;"María José";"Gómez León";50000043K;s100.00043@example.invalid;"+34 600000043";2026-07-15;activo;"Sede sintética";999999
+S100-00044;Óscar;"Muñoz García";50000044E;s100.00044@example.invalid;600-000-044;2026-08-16;inactivo;"Sede sintética";999999
+S100-00045;Nuria;"Pérez Núñez";50000045T;s100.00045@example.invalid;"+34 600000045";2026-09-17;activo;"Sede sintética";999999
+S100-00046;Raúl;"Martín Sáez";50000046R;s100.00046@example.invalid;600-000-046;2026-10-18;activo;"Sede sintética";999999
+S100-00047;Sofía;"Gómez León";50000047W;s100.00047@example.invalid;"+34 600000047";2026-11-19;activo;"Sede sintética";999999
+S100-00048;Álvaro;"Muñoz García";50000048A;s100.00048@example.invalid;600-000-048;2026-12-20;activo;"Sede sintética";999999
+S100-00049;Lucía;"Pérez Núñez";50000049G;s100.00049@example.invalid;"+34 600000049";2026-01-21;activo;"Sede sintética";999999
+S100-00050;Iñigo;"Martín Sáez";50000050M;s100.00050@example.invalid;600-000-050;2026-02-22;activo;"Sede sintética";999999
+
+S100-00051;"María José";"Gómez León";50000051Y;s100.00051@example.invalid;"+34 600000051";2026-03-23;activo;"Sede sintética";999999
+S100-00052;Óscar;"Muñoz García";50000052F;s100.00052@example.invalid;600-000-052;2026-04-24;activo;"Sede sintética";999999
+S100-00053;Nuria;"Pérez Núñez";50000053P;s100.00053@example.invalid;"+34 600000053";2026-05-25;activo;"Sede sintética";999999
+S100-00054;Raúl;"Martín Sáez";50000054D;s100.00054@example.invalid;600-000-054;2026-06-26;activo;"Sede sintética";999999
+S100-00055;Sofía;"Gómez León";50000055X;s100.00055@example.invalid;"+34 600000055";2026-07-27;inactivo;"Sede sintética";999999
+S100-00056;Álvaro;"Muñoz García";50000056B;s100.00056@example.invalid;600-000-056;2026-08-28;activo;"Sede sintética";999999
+S100-00057;Lucía;"Pérez Núñez";50000057N;s100.00057@example.invalid;"+34 600000057";2026-09-01;activo;"Sede sintética";999999
+S100-00058;Iñigo;"Martín Sáez";50000058J;s100.00058@example.invalid;600-000-058;2026-10-02;activo;"Sede sintética";999999
+S100-00059;"María José";"Gómez León";50000059Z;s100.00059@example.invalid;"+34 600000059";2026-11-03;activo;"Sede sintética";999999
+S100-00060;Óscar;"Muñoz García";50000060S;s100.00060@example.invalid;600-000-060;2026-12-04;activo;"Sede sintética";999999
+S100-00061;Nuria;"Pérez Núñez";50000061Q;s100.00061@example.invalid;"+34 600000061";2026-01-05;activo;"Sede sintética";999999
+S100-00062;Raúl;"Martín Sáez";50000062V;s100.00062@example.invalid;600-000-062;2026-02-06;activo;"Sede sintética";999999
+S100-00063;Sofía;"Gómez León";50000063H;s100.00063@example.invalid;"+34 600000063";2026-03-07;activo;"Sede sintética";999999
+S100-00064;Álvaro;"Muñoz García";50000064L;s100.00064@example.invalid;600-000-064;2026-04-08;activo;"Sede sintética";999999
+S100-00065;Lucía;"Pérez Núñez";50000065C;s100.00065@example.invalid;"+34 600000065";2026-05-09;activo;"Sede sintética";999999
+S100-00066;Iñigo;"Martín Sáez";50000066K;s100.00066@example.invalid;600-000-066;2026-06-10;inactivo;"Sede sintética";999999
+S100-00067;"María José";"Gómez León";50000067E;s100.00067@example.invalid;"+34 600000067";2026-07-11;activo;"Sede sintética";999999
+S100-00068;Óscar;"Muñoz García";50000068T;s100.00068@example.invalid;600-000-068;2026-08-12;activo;"Sede sintética";999999
+S100-00069;Nuria;"Pérez Núñez";50000069R;s100.00069@example.invalid;"+34 600000069";2026-09-13;activo;"Sede sintética";999999
+S100-00070;Raúl;"Martín Sáez";50000070W;s100.00070@example.invalid;600-000-070;2026-10-14;activo;"Sede sintética";999999
+S100-00071;Sofía;"Gómez León";50000071A;s100.00071@example.invalid;"+34 600000071";2026-11-15;activo;"Sede sintética";999999
+S100-00072;Álvaro;"Muñoz García";50000072G;s100.00072@example.invalid;600-000-072;2026-12-16;activo;"Sede sintética";999999
+S100-00073;Lucía;"Pérez Núñez";50000073M;s100.00073@example.invalid;"+34 600000073";2026-01-17;activo;"Sede sintética";999999
+S100-00074;Iñigo;"Martín Sáez";50000074Y;s100.00074@example.invalid;600-000-074;2026-02-18;activo;"Sede sintética";999999
+S100-00075;"María José";"Gómez León";50000075F;s100.00075@example.invalid;"+34 600000075";2026-03-19;activo;"Sede sintética";999999
+S100-00076;Óscar;"Muñoz García";50000076P;s100.00076@example.invalid;600-000-076;2026-04-20;activo;"Sede sintética";999999
+S100-00077;Nuria;"Pérez Núñez";50000077D;s100.00077@example.invalid;"+34 600000077";2026-05-21;inactivo;"Sede sintética";999999
+S100-00078;Raúl;"Martín Sáez";50000078X;s100.00078@example.invalid;600-000-078;2026-06-22;activo;"Sede sintética";999999
+S100-00079;Sofía;"Gómez León";50000079B;s100.00079@example.invalid;"+34 600000079";2026-07-23;activo;"Sede sintética";999999
+S100-00080;Álvaro;"Muñoz García";50000080N;s100.00080@example.invalid;600-000-080;2026-08-24;activo;"Sede sintética";999999
+S100-00081;Lucía;"Pérez Núñez";50000081J;s100.00081@example.invalid;"+34 600000081";2026-09-25;activo;"Sede sintética";999999
+S100-00082;Iñigo;"Martín Sáez";50000082Z;s100.00082@example.invalid;600-000-082;2026-10-26;activo;"Sede sintética";999999
+S100-00083;"María José";"Gómez León";50000083S;s100.00083@example.invalid;"+34 600000083";2026-11-27;activo;"Sede sintética";999999
+S100-00084;Óscar;"Muñoz García";50000084Q;s100.00084@example.invalid;600-000-084;2026-12-28;activo;"Sede sintética";999999
+S100-00085;Nuria;"Pérez Núñez";50000085V;s100.00085@example.invalid;"+34 600000085";2026-01-01;activo;"Sede sintética";999999
+S100-00086;Raúl;"Martín Sáez";50000086H;s100.00086@example.invalid;600-000-086;2026-02-02;activo;"Sede sintética";999999
+S100-00087;Sofía;"Gómez León";50000087L;s100.00087@example.invalid;"+34 600000087";2026-03-03;activo;"Sede sintética";999999
+S100-00088;Álvaro;"Muñoz García";50000088C;s100.00088@example.invalid;600-000-088;2026-04-04;inactivo;"Sede sintética";999999
+S100-00089;Lucía;"Pérez Núñez";50000089K;s100.00089@example.invalid;"+34 600000089";2026-05-05;activo;"Sede sintética";999999
+S100-00090;Iñigo;"Martín Sáez";50000090E;s100.00090@example.invalid;600-000-090;2026-06-06;activo;"Sede sintética";999999
+S100-00091;"María José";"Gómez León";50000091T;s100.00091@example.invalid;"+34 600000091";2026-07-07;activo;"Sede sintética";999999
+S100-00092;Óscar;"Muñoz García";50000092R;s100.00092@example.invalid;600-000-092;2026-08-08;activo;"Sede sintética";999999
+S100-00093;Nuria;"Pérez Núñez";50000093W;s100.00093@example.invalid;"+34 600000093";2026-09-09;activo;"Sede sintética";999999
+S100-00094;Raúl;"Martín Sáez";50000094A;s100.00094@example.invalid;600-000-094;2026-10-10;activo;"Sede sintética";999999
+S100-00095;Sofía;"Gómez León";50000095G;s100.00095@example.invalid;"+34 600000095";2026-11-11;activo;"Sede sintética";999999
+S100-00096;Álvaro;"Muñoz García";50000096M;s100.00096@example.invalid;600-000-096;2026-12-12;activo;"Sede sintética";999999
+S100-00097;Lucía;"Pérez Núñez";50000097Y;s100.00097@example.invalid;"+34 600000097";2026-01-13;activo;"Sede sintética";999999
+S100-00098;Iñigo;"Martín Sáez";50000098F;s100.00098@example.invalid;600-000-098;2026-02-14;activo;"Sede sintética";999999
+S100-00099;"María José";"Gómez León";50000099P;s100.00099@example.invalid;"+34 600000099";2026-03-15;inactivo;"Sede sintética";999999
+S100-00100;Óscar;"Muñoz García";50000100D;s100.00100@example.invalid;600-000-100;2026-04-16;activo;"Sede sintética";999999

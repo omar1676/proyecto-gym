@@ -33,10 +33,9 @@ $memb    = new MembresiaModel($sede);
 $user    = new UserModel($sede);
 
 // --- Estado de partida limpio ------------------------------------------------
-$db->exec("DELETE FROM remesa_recibo WHERE id_socio = $idSocio");
-$db->exec("DELETE FROM remesa WHERE concepto LIKE 'TEST %'");
+pruebasLimpiarRemesas($db, "r.concepto LIKE 'TEST %'");
 $db->exec("DELETE FROM mandato_sepa WHERE id_socio = $idSocio");
-$db->exec("DELETE FROM socio_membresia WHERE id_socio = $idSocio");
+pruebasLimpiarMembresias($db, "sm.id_socio = $idSocio");
 
 echo "== DATOS DEL ACREEDOR ==\n";
 $sepa->guardarAcreedor($sede, [
@@ -82,7 +81,7 @@ comprobar('la cuota aparece como domiciliable', true, $mio !== null);
 comprobar('con el importe correcto', '40.00', number_format((float) $mio['importe'], 2, '.', ''));
 
 // Una cuota en efectivo no debe entrar en la remesa.
-$db->exec("DELETE FROM socio_membresia WHERE id_socio = $idSocio");
+pruebasLimpiarMembresias($db, "sm.id_socio = $idSocio");
 $err = '';
 $memb->contratar($idSocio, (int) $mensual['id_tipo_membresia'], 'efectivo', $err);
 $hayEfectivo = false;
@@ -90,7 +89,7 @@ foreach ($sepa->listarDomiciliablesPendientes() as $p) { if ((int) $p['id_socio'
 comprobar('lo pagado en efectivo no se domicilia', false, $hayEfectivo);
 
 // Volvemos a dejar una cuota por transferencia para la remesa.
-$db->exec("DELETE FROM socio_membresia WHERE id_socio = $idSocio");
+pruebasLimpiarMembresias($db, "sm.id_socio = $idSocio");
 $err = '';
 $memb->contratar($idSocio, (int) $mensual['id_tipo_membresia'], 'transferencia', $err);
 $mio = null;
@@ -172,10 +171,9 @@ foreach ($sepa->listarDomiciliablesPendientes() as $p) {
 comprobar('vuelve a estar pendiente de cobro', true, $vuelve);
 
 // --- Limpieza ----------------------------------------------------------------
-$db->exec("DELETE FROM remesa_recibo WHERE id_socio = $idSocio");
-$db->exec("DELETE FROM remesa WHERE concepto LIKE 'TEST %'");
+pruebasLimpiarRemesas($db, "r.concepto LIKE 'TEST %'");
 $db->exec("DELETE FROM mandato_sepa WHERE id_socio = $idSocio");
-$db->exec("DELETE FROM socio_membresia WHERE id_socio = $idSocio");
+pruebasLimpiarMembresias($db, "sm.id_socio = $idSocio");
 $db->exec("UPDATE gimnasio SET razon_social = NULL, cif = NULL, iban = NULL, bic = NULL, identificador_acreedor = NULL WHERE id_gimnasio = $sede");
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";

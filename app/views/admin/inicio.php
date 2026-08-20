@@ -76,9 +76,13 @@ $esAdmin = ($_SESSION['usuario_rol'] ?? '') === 'admin';
                     <ul class="space-y-4">
                         <?php foreach ($ultimasVentas as $venta): ?>
                         <li class="flex items-center gap-4 text-sm">
-                            <div class="w-2 h-2 rounded-full bg-[#111318] shrink-0"></div>
+                            <?php $ventaAnulada = ($venta['estado'] ?? 'activa') === 'anulada'; ?>
+                            <div class="w-2 h-2 rounded-full <?= $ventaAnulada ? 'bg-[#dc2626]' : 'bg-[#111318]' ?> shrink-0"></div>
                             <p class="text-neutral-600 truncate">
                                 <?= htmlspecialchars($venta['detalle'] ?? '—', ENT_QUOTES, 'UTF-8') ?>
+                                <?php if ($ventaAnulada): ?>
+                                    <span class="ml-1 font-bold text-[#dc2626]">— Anulada</span>
+                                <?php endif; ?>
                             </p>
                             <span class="ml-auto shrink-0 font-bold text-neutral-700">
                                 <?= number_format((float) $venta['total'], 2, ',', '.') ?> €

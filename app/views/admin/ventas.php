@@ -54,7 +54,12 @@ $etiquetasPago = [
             <div class="mt-8 rounded-[22px] border border-[#e4e4e7] bg-white p-6 shadow-sm">
                 <h2 class="text-lg font-bold text-neutral-700 mb-5">Registrar venta</h2>
 
-                <?php if (empty($productosVenta)): ?>
+                <?php if (empty($sedeFijada)): ?>
+                    <div class="rounded-[14px] border border-[#fcd34d] bg-[#fffbeb] px-5 py-4 text-sm text-[#92400e]" role="status">
+                        <p class="font-extrabold">Selecciona una sede antes de iniciar una venta.</p>
+                        <p class="mt-1">El stock, la caja y la numeración del ticket pertenecen a una sede concreta. Usa el selector de la cabecera.</p>
+                    </div>
+                <?php elseif (empty($productosVenta)): ?>
                     <p class="text-sm text-neutral-500 italic">
                         No hay productos activos con stock disponible.
                         <?php if ($esAdmin): ?>
@@ -65,6 +70,7 @@ $etiquetasPago = [
                 <?php else: ?>
                 <form method="POST" action="index.php?action=admin_venta_registrar" id="form-venta">
                     <?= Csrf::field() ?>
+                    <input type="hidden" name="_operation_id" value="<?= bin2hex(random_bytes(16)) ?>">
 
                     <div id="lineas-venta" class="space-y-3">
                         <!-- Las líneas se clonan desde la plantilla de abajo -->
@@ -80,10 +86,10 @@ $etiquetasPago = [
 
                     <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3 border-t border-[#e4e4e7] pt-5">
                         <div>
-                            <label class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
+                            <label for="venta-socio" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
                                 Socio (opcional)
                             </label>
-                            <select name="id_socio"
+                            <select id="venta-socio" name="id_socio"
                                 class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
                                 <option value="0">Cliente de paso</option>
                                 <?php foreach ($socios as $socio): ?>
@@ -94,10 +100,10 @@ $etiquetasPago = [
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
+                            <label for="venta-metodo-pago" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
                                 Método de pago <span class="text-red-400">*</span>
                             </label>
-                            <select name="metodo_pago" required
+                            <select id="venta-metodo-pago" name="metodo_pago" required
                                 class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
                                 <?php foreach ($etiquetasPago as $valor => $etiqueta): ?>
                                 <option value="<?= $valor ?>"><?= $etiqueta ?></option>
@@ -291,7 +297,7 @@ function anadirLinea() {
             '<input type="number" name="cantidades[]" min="1" value="1" onchange="calcularTotal()" oninput="calcularTotal()" required ' +
                 'class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">' +
         '</div>' +
-        '<button type="button" onclick="quitarLinea(this)" title="Quitar línea" ' +
+        '<button type="button" onclick="quitarLinea(this)" title="Quitar línea" aria-label="Quitar línea de producto" ' +
             'class="mb-1 rounded-full border border-[#e4e4e7] px-3 py-2 text-xs font-bold text-neutral-500 hover:border-red-200 hover:text-red-500 transition">✕</button>';
     cont.appendChild(fila);
     calcularTotal();

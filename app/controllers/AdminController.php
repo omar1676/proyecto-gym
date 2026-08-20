@@ -3,21 +3,17 @@
  * AdminController — panel de gestión del gimnasio.
  *
  * Secciones de este archivo (en orden):
- *   1. Inicialización y guardias           (__construct, requireAdmin, requirePersonal, iniciarModelos)
+ *   1. Inicialización y autorización       (__construct, requirePermission, iniciarModelos)
  *   2. Inicio del panel                    (mostrarInicio)
  *   3. Productos y stock                   (mostrarProductos, subirImagenProducto, quitarImagenProducto)
  *   4. Ventas                              (mostrarVentas, registrarVenta, anularVenta)
  *   5. Socios y membresías                 (mostrarSocios, registrarSocio, contratarMembresia, mostrarMembresias)
  *   6. Reportes                            (mostrarReportes)
- *   7. Perfil de administrador             (mostrarPerfil)
- *   8. Log de actividad                    (mostrarLog)
- *   9. Exportación e impresión             (exportarVentasCSV, exportarInscritosCSV, imprimirInscritos)
- *  10. Sección heredada del portal de cursos (mostrarInscripciones, mostrarCursos, mostrarDetalleCurso,
- *      mostrarEstudiantes, mostrarProfesores, mostrarCursosDeProfesor, mostrarCalificaciones,
- *      mostrarContenido, mostrarConfiguracion) — sigue enrutada pero fuera del menú del gimnasio.
+ *   7. Sedes y personal                     (mostrarSedes, mostrarEmpleados)
+ *   8. Domiciliación SEPA                   (mostrarRemesas, crearMandato)
+ *   9. Reportes, log y exportación          (mostrarReportes, mostrarLog, exportarVentasCSV)
  *
- * Roles: 'admin' entra a todo; 'recepcion' solo a lo que pasa por requirePersonal()
- * (ventas, socios y membresías), que es su trabajo de mostrador.
+ * Cada acción declara un permiso de Authorization; el rol nunca llega del formulario.
  *
  * Todos los POST que mueven dinero o stock validan CSRF con Csrf::validarPost().
  * Las rutas del router se definen en public/index.php.
@@ -31,15 +27,24 @@ require_once __DIR__ . '/../models/VentaModel.php';
 require_once __DIR__ . '/../models/MembresiaModel.php';
 require_once __DIR__ . '/../models/SepaModel.php';
 require_once __DIR__ . '/../models/GimnasioModel.php';
+require_once __DIR__ . '/../models/CashModel.php';
 require_once __DIR__ . '/../helpers/SepaXml.php';
 require_once __DIR__ . '/../helpers/Mailer.php';
 require_once __DIR__ . '/../helpers/Csrf.php';
 require_once __DIR__ . '/../helpers/Iban.php';
 require_once __DIR__ . '/../helpers/Sesion.php';
+require_once __DIR__ . '/../helpers/TenantContext.php';
+require_once __DIR__ . '/../helpers/Authorization.php';
+require_once __DIR__ . '/../helpers/AppLogger.php';
+require_once __DIR__ . '/../helpers/InputValidator.php';
+require_once __DIR__ . '/../services/MigrationService.php';
+require_once __DIR__ . '/../services/SocioFinancialService.php';
+require_once __DIR__ . '/../services/AccessEligibilityService.php';
 
 class AdminController
 {
     private $userModel;
+    private $tenant;
     /**
      * Longitud mínima de la clave de un empleado.
      *
@@ -55,32 +60,35 @@ class AdminController
     private $ventaModel;
     private $membresiaModel;
     private $sepaModel;
+    private $migrationService;
+    private $financialService;
+    private $accessEligibility;
 
     public function __construct()
     {
         Sesion::iniciar();
+        $this->tenant = TenantContext::desdeSesion();
     }
 
-    private function requireAdmin(): void
+    private function requirePermission(string $permiso): void
     {
-        $logueado = isset($_SESSION['logueado']) && $_SESSION['logueado'] === true;
-        $esAdmin  = in_array($_SESSION['usuario_rol'] ?? '', ['empresa', 'admin'], true);
-
-        if (!$logueado || !$esAdmin) {
+        if (!$this->tenant->autenticado()) {
             $this->irA('login');
         }
-
-        $this->iniciarModelos();
-    }
-
-    /** Guardia para las pantallas de mostrador: empresa, admin y recepción. */
-    private function requirePersonal(): void
-    {
-        $logueado   = isset($_SESSION['logueado']) && $_SESSION['logueado'] === true;
-        $esPersonal = in_array($_SESSION['usuario_rol'] ?? '', ['empresa', 'admin', 'recepcion'], true);
-
-        if (!$logueado || !$esPersonal) {
-            $this->irA('login');
+        // Ninguna pantalla de negocio puede arrancar modelos sin empresa: un
+        // contexto incompleto convertiría null en una consulta sin filtro.
+        if ($this->tenant->empresaId() === null) {
+            http_response_code(403);
+            exit('No hay una empresa autorizada para esta sesión.');
+        }
+        if (!Authorization::can($this->tenant->rol(), $permiso)) {
+            AppLogger::write('SECURITY', 'authorization_denied', [
+                'user_id' => $this->tenant->usuarioId(), 'role' => $this->tenant->rol(),
+                'company_id' => $this->tenant->empresaId(), 'site_id' => $this->tenant->sedeId(),
+                'permission' => $permiso,
+            ]);
+            http_response_code(403);
+            exit('No tienes permiso para realizar esta operación.');
         }
 
         $this->iniciarModelos();
@@ -92,11 +100,7 @@ class AdminController
      */
     private function gimnasioActual(): ?int
     {
-        if (($_SESSION['usuario_rol'] ?? '') === 'empresa') {
-            // La empresa puede fijar una sede concreta desde el selector.
-            return !empty($_SESSION['gimnasio_activo']) ? (int) $_SESSION['gimnasio_activo'] : null;
-        }
-        return !empty($_SESSION['gimnasio_id']) ? (int) $_SESSION['gimnasio_id'] : null;
+        return $this->tenant->sedeId();
     }
 
     /**
@@ -120,9 +124,27 @@ class AdminController
     }
 
     /** Atajo para el caso más repetido: volver a una pantalla con un error. */
-    private function irAConError(string $accion, string $mensaje): void
+    private function irAConError(string $accion, string $mensaje, array $parametros = []): void
     {
-        $this->irA($accion, ['err' => $mensaje]);
+        $this->irA($accion, array_merge($parametros, ['err' => $mensaje]));
+    }
+
+    /**
+     * Recupera solo estado de navegación del listado de socios.
+     * No contiene empresa ni sede: esos límites proceden siempre de la sesión.
+     */
+    private function navegacionSocios(array $origen): array
+    {
+        $busqueda = InputValidator::text($origen['volver_buscar'] ?? '', 100, false);
+        $pagina = filter_var(
+            $origen['volver_pagina'] ?? 1,
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        );
+        $parametros = [];
+        if ($busqueda !== null && $busqueda !== '') $parametros['buscar'] = $busqueda;
+        if ($pagina !== false && (int) $pagina > 1) $parametros['pagina'] = (int) $pagina;
+        return $parametros;
     }
 
     /**
@@ -138,32 +160,47 @@ class AdminController
      * esa membresía dejaba de existir para todo el mundo, incluida la caja del
      * día y los informes.
      */
-    private function exigirSedeFijada(string $accionVuelta): void
+    private function exigirSedeFijada(string $accionVuelta, array $parametros = []): void
     {
         if ($this->gimnasioActual() !== null) {
             return;
         }
-        $this->irAConError($accionVuelta, self::AVISO_SIN_SEDE);
+        $this->irAConError($accionVuelta, self::AVISO_SIN_SEDE, $parametros);
     }
 
     private function iniciarModelos(): void
     {
         if (!isset($this->userModel)) {
             $sede = $this->gimnasioActual();
+            $empresa = $this->tenant->empresaId();
 
             // Todos los modelos del gimnasio quedan atados a la sede: el filtro
             // se aplica dentro y no depende de que cada consulta se acuerde.
-            $this->userModel        = new UserModel($sede);
-            $this->productoModel    = new ProductoModel($sede);
-            $this->ventaModel       = new VentaModel($sede);
-            $this->membresiaModel   = new MembresiaModel($sede);
-            $this->sepaModel        = new SepaModel($sede);
+            $this->userModel        = new UserModel($sede, $empresa);
+            $this->productoModel    = new ProductoModel($sede, $empresa);
+            $this->ventaModel       = new VentaModel($sede, $empresa);
+            $this->membresiaModel   = new MembresiaModel($sede, $empresa);
+            $this->sepaModel        = new SepaModel($sede, $empresa);
+            $this->financialService = new SocioFinancialService((int) $empresa, $sede);
+            $this->accessEligibility = new AccessEligibilityService((int) $empresa, $sede);
         }
+    }
+
+    private function migraciones(): MigrationService
+    {
+        if (!$this->migrationService) {
+            $this->migrationService = new MigrationService(
+                (int) $this->tenant->empresaId(),
+                $this->tenant->sedeId(),
+                $this->tenant->usuarioId()
+            );
+        }
+        return $this->migrationService;
     }
 
     public function mostrarInicio(): void
     {
-        $this->requirePersonal();
+        $this->requirePermission('dashboard.view');
         $pageTitle    = 'Panel de Control';
         $paginaActiva = 'inicio';
 
@@ -188,9 +225,10 @@ class AdminController
             $error = 'Error al subir la imagen. Inténtalo de nuevo.';
             return null;
         }
-        $tiposPermitidos = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        $tipoReal = @mime_content_type($file['tmp_name']);
-        if (!in_array($tipoReal, $tiposPermitidos, true)) {
+        $extensiones = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $tipoReal = $finfo->file($file['tmp_name']);
+        if (!isset($extensiones[$tipoReal])) {
             $error = 'La imagen debe ser JPG, PNG, GIF o WEBP.';
             return null;
         }
@@ -198,7 +236,18 @@ class AdminController
             $error = 'La imagen no puede superar 2 MB.';
             return null;
         }
+        $dimensiones = @getimagesize($file['tmp_name']);
+        if (!$dimensiones || $dimensiones[0] < 1 || $dimensiones[1] < 1
+            || $dimensiones[0] > 6000 || $dimensiones[1] > 6000
+            || ($dimensiones[0] * $dimensiones[1]) > 16000000) {
+            $error = 'Las dimensiones de la imagen no son válidas o son demasiado grandes.';
+            return null;
+        }
 
+        if (!in_array($carpeta, ['productos', 'gimnasios'], true)) {
+            $error = 'Destino de imagen no permitido.';
+            return null;
+        }
         $dirDestino = __DIR__ . '/../../public/assets/' . $carpeta . '/';
         if (!is_dir($dirDestino)) {
             @mkdir($dirDestino, 0755, true);
@@ -208,11 +257,7 @@ class AdminController
             return null;
         }
 
-        $extension  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
-            $extension = 'jpg';
-        }
-        $nombre = $prefijo . '_' . uniqid() . '.' . $extension;
+        $nombre = preg_replace('/[^a-z0-9_-]/i', '', $prefijo) . '_' . bin2hex(random_bytes(16)) . '.' . $extensiones[$tipoReal];
 
         if (!move_uploaded_file($file['tmp_name'], $dirDestino . $nombre)) {
             $error = 'No se pudo guardar la imagen en el servidor.';
@@ -227,7 +272,7 @@ class AdminController
 
     public function mostrarProductos(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('productos.manage');
         $pageTitle    = 'Gestión de Productos';
         $paginaActiva = 'productos';
 
@@ -242,8 +287,8 @@ class AdminController
 
                 if ($accion === 'toggle_estado_producto') {
                     $idProducto = (int) ($_POST['id_producto'] ?? 0);
-                    if ($idProducto > 0) {
-                        $this->productoModel->toggleEstado($idProducto);
+                    if ($idProducto > 0 && $this->productoModel->toggleEstado($idProducto)) {
+                        $this->registrarLog('Estado de producto', 'Activado/desactivado el producto #' . $idProducto);
                     }
                     $this->irA('admin_productos');
                 }
@@ -263,6 +308,7 @@ class AdminController
                     $nombre       = trim($_POST['nombre']      ?? '');
                     $descripcion  = trim($_POST['descripcion'] ?? '') ?: null;
                     $precio       = $_POST['precio']           ?? '';
+                    $precioValido = InputValidator::money($precio);
                     $stock        = $_POST['stock']            ?? '';
                     $stockMinimo  = $_POST['stock_minimo']     ?? '';
                     $estado       = trim($_POST['estado']      ?? '');
@@ -277,7 +323,7 @@ class AdminController
                         $errorProducto = self::AVISO_SIN_SEDE;
                     } elseif ($nombre === '') {
                         $errorProducto = 'El nombre del producto es obligatorio.';
-                    } elseif (!is_numeric($precio) || (float) $precio < 0) {
+                    } elseif ($precioValido === null) {
                         $errorProducto = 'El precio debe ser un número igual o mayor que 0.';
                     } elseif (!is_numeric($stockMinimo) || (int) $stockMinimo < 0) {
                         $errorProducto = 'El stock mínimo debe ser un número igual o mayor que 0.';
@@ -288,14 +334,14 @@ class AdminController
                     } else {
                         if ($accion === 'crear_producto') {
                             $ok = $this->productoModel->crear(
-                                $nombre, $descripcion, (float) $precio,
+                                $nombre, $descripcion, (float) $precioValido,
                                 (int) $stock, (int) $stockMinimo, $estado, $idCategoria, $iva
                             );
                             $flag = ['ok' => 1];
                             $detalleLog = 'Alta de producto: ' . $nombre;
                         } else {
                             $ok = $idProducto > 0 && $this->productoModel->actualizar(
-                                $idProducto, $nombre, $descripcion, (float) $precio,
+                                $idProducto, $nombre, $descripcion, (float) $precioValido,
                                 (int) $stockMinimo, $estado, $idCategoria, $iva
                             );
                             $flag = ['ok_editar' => 1];
@@ -331,14 +377,15 @@ class AdminController
 
     public function subirImagenProducto(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('productos.manage');
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
             $this->irA('admin_productos');
         }
 
         $idProducto = (int) ($_POST['id_producto'] ?? 0);
-        if ($idProducto === 0) {
+        $productoActual = $idProducto > 0 ? $this->productoModel->buscarPorId($idProducto) : null;
+        if (!$productoActual) {
             $this->irA('admin_productos');
         }
 
@@ -346,8 +393,10 @@ class AdminController
         $nombreImagen = $this->procesarSubidaImagen($_FILES['imagen'] ?? null, 'productos', 'producto', $error);
 
         if ($error === '' && $nombreImagen !== null) {
-            $productoActual = $this->productoModel->buscarPorId($idProducto);
-            $this->productoModel->actualizarImagen($idProducto, $nombreImagen);
+            if (!$this->productoModel->actualizarImagen($idProducto, $nombreImagen)) {
+                @unlink(__DIR__ . '/../../public/assets/productos/' . $nombreImagen);
+                $this->irA('admin_productos', ['err_imagen' => 'No se pudo asociar la imagen al producto.']);
+            }
 
             if (!empty($productoActual['imagen'])) {
                 $rutaAntigua = __DIR__ . '/../../public/assets/productos/' . $productoActual['imagen'];
@@ -361,7 +410,7 @@ class AdminController
 
     public function quitarImagenProducto(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('productos.manage');
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
             $this->irA('admin_productos');
@@ -388,7 +437,7 @@ class AdminController
 
     public function mostrarVentas(): void
     {
-        $this->requirePersonal();
+        $this->requirePermission('ventas.view');
         $pageTitle    = 'Ventas';
         $paginaActiva = 'ventas';
 
@@ -409,8 +458,11 @@ class AdminController
         // Las anuladas se siguen listando (para que quede el rastro) pero no
         // suman: el total del rango tiene que cuadrar con el dinero real.
         $totalRango      = $this->sumarActivas($ventas);
-        $productosVenta  = $this->productoModel->listarActivos();
-        $socios          = $this->userModel->listarPorRol('socio');
+        $sedeFijada      = $this->gimnasioActual() !== null;
+        // Una venta siempre pertenece a una sede. En la vista global no se
+        // precargan catálogos ni se deja empezar un ticket destinado a fallar.
+        $productosVenta  = $sedeFijada ? $this->productoModel->listarActivos() : [];
+        $socios          = $sedeFijada ? $this->userModel->listarPorRol('socio') : [];
         $ventasHoy       = $this->ventaModel->sumarDelDia();
         $numVentasHoy    = $this->ventaModel->contarDelDia();
 
@@ -419,7 +471,7 @@ class AdminController
 
     public function registrarVenta(): void
     {
-        $this->requirePersonal();
+        $this->requirePermission('ventas.create');
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
             $this->irAConError('admin_ventas', 'Solicitud no válida. Vuelve a intentarlo.');
@@ -428,6 +480,7 @@ class AdminController
 
         $idSocio     = (int) ($_POST['id_socio'] ?? 0) ?: null;
         $metodoPago  = $_POST['metodo_pago'] ?? '';
+        $operacionId = preg_match('/^[a-f0-9]{32}$/', (string) ($_POST['_operation_id'] ?? '')) ? (string) $_POST['_operation_id'] : null;
 
         // El formulario admite varias líneas: productos[] y cantidades[] en paralelo.
         $idsProducto = $_POST['productos']  ?? [];
@@ -449,7 +502,8 @@ class AdminController
             $idSocio,
             $metodoPago,
             (int) ($_SESSION['usuario_id'] ?? 0),
-            $error
+            $error,
+            $operacionId
         );
 
         if ($idVenta === null) {
@@ -464,7 +518,7 @@ class AdminController
 
     public function anularVenta(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('ventas.cancel');
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
             $this->irA('admin_ventas');
@@ -490,12 +544,86 @@ class AdminController
     }
 
     /* ---------------------------------------------------------------------
+     * Caja física por sede
+     * ------------------------------------------------------------------ */
+
+    public function mostrarCaja(): void
+    {
+        $this->requirePermission('caja.view');
+        $pageTitle = 'Caja';
+        $paginaActiva = 'caja';
+        $mensajeExito = '';
+        $errorCaja = $_GET['err'] ?? '';
+        if (isset($_GET['ok_abrir'])) $mensajeExito = 'Caja abierta correctamente.';
+        if (isset($_GET['ok_ajuste'])) $mensajeExito = 'Movimiento de caja registrado.';
+        if (isset($_GET['ok_cerrar'])) $mensajeExito = 'Caja cerrada. La diferencia ha quedado registrada.';
+
+        $sedeFijada = $this->gimnasioActual() !== null;
+        $sesionCaja = null;
+        $movimientosCaja = [];
+        $historialCaja = [];
+        if ($sedeFijada) {
+            $caja = new CashModel((int) $this->gimnasioActual(), (int) $this->tenant->empresaId());
+            $sesionCaja = $caja->abierta();
+            $movimientosCaja = $caja->movimientosAbierta();
+            $historialCaja = $caja->historial(30);
+        }
+        $puedeAjustarCaja = Authorization::can($this->tenant->rol(), 'caja.adjust');
+        require __DIR__ . '/../views/admin/caja.php';
+    }
+
+    public function operarCaja(): void
+    {
+        $accion = (string) ($_POST['operacion'] ?? '');
+        $permiso = in_array($accion, ['ajuste_entrada', 'ajuste_salida'], true) ? 'caja.adjust' : 'caja.operate';
+        $this->requirePermission($permiso);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
+            $this->irAConError('admin_caja', 'Solicitud no válida. Vuelve a intentarlo.');
+        }
+        $this->exigirSedeFijada('admin_caja');
+        $caja = new CashModel((int) $this->gimnasioActual(), (int) $this->tenant->empresaId());
+        $usuario = $this->tenant->usuarioId();
+        $error = '';
+
+        if ($accion === 'abrir') {
+            $id = $caja->abrir($_POST['saldo_inicial'] ?? '', $usuario, $error);
+            if ($id === null) $this->irAConError('admin_caja', $error);
+            $this->registrarLog('Apertura de caja', 'Sesión #' . $id . ' — saldo inicial ' . ($_POST['saldo_inicial'] ?? '') . ' €');
+            $this->irA('admin_caja', ['ok_abrir' => 1]);
+        }
+        if (in_array($accion, ['ajuste_entrada', 'ajuste_salida'], true)) {
+            $operacionId = preg_match('/^[a-f0-9]{32}$/', (string) ($_POST['_operation_id'] ?? '')) ? (string) $_POST['_operation_id'] : null;
+            $id = $caja->movimientoManual(
+                $accion, $_POST['importe'] ?? '', (string) ($_POST['motivo'] ?? ''),
+                $usuario, $error, $operacionId
+            );
+            if ($id === null) $this->irAConError('admin_caja', $error);
+            $this->registrarLog('Ajuste de caja', 'Movimiento #' . $id . ' — ' . $accion . ' — motivo: ' . trim((string) $_POST['motivo']));
+            $this->irA('admin_caja', ['ok_ajuste' => 1]);
+        }
+        if ($accion === 'cerrar') {
+            $cierre = $caja->cerrar(
+                $_POST['saldo_declarado'] ?? '', $usuario,
+                (string) ($_POST['observacion'] ?? ''), $error
+            );
+            if ($cierre === null) $this->irAConError('admin_caja', $error);
+            $this->registrarLog(
+                'Cierre de caja',
+                'Sesión #' . $cierre['id_sesion_caja'] . ' — esperado ' . $cierre['saldo_esperado']
+                    . ' € — declarado ' . $cierre['saldo_declarado'] . ' € — diferencia ' . $cierre['diferencia'] . ' €'
+            );
+            $this->irA('admin_caja', ['ok_cerrar' => 1]);
+        }
+        $this->irAConError('admin_caja', 'Operación de caja no válida.');
+    }
+
+    /* ---------------------------------------------------------------------
      * Socios y membresías
      * ------------------------------------------------------------------ */
 
     public function mostrarSocios(): void
     {
-        $this->requirePersonal();
+        $this->requirePermission('socios.view');
         $pageTitle    = 'Socios';
         $paginaActiva = 'socios';
 
@@ -509,8 +637,38 @@ class AdminController
         if (isset($_GET['ok_editar']))     $mensajeExito = 'Datos del socio actualizados.';
         if (isset($_GET['ok_mandato']))    $mensajeExito = 'Mandato SEPA registrado. Ya se le puede domiciliar la cuota.';
 
-        $busqueda    = trim($_GET['buscar'] ?? '');
-        $socios      = $this->membresiaModel->listarSocios($busqueda);
+        $busquedaValidada = InputValidator::text($_GET['buscar'] ?? '', 100, false);
+        $busqueda = $busquedaValidada ?? '';
+        if ($busquedaValidada === null && $errorSocio === '') {
+            $errorSocio = 'La búsqueda no es válida.';
+        }
+        $paginaSolicitada = filter_var(
+            $_GET['pagina'] ?? 1,
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        );
+        $paginacion = $this->membresiaModel->paginarSocios(
+            $busqueda,
+            $paginaSolicitada === false ? 1 : (int) $paginaSolicitada,
+            50
+        );
+        $socios         = $paginacion['items'];
+        $idsSocios = array_map(static fn(array $s): int => (int) $s['id_usuario'], $socios);
+        $estadoFinancieroSocios = $this->financialService->resumenPorSocios($idsSocios);
+        $estadoAccesoSocios = [];
+        foreach ($socios as $socioListado) {
+            $idListado = (int) $socioListado['id_usuario'];
+            $economico = $estadoFinancieroSocios[$idListado] ?? [
+                'deuda' => '0.00', 'deuda_cents' => 0, 'devueltos' => 0,
+                'estado_economico' => 'AL_CORRIENTE', 'ultimo_cobro' => null,
+            ];
+            $estadoFinancieroSocios[$idListado] = $economico;
+            $estadoAccesoSocios[$idListado] = $this->accessEligibility->evaluarResumen($socioListado, $economico);
+        }
+        $totalResultados = $paginacion['total'];
+        $paginaActual   = $paginacion['pagina'];
+        $porPagina      = $paginacion['por_pagina'];
+        $totalPaginas   = $paginacion['paginas'];
         $tipos       = $this->membresiaModel->listarTiposActivos();
         $suplementos = $this->membresiaModel->listarSuplementosActivos();
         $totalSocios = $this->userModel->contarPorRol('socio');
@@ -519,19 +677,33 @@ class AdminController
         $porVencer   = $this->membresiaModel->listarProximasAVencer(15);
         $pruebas     = $this->membresiaModel->listarPruebasPendientes();
         $diasPrueba  = MembresiaModel::DIAS_PRUEBA;
+        $puedeVerDetalleEconomico = in_array($this->tenant->rol(), ['superadmin', 'direccion', 'admin'], true);
+        $fichaFinanciera = null;
+        $historialFinanciero = [];
+        $accesoFicha = null;
+        $detalleSocioId = filter_var($_GET['detalle'] ?? 0, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]) ?: 0;
+        if ($puedeVerDetalleEconomico && $detalleSocioId > 0) {
+            $socioDetalle = $this->userModel->buscarPorId((int) $detalleSocioId);
+            if ($socioDetalle && ($socioDetalle['rol'] ?? '') === 'socio') {
+                $fichaFinanciera = $this->financialService->estado((int) $detalleSocioId);
+                $historialFinanciero = $this->financialService->historial((int) $detalleSocioId, 100);
+                $accesoFicha = $this->accessEligibility->evaluar((int) $detalleSocioId);
+            }
+        }
 
         require __DIR__ . '/../views/admin/socios.php';
     }
 
     public function registrarSocio(): void
     {
-        $this->requirePersonal();
+        $this->requirePermission('socios.create');
+        $navegacion = $this->navegacionSocios($_POST);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
-            $this->irAConError('admin_socios', 'Solicitud no válida. Vuelve a intentarlo.');
+            $this->irAConError('admin_socios', 'Solicitud no válida. Vuelve a intentarlo.', $navegacion);
         }
         // Un socio nace en la sede donde se le da de alta: hace falta saber cuál.
-        $this->exigirSedeFijada('admin_socios');
+        $this->exigirSedeFijada('admin_socios', $navegacion);
 
         $nombre     = trim($_POST['nombre']    ?? '');
         $apellidos  = trim($_POST['apellidos'] ?? '');
@@ -548,8 +720,10 @@ class AdminController
         $error = '';
         if ($nombre === '' || $apellidos === '' || $dni === '' || $email === '' || $usuario === '') {
             $error = 'Nombre, apellidos, DNI, email y usuario son obligatorios.';
-        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        } elseif (InputValidator::email($email) === null) {
             $error = 'Correo electrónico no válido.';
+        } elseif ($telefono !== null && InputValidator::phone($telefono) === null) {
+            $error = 'Teléfono no válido.';
         } elseif (strlen($contrasena) < 8) {
             $error = 'La contraseña debe tener al menos 8 caracteres.';
         } elseif ($this->userModel->usuarioExiste($usuario)) {
@@ -565,7 +739,7 @@ class AdminController
         }
 
         if ($error !== '') {
-            $this->irAConError('admin_socios', $error);
+            $this->irAConError('admin_socios', $error, $navegacion);
         }
 
         $creado = $this->userModel->crear(
@@ -573,7 +747,7 @@ class AdminController
         );
 
         if (!$creado) {
-            $this->irAConError('admin_socios', 'No se pudo dar de alta al socio.');
+            $this->irAConError('admin_socios', 'No se pudo dar de alta al socio.', $navegacion);
         }
 
         $nuevo = $this->userModel->buscarPorCorreo($email);
@@ -583,7 +757,10 @@ class AdminController
         // Si en el alta se eligió una membresía, se contrata en el mismo paso.
         if ($idSocio > 0 && $idTipo > 0) {
             $errorMembresia = '';
-            $idContrato = $this->membresiaModel->contratar($idSocio, $idTipo, $metodoPago, $errorMembresia, $idSuplemento);
+            $idContrato = $this->membresiaModel->contratar(
+                $idSocio, $idTipo, $metodoPago, $errorMembresia, $idSuplemento,
+                'mostrador', null, $this->tenant->usuarioId()
+            );
             if ($idContrato !== null) {
                 $vigente = $this->membresiaModel->vigenteDeSocio($idSocio);
                 if ($vigente) {
@@ -592,7 +769,7 @@ class AdminController
             }
         }
 
-        $this->irA('admin_socios', ['ok' => 1]);
+        $this->irA('admin_socios', array_merge($navegacion, ['ok' => 1]));
     }
 
     /**
@@ -601,10 +778,11 @@ class AdminController
      */
     public function editarSocio(): void
     {
-        $this->requirePersonal();
+        $this->requirePermission('socios.edit');
+        $navegacion = $this->navegacionSocios($_POST);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
-            $this->irA('admin_socios');
+            $this->irA('admin_socios', $navegacion);
         }
 
         $idSocio   = (int) ($_POST['id_socio'] ?? 0);
@@ -616,14 +794,16 @@ class AdminController
 
         $socio = $idSocio > 0 ? $this->userModel->buscarPorId($idSocio) : null;
         if (!$socio || ($socio['rol'] ?? '') !== 'socio') {
-            $this->irAConError('admin_socios', 'El socio no existe.');
+            $this->irAConError('admin_socios', 'El socio no existe.', $navegacion);
         }
 
         $error = '';
         if ($nombre === '' || $apellidos === '' || $email === '') {
             $error = 'Nombre, apellidos y email son obligatorios.';
-        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        } elseif (InputValidator::email($email) === null) {
             $error = 'Correo electrónico no válido.';
+        } elseif ($telefono !== null && InputValidator::phone($telefono) === null) {
+            $error = 'Teléfono no válido.';
         } elseif ($this->userModel->correoExisteOtroUsuario($email, $idSocio)) {
             $error = 'Ese correo ya está registrado en otra cuenta.';
         } elseif ($iban !== null && !Iban::esValido($iban)) {
@@ -631,14 +811,14 @@ class AdminController
         }
 
         if ($error !== '') {
-            $this->irAConError('admin_socios', $error);
+            $this->irAConError('admin_socios', $error, $navegacion);
         }
 
         $ibanAnterior = $socio['iban'] ?? null;
         $ok = $this->userModel->actualizarDatosSocio($idSocio, $nombre, $apellidos, $telefono, $email, $iban);
 
         if (!$ok) {
-            $this->irAConError('admin_socios', 'No se pudieron guardar los cambios.');
+            $this->irAConError('admin_socios', 'No se pudieron guardar los cambios.', $navegacion);
         }
 
         $nombreCompleto = trim($nombre . ' ' . $apellidos);
@@ -656,27 +836,29 @@ class AdminController
             );
         }
 
-        $this->irA('admin_socios', ['ok_editar' => 1]);
+        $this->irA('admin_socios', array_merge($navegacion, ['ok_editar' => 1]));
     }
 
     public function contratarMembresia(): void
     {
-        $this->requirePersonal();
+        $this->requirePermission('membresias.renew');
+        $navegacion = $this->navegacionSocios($_POST);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
-            $this->irA('admin_socios');
+            $this->irA('admin_socios', $navegacion);
         }
 
-        $this->exigirSedeFijada('admin_socios');
+        $this->exigirSedeFijada('admin_socios', $navegacion);
 
         $idSocio       = (int) ($_POST['id_socio'] ?? 0);
         $idTipo        = (int) ($_POST['id_tipo_membresia'] ?? 0);
         $metodoPago    = $_POST['metodo_pago'] ?? 'efectivo';
         $idSuplemento  = (int) ($_POST['id_suplemento'] ?? 0) ?: null;
+        $operacionId = preg_match('/^[a-f0-9]{32}$/', (string) ($_POST['_operation_id'] ?? '')) ? (string) $_POST['_operation_id'] : null;
 
         $socio = $idSocio > 0 ? $this->userModel->buscarPorId($idSocio) : null;
         if (!$socio || ($socio['rol'] ?? '') !== 'socio') {
-            $this->irAConError('admin_socios', 'El socio no existe.');
+            $this->irAConError('admin_socios', 'El socio no existe.', $navegacion);
         }
 
         // Si se cobra por transferencia hace falta el IBAN. El formulario permite
@@ -685,7 +867,7 @@ class AdminController
             $ibanFormulario = Iban::normalizar($_POST['iban'] ?? '') ?: null;
 
             if ($ibanFormulario !== null && !Iban::esValido($ibanFormulario)) {
-                $this->irAConError('admin_socios', 'El IBAN no es válido. Revisa que esté completo y bien tecleado.');
+                $this->irAConError('admin_socios', 'El IBAN no es válido. Revisa que esté completo y bien tecleado.', $navegacion);
             }
             if ($ibanFormulario !== null && $ibanFormulario !== ($socio['iban'] ?? null)) {
                 $this->userModel->actualizarIban($idSocio, $ibanFormulario);
@@ -699,7 +881,7 @@ class AdminController
                 $socio['iban'] = $ibanFormulario;
             }
             if (empty($socio['iban'])) {
-                $this->irAConError('admin_socios', 'Para cobrar por transferencia hace falta el IBAN del socio.');
+                $this->irAConError('admin_socios', 'Para cobrar por transferencia hace falta el IBAN del socio.', $navegacion);
             }
         }
 
@@ -708,10 +890,13 @@ class AdminController
         $vencimientoAnterior = $anterior['fecha_fin'] ?? 'sin membresía';
 
         $error = '';
-        $idContrato = $this->membresiaModel->contratar($idSocio, $idTipo, $metodoPago, $error, $idSuplemento);
+        $idContrato = $this->membresiaModel->contratar(
+            $idSocio, $idTipo, $metodoPago, $error, $idSuplemento,
+            'mostrador', $operacionId, $this->tenant->usuarioId()
+        );
 
         if ($idContrato === null) {
-            $this->irAConError('admin_socios', $error);
+            $this->irAConError('admin_socios', $error, $navegacion);
         }
 
         $vigente = $this->membresiaModel->vigenteDeSocio($idSocio);
@@ -729,7 +914,7 @@ class AdminController
             Mailer::membresiaContratada($socio['email'], $socio['nombre'], $vigente['nombre_tipo'], $vigente['fecha_fin']);
         }
 
-        $this->irA('admin_socios', ['ok_membresia' => 1]);
+        $this->irA('admin_socios', array_merge($navegacion, ['ok_membresia' => 1]));
     }
 
     /**
@@ -738,26 +923,27 @@ class AdminController
      */
     public function iniciarPruebaSocio(): void
     {
-        $this->requirePersonal();
+        $this->requirePermission('membresias.renew');
+        $navegacion = $this->navegacionSocios($_POST);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
-            $this->irA('admin_socios');
+            $this->irA('admin_socios', $navegacion);
         }
 
-        $this->exigirSedeFijada('admin_socios');
+        $this->exigirSedeFijada('admin_socios', $navegacion);
 
         $idSocio = (int) ($_POST['id_socio'] ?? 0);
         $socio   = $idSocio > 0 ? $this->userModel->buscarPorId($idSocio) : null;
 
         if (!$socio || ($socio['rol'] ?? '') !== 'socio') {
-            $this->irAConError('admin_socios', 'El socio no existe.');
+            $this->irAConError('admin_socios', 'El socio no existe.', $navegacion);
         }
 
         $error = '';
-        $idPrueba = $this->membresiaModel->iniciarPrueba($idSocio, $error);
+        $idPrueba = $this->membresiaModel->iniciarPrueba($idSocio, $error, $this->tenant->usuarioId());
 
         if ($idPrueba === null) {
-            $this->irAConError('admin_socios', $error);
+            $this->irAConError('admin_socios', $error, $navegacion);
         }
 
         $prueba = $this->membresiaModel->pruebaVigenteDeSocio($idSocio);
@@ -770,12 +956,12 @@ class AdminController
             'prueba hasta ' . ($prueba['fecha_fin'] ?? '')
         );
 
-        $this->irA('admin_socios', ['ok_prueba' => 1]);
+        $this->irA('admin_socios', array_merge($navegacion, ['ok_prueba' => 1]));
     }
 
     public function mostrarMembresias(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('membresias.catalog.manage');
         $pageTitle    = 'Tipos de Membresía';
         $paginaActiva = 'membresias';
 
@@ -790,8 +976,8 @@ class AdminController
 
                 if ($accion === 'toggle_estado_tipo') {
                     $idTipo = (int) ($_POST['id_tipo_membresia'] ?? 0);
-                    if ($idTipo > 0) {
-                        $this->membresiaModel->toggleEstadoTipo($idTipo);
+                    if ($idTipo > 0 && $this->membresiaModel->toggleEstadoTipo($idTipo)) {
+                        $this->registrarLog('Estado de cuota', 'Activado/desactivado el tipo de membresía #' . $idTipo);
                     }
                     $this->irA('admin_membresias');
                 }
@@ -852,19 +1038,9 @@ class AdminController
      * Sedes y personal
      * ------------------------------------------------------------------ */
 
-    /** Solo la empresa administra las sedes. */
-    private function requireEmpresa(): void
-    {
-        $logueado = isset($_SESSION['logueado']) && $_SESSION['logueado'] === true;
-        if (!$logueado || ($_SESSION['usuario_rol'] ?? '') !== 'empresa') {
-            $this->irA('admin');
-        }
-        $this->iniciarModelos();
-    }
-
     public function mostrarSedes(): void
     {
-        $this->requireEmpresa();
+        $this->requirePermission('sedes.manage');
         $pageTitle    = 'Sedes';
         $paginaActiva = 'sedes';
 
@@ -875,7 +1051,7 @@ class AdminController
         if (isset($_GET['ok_estado'])) $mensajeExito = 'Estado de la sede actualizado.';
         if (isset($_GET['ok_marca']))  $mensajeExito = 'Marca de la sede actualizada.';
 
-        $gimnasioModel = new GimnasioModel();
+        $gimnasioModel = new GimnasioModel($this->tenant->empresaId());
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!Csrf::validarPost()) {
@@ -961,14 +1137,14 @@ class AdminController
      */
     public function guardarMarcaSede(): void
     {
-        $this->requireEmpresa();
+        $this->requirePermission('config.manage');
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
             $this->irA('admin_sedes');
         }
 
         $idSede = (int) ($_POST['id_gimnasio'] ?? 0);
-        $gimnasioModel = new GimnasioModel();
+        $gimnasioModel = new GimnasioModel($this->tenant->empresaId());
         $sede = $idSede > 0 ? $gimnasioModel->buscarPorId($idSede) : null;
 
         if (!$sede) {
@@ -996,7 +1172,10 @@ class AdminController
         $colorPrimario = trim($_POST['color_primario'] ?? '#4f46e5');
         $colorTexto    = trim($_POST['color_texto']    ?? '#ffffff');
 
-        $gimnasioModel->actualizarMarca($idSede, $nombreLogo, $colorPrimario, $colorTexto);
+        if (!$gimnasioModel->actualizarMarca($idSede, $nombreLogo, $colorPrimario, $colorTexto)) {
+            if ($nombreLogo !== null) @unlink(__DIR__ . '/../../public/assets/gimnasios/' . $nombreLogo);
+            $this->irAConError('admin_sedes', 'No se pudo guardar la marca de la sede.');
+        }
 
         // Si se sube uno nuevo, el anterior se borra del disco.
         if ($nombreLogo !== null && !empty($sede['logo'])) {
@@ -1016,17 +1195,19 @@ class AdminController
     /** La empresa elige en qué sede trabaja; vacío = ver todas juntas. */
     public function cambiarSedeActiva(): void
     {
-        $this->requireEmpresa();
+        $this->requirePermission('sedes.manage');
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
             $this->irA('admin');
         }
 
         $idSede = (int) ($_POST['id_gimnasio'] ?? 0);
-        $_SESSION['gimnasio_activo'] = $idSede > 0 ? $idSede : null;
+        if (!$this->tenant->seleccionarSede($idSede > 0 ? $idSede : null)) {
+            $this->irAConError('admin', 'La sede seleccionada no pertenece a tu empresa.');
+        }
 
         if ($idSede > 0) {
-            $gimnasioModel = new GimnasioModel();
+            $gimnasioModel = new GimnasioModel($this->tenant->empresaId());
             $sede = $gimnasioModel->buscarPorId($idSede);
             $_SESSION['gimnasio_nombre'] = $sede['nombre'] ?? '';
         } else {
@@ -1036,12 +1217,13 @@ class AdminController
         $volver = $_POST['volver_a'] ?? 'admin';
         $volver = preg_match('/^admin[a-z_]*$/', $volver) ? $volver : 'admin';
 
-        $this->irA($volver);
+        $parametros = $volver === 'admin_socios' ? $this->navegacionSocios($_POST) : [];
+        $this->irA($volver, $parametros);
     }
 
     public function mostrarEmpleados(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('empleados.manage');
         $pageTitle    = 'Personal';
         $paginaActiva = 'empleados';
 
@@ -1051,8 +1233,8 @@ class AdminController
         if (isset($_GET['ok_editar'])) $mensajeExito = 'Datos del empleado actualizados.';
         if (isset($_GET['ok_estado'])) $mensajeExito = 'Acceso del empleado actualizado.';
 
-        $esEmpresa = ($_SESSION['usuario_rol'] ?? '') === 'empresa';
-        $gimnasioModel = new GimnasioModel();
+        $esEmpresa = in_array($this->tenant->rol(), ['superadmin', 'direccion'], true);
+        $gimnasioModel = new GimnasioModel($this->tenant->empresaId());
 
         $busqueda  = trim($_GET['buscar'] ?? '');
         $empleados = $this->userModel->listarEmpleados($busqueda);
@@ -1064,13 +1246,13 @@ class AdminController
 
     public function crearEmpleado(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('empleados.manage');
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
             $this->irA('admin_empleados');
         }
 
-        $esEmpresa = ($_SESSION['usuario_rol'] ?? '') === 'empresa';
+        $esEmpresa = in_array($this->tenant->rol(), ['superadmin', 'direccion'], true);
 
         $nombre     = trim($_POST['nombre']    ?? '');
         $apellidos  = trim($_POST['apellidos'] ?? '');
@@ -1100,6 +1282,8 @@ class AdminController
             $error = 'La contraseña debe tener al menos ' . self::MIN_CLAVE_EMPLEADO . ' caracteres.';
         } elseif ($idSede === null) {
             $error = 'Hay que asignar el empleado a una sede.';
+        } elseif (!$this->tenant->puedeUsarSede($idSede)) {
+            $error = 'La sede indicada no pertenece a tu empresa.';
         } elseif ($this->userModel->usuarioExiste($usuario)) {
             $error = 'Ese nombre de usuario ya está en uso.';
         } elseif ($this->userModel->correoExiste($email)) {
@@ -1135,19 +1319,19 @@ class AdminController
 
     public function editarEmpleado(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('empleados.manage');
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
             $this->irA('admin_empleados');
         }
 
-        $esEmpresa = ($_SESSION['usuario_rol'] ?? '') === 'empresa';
+        $esEmpresa = in_array($this->tenant->rol(), ['superadmin', 'direccion'], true);
         $idPropio      = (int) ($_SESSION['usuario_id'] ?? 0);
 
         $idEmpleado = (int) ($_POST['id_usuario'] ?? 0);
         $empleado   = $idEmpleado > 0 ? $this->userModel->buscarPorId($idEmpleado) : null;
 
-        if (!$empleado || !in_array($empleado['rol'], ['empresa', 'admin', 'recepcion'], true)) {
+        if (!$empleado || !in_array($empleado['rol'], ['direccion', 'admin', 'recepcion'], true)) {
             $this->irAConError('admin_empleados', 'El empleado no existe.');
         }
         // Un admin no puede tocar a la empresa ni a otro admin.
@@ -1162,7 +1346,7 @@ class AdminController
 
         $rolAnterior = $empleado['rol'];
         if ($esEmpresa) {
-            $rol    = in_array($_POST['rol'] ?? '', ['empresa', 'admin', 'recepcion'], true)
+            $rol    = in_array($_POST['rol'] ?? '', ['direccion', 'admin', 'recepcion'], true)
                     ? $_POST['rol'] : $rolAnterior;
             $idSede = (int) ($_POST['id_gimnasio'] ?? 0) ?: null;
         } else {
@@ -1182,8 +1366,10 @@ class AdminController
             $error = 'Correo electrónico no válido.';
         } elseif ($this->userModel->correoExisteOtroUsuario($email, $idEmpleado)) {
             $error = 'Ese correo ya está registrado en otra cuenta.';
-        } elseif ($rol !== 'empresa' && $idSede === null) {
+        } elseif ($rol !== 'direccion' && $idSede === null) {
             $error = 'Hay que asignar el empleado a una sede.';
+        } elseif ($idSede !== null && !$this->tenant->puedeUsarSede($idSede)) {
+            $error = 'La sede indicada no pertenece a tu empresa.';
         }
 
         if ($error !== '') {
@@ -1205,18 +1391,18 @@ class AdminController
     /** Activa o bloquea el acceso de un empleado sin borrar su histórico. */
     public function toggleEmpleado(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('empleados.manage');
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
             $this->irA('admin_empleados');
         }
 
-        $esEmpresa = ($_SESSION['usuario_rol'] ?? '') === 'empresa';
+        $esEmpresa = in_array($this->tenant->rol(), ['superadmin', 'direccion'], true);
         $idPropio      = (int) ($_SESSION['usuario_id'] ?? 0);
         $idEmpleado    = (int) ($_POST['id_usuario'] ?? 0);
         $empleado      = $idEmpleado > 0 ? $this->userModel->buscarPorId($idEmpleado) : null;
 
-        if (!$empleado || !in_array($empleado['rol'], ['empresa', 'admin', 'recepcion'], true)) {
+        if (!$empleado || !in_array($empleado['rol'], ['direccion', 'admin', 'recepcion'], true)) {
             $this->irAConError('admin_empleados', 'El empleado no existe.');
         }
         if ($idEmpleado === $idPropio) {
@@ -1227,7 +1413,7 @@ class AdminController
         }
         // Quedarse sin nadie que pueda administrar dejaría el panel inaccesible.
         if ((int) $empleado['activo'] === 1
-            && in_array($empleado['rol'], ['empresa', 'admin'], true)
+            && in_array($empleado['rol'], ['direccion', 'admin'], true)
             && $this->userModel->contarGestoresActivos($idEmpleado) === 0) {
             $this->irAConError('admin_empleados', 'Es el único usuario con permisos de administración: no se puede bloquear.');
         }
@@ -1254,7 +1440,7 @@ class AdminController
 
     public function mostrarRemesas(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('remesas.manage');
         $pageTitle    = 'Domiciliaciones';
         $paginaActiva = 'remesas';
 
@@ -1303,6 +1489,7 @@ class AdminController
                     $seleccion  = $_POST['membresias'] ?? [];
                     $concepto   = trim($_POST['concepto'] ?? '') ?: ('Cuota ' . date('m/Y'));
                     $fechaCobro = trim($_POST['fecha_cobro'] ?? '');
+                    $operacionId = preg_match('/^[a-f0-9]{32}$/', (string) ($_POST['_operation_id'] ?? '')) ? (string) $_POST['_operation_id'] : null;
                     if (!$this->esFechaValida($fechaCobro)) {
                         $fechaCobro = date('Y-m-d', strtotime('+3 days'));
                     }
@@ -1312,7 +1499,8 @@ class AdminController
                         is_array($seleccion) ? $seleccion : [],
                         $concepto, $fechaCobro,
                         (int) ($_SESSION['usuario_id'] ?? 0),
-                        $error
+                        $error,
+                        $operacionId
                     );
 
                     if ($idRemesa === null) {
@@ -1335,7 +1523,7 @@ class AdminController
                             $this->registrarLog('Remesa SEPA', 'Remesa #' . $idRemesa . ' enviada al banco');
                             $flag = ['ok_enviada' => 1];
                         } else {
-                            $this->sepaModel->marcarCobrada($idRemesa);
+                            $this->sepaModel->marcarCobrada($idRemesa, $this->tenant->usuarioId());
                             $this->registrarLog('Remesa SEPA', 'Remesa #' . $idRemesa . ' cobrada');
                             $flag = ['ok_cobrada' => 1];
                         }
@@ -1347,8 +1535,8 @@ class AdminController
                     $idRecibo = (int) ($_POST['id_recibo'] ?? 0);
                     $motivo   = trim($_POST['motivo'] ?? '') ?: 'Sin motivo indicado';
                     if ($idRecibo > 0) {
-                        if (!$this->sepaModel->marcarDevuelto($idRecibo, $motivo)) {
-                            $this->irAConError('admin_remesas', 'Ese recibo no existe o no es de esta sede.');
+                        if (!$this->sepaModel->marcarDevuelto($idRecibo, $motivo, $this->tenant->usuarioId())) {
+                            $this->irAConError('admin_remesas', 'Ese recibo no existe, no es de esta sede o ya estaba devuelto.');
                         }
                         $this->registrarLog('Recibo devuelto', 'Recibo #' . $idRecibo . ' — ' . $motivo);
                         $this->irA('admin_remesas', ['ok_devuelto' => 1]);
@@ -1373,7 +1561,7 @@ class AdminController
     /** Descarga el fichero XML que se sube a la banca electrónica. */
     public function descargarRemesa(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('remesas.manage');
 
         // Con "todas las sedes" no hay unos datos bancarios que usar, y antes se
         // cogían los del primer gimnasio de la tabla. Mejor pedir que se elija.
@@ -1420,21 +1608,22 @@ class AdminController
     /** Registra el mandato firmado por un socio. */
     public function crearMandato(): void
     {
-        $this->requirePersonal();
+        $this->requirePermission('mandatos.create');
+        $navegacion = $this->navegacionSocios($_POST);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
-            $this->irA('admin_socios');
+            $this->irA('admin_socios', $navegacion);
         }
 
         // El mandato queda a nombre de una sede concreta: es la que cobrará.
-        $this->exigirSedeFijada('admin_socios');
+        $this->exigirSedeFijada('admin_socios', $navegacion);
 
         $idSocio    = (int) ($_POST['id_socio'] ?? 0);
         $fechaFirma = trim($_POST['fecha_firma'] ?? '') ?: date('Y-m-d');
         $socio      = $idSocio > 0 ? $this->userModel->buscarPorId($idSocio) : null;
 
         if (!$socio || ($socio['rol'] ?? '') !== 'socio') {
-            $this->irAConError('admin_socios', 'El socio no existe.');
+            $this->irAConError('admin_socios', 'El socio no existe.', $navegacion);
         }
         if (!$this->esFechaValida($fechaFirma)) {
             $fechaFirma = date('Y-m-d');
@@ -1442,14 +1631,14 @@ class AdminController
 
         $iban = Iban::normalizar($_POST['iban'] ?? '') ?: ($socio['iban'] ?? '');
         if ($iban === '') {
-            $this->irAConError('admin_socios', 'Hace falta el IBAN para firmar el mandato.');
+            $this->irAConError('admin_socios', 'Hace falta el IBAN para firmar el mandato.', $navegacion);
         }
 
         $error = '';
         $idMandato = $this->sepaModel->crearMandato($idSocio, $iban, $fechaFirma, $error);
 
         if ($idMandato === null) {
-            $this->irAConError('admin_socios', $error);
+            $this->irAConError('admin_socios', $error, $navegacion);
         }
 
         // El IBAN del mandato pasa a ser el de la ficha del socio.
@@ -1465,7 +1654,127 @@ class AdminController
             Iban::enmascarar($iban)
         );
 
-        $this->irA('admin_socios', ['ok_mandato' => 1]);
+        $this->irA('admin_socios', array_merge($navegacion, ['ok_mandato' => 1]));
+    }
+
+    /* ---------------------------------------------------------------------
+     * Importaciones masivas
+     * ------------------------------------------------------------------ */
+
+    public function mostrarImportaciones(): void
+    {
+        $this->requirePermission('migrations.manage');
+        $pageTitle = 'Importaciones';
+        $paginaActiva = 'migraciones';
+        $errorImportacion = InputValidator::text($_GET['err'] ?? '', 500, false) ?? '';
+        $mensajeImportacion = '';
+        if (isset($_GET['subida'])) $mensajeImportacion = 'Archivo recibido. Revisa el mapeo y ejecuta el dry-run.';
+        if (isset($_GET['repetido'])) $mensajeImportacion = 'Ese archivo ya fue procesado. Se muestra el batch existente.';
+        if (isset($_GET['simulado'])) $mensajeImportacion = 'Dry-run completado. No se modificaron socios ni productos.';
+        if (isset($_GET['importado'])) $mensajeImportacion = 'Importación completada y archivo temporal eliminado.';
+        if (isset($_GET['descartado'])) $mensajeImportacion = 'Batch descartado y archivo temporal eliminado.';
+        $servicio = $this->migraciones();
+        $sedeActivaImportacion = $this->tenant->sedeId();
+        $batches = $servicio->listBatches();
+        $reporte = null;
+        $uuid = (string) ($_GET['batch'] ?? '');
+        if ($uuid !== '') {
+            try {
+                $reporte = $servicio->report($uuid);
+            } catch (MigrationException $e) {
+                $errorImportacion = $e->getMessage();
+            }
+        }
+        $camposSocios = ImportFieldMapper::fields('socios');
+        $camposProductos = ImportFieldMapper::fields('productos');
+        $camposMembresias = ImportFieldMapper::fields('membresias');
+        require __DIR__ . '/../views/admin/importaciones.php';
+    }
+
+    public function subirImportacion(): void
+    {
+        $this->requirePermission('migrations.manage');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
+            $this->irAConError('admin_importaciones', 'Solicitud no válida.');
+        }
+        try {
+            $entity = (string) ($_POST['entity_type'] ?? '');
+            $source = strtolower(trim((string) ($_POST['source_system'] ?? 'generic')));
+            $file = $_FILES['archivo'] ?? [];
+            $batch = $this->migraciones()->createFromUpload(
+                $entity,
+                $source,
+                (string) ($file['name'] ?? ''),
+                $file
+            );
+            $flag = !empty($batch['already_processed']) ? 'repetido' : 'subida';
+            $this->irA('admin_importaciones', ['batch'=>$batch['uuid'],$flag=>1]);
+        } catch (MigrationException $e) {
+            $this->irAConError('admin_importaciones', $e->getMessage());
+        } catch (Throwable $e) {
+            AppLogger::error('migration_upload_failed', ['company_id'=>$this->tenant->empresaId(),'reason'=>$e->getMessage()]);
+            $this->irAConError('admin_importaciones', 'No se pudo preparar el archivo.');
+        }
+    }
+
+    public function simularImportacion(): void
+    {
+        $this->requirePermission('migrations.manage');
+        $uuid = (string) ($_POST['batch'] ?? '');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
+            $this->irAConError('admin_importaciones', 'Solicitud no válida.', ['batch'=>$uuid]);
+        }
+        $mapping = [];
+        $externals = is_array($_POST['external'] ?? null) ? $_POST['external'] : [];
+        $internals = is_array($_POST['internal'] ?? null) ? $_POST['internal'] : [];
+        foreach ($externals as $i => $external) {
+            if (is_string($external)) $mapping[$external] = is_string($internals[$i] ?? null) ? $internals[$i] : '';
+        }
+        try {
+            $this->migraciones()->dryRun($uuid, $mapping, ['date_format'=>$_POST['date_format'] ?? 'Y-m-d']);
+            $this->irA('admin_importaciones', ['batch'=>$uuid,'simulado'=>1]);
+        } catch (MigrationException $e) {
+            $this->irAConError('admin_importaciones', $e->getMessage(), ['batch'=>$uuid]);
+        } catch (Throwable $e) {
+            AppLogger::error('migration_dry_run_failed', ['batch'=>$uuid,'company_id'=>$this->tenant->empresaId(),'reason'=>$e->getMessage()]);
+            $this->irAConError('admin_importaciones', 'No se pudo completar el dry-run.', ['batch'=>$uuid]);
+        }
+    }
+
+    public function confirmarImportacion(): void
+    {
+        $this->requirePermission('migrations.manage');
+        $uuid = (string) ($_POST['batch'] ?? '');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
+            $this->irAConError('admin_importaciones', 'Solicitud no válida.', ['batch'=>$uuid]);
+        }
+        try {
+            $this->migraciones()->confirm($uuid);
+            $this->irA('admin_importaciones', ['batch'=>$uuid,'importado'=>1]);
+        } catch (MigrationException $e) {
+            $this->irAConError('admin_importaciones', $e->getMessage(), ['batch'=>$uuid]);
+        } catch (Throwable $e) {
+            AppLogger::error('migration_confirm_failed', ['batch'=>$uuid,'company_id'=>$this->tenant->empresaId(),'reason'=>$e->getMessage()]);
+            $this->irAConError('admin_importaciones', 'No se pudo completar la importación.', ['batch'=>$uuid]);
+        }
+    }
+
+    public function descartarImportacion(): void
+    {
+        $this->requirePermission('migrations.manage');
+        $uuid = (string) ($_POST['batch'] ?? '');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
+            $this->irAConError('admin_importaciones', 'Solicitud no válida.', ['batch'=>$uuid]);
+        }
+        try {
+            $this->migraciones()->discard($uuid);
+            $this->irA('admin_importaciones', ['descartado'=>1]);
+        } catch (MigrationException $e) {
+            $this->irAConError('admin_importaciones', $e->getMessage(), ['batch'=>$uuid]);
+        } catch (Throwable $e) {
+            AppLogger::error('migration_discard_failed', ['batch'=>$uuid,'company_id'=>$this->tenant->empresaId(),'reason'=>$e->getMessage()]);
+            $this->irAConError('admin_importaciones', 'No se pudo descartar el batch.', ['batch'=>$uuid]);
+        }
     }
 
     /* ---------------------------------------------------------------------
@@ -1474,7 +1783,7 @@ class AdminController
 
     public function mostrarReportes(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('informes.view');
         $pageTitle    = 'Reportes';
         $paginaActiva = 'reportes';
 
@@ -1497,6 +1806,8 @@ class AdminController
         $membresiasActivas = $this->membresiaModel->contarActivas();
         $membresiasVencidas = $this->membresiaModel->contarVencidas();
         $ingresosMembresias = $this->membresiaModel->sumarIngresosDelMes();
+        $resumenEconomico = $this->financialService->resumenPeriodo($desde, $hasta);
+        $resumenCaja = $this->financialService->resumenCajaPeriodo($desde, $hasta);
 
         require __DIR__ . '/../views/admin/reportes.php';
     }
@@ -1537,7 +1848,7 @@ class AdminController
     /** Atajo para registrar en el log con el id del usuario en sesión. */
     private function registrarLog(string $accion, string $detalle): void
     {
-        $log = new LogModel();
+        $log = new LogModel($this->tenant->empresaId());
         $log->registrarCambio(
             (int) ($_SESSION['usuario_id'] ?? 0), $accion, $detalle,
             null, null, null, null, null, $this->gimnasioActual()
@@ -1557,7 +1868,7 @@ class AdminController
         ?string $valorNuevo = null,
         string $entidad = 'socio'
     ): void {
-        $log = new LogModel();
+        $log = new LogModel($this->tenant->empresaId());
         $log->registrarCambio(
             (int) ($_SESSION['usuario_id'] ?? 0), $accion, $detalle,
             $idAfectado, $entidad, $idAfectado,
@@ -1566,7 +1877,7 @@ class AdminController
     }
 
     public function mostrarLog(): void {
-        $this->requireAdmin();
+        $this->requirePermission('auditoria.view');
         $pageTitle    = 'Historial de actividad';
         $paginaActiva = 'log';
 
@@ -1580,7 +1891,7 @@ class AdminController
         if ($filtros['desde'] !== '' && !$this->esFechaValida($filtros['desde'])) $filtros['desde'] = '';
         if ($filtros['hasta'] !== '' && !$this->esFechaValida($filtros['hasta'])) $filtros['hasta'] = '';
 
-        $logModel = new LogModel();
+        $logModel = new LogModel($this->tenant->empresaId());
         $logs     = $logModel->listar(200, $this->gimnasioActual(), $filtros);
         $autores  = $logModel->listarAutores($this->gimnasioActual());
 
@@ -1589,7 +1900,7 @@ class AdminController
 
     public function exportarVentasCSV(): void
     {
-        $this->requireAdmin();
+        $this->requirePermission('informes.export');
 
         $desde = trim($_GET['desde'] ?? date('Y-m-01'));
         $hasta = trim($_GET['hasta'] ?? date('Y-m-d'));

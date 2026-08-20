@@ -19,7 +19,7 @@ foreach ($topProductos as $p) {
 
             <div class="pt-4 mb-7">
                 <h1 class="text-2xl font-extrabold tracking-tight text-[#111318] sm:text-3xl">Reportes</h1>
-                <p class="mt-1.5 text-sm font-medium text-neutral-500">Ventas, stock y estado de las membresías.</p>
+                <p class="mt-1.5 text-sm font-medium text-neutral-500">Ventas, cobros reales, deuda, caja, stock y membresías.</p>
             </div>
 
             <!-- Resumen rápido -->
@@ -67,6 +67,28 @@ foreach ($topProductos as $p) {
                     Exportar ventas CSV
                 </a>
             </form>
+
+            <!-- Circuito económico real: no confunde contratos con cobros. -->
+            <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <article class="rounded-[20px] border border-[#e4e4e7] bg-white px-5 py-4 shadow-sm">
+                    <p class="text-xs font-extrabold uppercase tracking-widest text-neutral-500">Cobros confirmados</p>
+                    <p class="mt-3 text-2xl font-extrabold text-green-700"><?= number_format((float) ($resumenEconomico['cobros_confirmados'] ?? 0), 2, ',', '.') ?> €</p>
+                </article>
+                <article class="rounded-[20px] border border-[#e4e4e7] bg-white px-5 py-4 shadow-sm">
+                    <p class="text-xs font-extrabold uppercase tracking-widest text-neutral-500">Devoluciones</p>
+                    <p class="mt-3 text-2xl font-extrabold text-red-700"><?= number_format((float) ($resumenEconomico['devoluciones'] ?? 0), 2, ',', '.') ?> €</p>
+                    <p class="mt-1 text-xs text-neutral-500"><?= (int) ($resumenEconomico['num_devoluciones'] ?? 0) ?> recibo(s)</p>
+                </article>
+                <article class="rounded-[20px] border border-[#e4e4e7] bg-white px-5 py-4 shadow-sm">
+                    <p class="text-xs font-extrabold uppercase tracking-widest text-neutral-500">Deuda pendiente</p>
+                    <p class="mt-3 text-2xl font-extrabold text-amber-700"><?= number_format((float) ($resumenEconomico['deuda_pendiente'] ?? 0), 2, ',', '.') ?> €</p>
+                </article>
+                <article class="rounded-[20px] border border-[#e4e4e7] bg-white px-5 py-4 shadow-sm">
+                    <p class="text-xs font-extrabold uppercase tracking-widest text-neutral-500">Diferencias de caja</p>
+                    <p class="mt-3 text-2xl font-extrabold <?= (float) ($resumenCaja['diferencias'] ?? 0) === 0.0 ? 'text-green-700' : 'text-red-700' ?>"><?= number_format((float) ($resumenCaja['diferencias'] ?? 0), 2, ',', '.') ?> €</p>
+                    <p class="mt-1 text-xs text-neutral-500"><?= (int) ($resumenCaja['sesiones_cerradas'] ?? 0) ?> cierre(s)</p>
+                </article>
+            </div>
 
             <!-- Totales del periodo -->
             <div class="mt-6 rounded-[22px] border border-[#e4e4e7] bg-white p-6 shadow-sm">

@@ -191,11 +191,13 @@ $e = function (?string $v): string {
         </div>
 
         <p class="mt-6 text-center text-sm">
-            <a href="index.php?action=salir_gimnasio"
-               class="font-medium transition hover:underline"
+            <form method="POST" action="index.php?action=salir_gimnasio" class="inline">
+               <?= Csrf::field() ?>
+            <button type="submit" class="font-medium transition hover:underline"
                style="color: <?= $e($marca['tenue']) ?>">
                 ← Salir de <?= $e($marca['nombre']) ?>
-            </a>
+            </button>
+            </form>
         </p>
 
     </div>

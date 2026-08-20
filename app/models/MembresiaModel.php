@@ -1,4 +1,6 @@
 <?php
+require_once dirname(__DIR__) . '/helpers/Money.php';
+require_once __DIR__ . '/FinancialModel.php';
 /**
  * MembresiaModel — acceso a las tablas `tipo_membresia` y `socio_membresia`.
  *
@@ -22,6 +24,7 @@ class MembresiaModel
     private $db;
     private $tabla = 'socio_membresia';
     private $idGimnasio;
+    private $idEmpresa;
 
     private const METODOS_VALIDOS = ['efectivo', 'datafono', 'transferencia'];
 
@@ -29,17 +32,36 @@ class MembresiaModel
     public const DIAS_PRUEBA = 5;
 
     /** Ver ProductoModel::__construct para el criterio de aislamiento por sede. */
-    public function __construct(?int $idGimnasio = null)
+    public function __construct(?int $idGimnasio = null, ?int $idEmpresa = null)
     {
         $this->db = Database::getInstance()->getConnection();
         $this->idGimnasio = $idGimnasio;
+        $this->idEmpresa = $idEmpresa;
+        if ($this->idEmpresa === null && $this->idGimnasio !== null) {
+            $stmt = $this->db->prepare('SELECT id_empresa FROM gimnasio WHERE id_gimnasio = :id');
+            $stmt->execute([':id' => $this->idGimnasio]);
+            $this->idEmpresa = (int) $stmt->fetchColumn() ?: null;
+        }
     }
 
     private function filtroSede(string $alias = 'sm'): string
     {
-        if ($this->idGimnasio === null) return '';
         $prefijo = $alias === '' ? '' : $alias . '.';
-        return ' AND ' . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio;
+        if ($this->idGimnasio !== null) return ' AND ' . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio;
+        if ($this->idEmpresa !== null) {
+            return ' AND ' . $prefijo . 'id_gimnasio IN (SELECT id_gimnasio FROM gimnasio WHERE id_empresa = '
+                . (int) $this->idEmpresa . ')';
+        }
+        return '';
+    }
+
+    private function socioEnAmbito(int $idSocio): bool
+    {
+        $stmt = $this->db->prepare(
+            "SELECT 1 FROM usuario WHERE id_usuario = :id AND rol = 'socio'" . $this->filtroSede('') . ' LIMIT 1'
+        );
+        $stmt->execute([':id' => $idSocio]);
+        return (bool) $stmt->fetchColumn();
     }
 
     /**
@@ -49,10 +71,20 @@ class MembresiaModel
      */
     private function filtroCatalogo(string $alias = ''): string
     {
-        if ($this->idGimnasio === null) return '';
         $prefijo = $alias === '' ? '' : $alias . '.';
-        return ' AND (' . $prefijo . 'id_gimnasio IS NULL OR '
-             . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio . ')';
+        if ($this->idEmpresa === null && $this->idGimnasio === null) return '';
+        $empresa = $this->idEmpresa;
+        if ($empresa === null && $this->idGimnasio !== null) {
+            $stmt = $this->db->prepare('SELECT id_empresa FROM gimnasio WHERE id_gimnasio = :id');
+            $stmt->execute([':id' => $this->idGimnasio]);
+            $empresa = (int) $stmt->fetchColumn();
+        }
+        $sql = ' AND ' . $prefijo . 'id_empresa = ' . (int) $empresa;
+        if ($this->idGimnasio !== null) {
+            $sql .= ' AND (' . $prefijo . 'id_gimnasio IS NULL OR '
+                 . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio . ')';
+        }
+        return $sql;
     }
 
     /* --- Suplementos (plus sobre la cuota base) --------------------------- */
@@ -63,7 +95,7 @@ class MembresiaModel
             return $this->db->query(
                 "SELECT * FROM suplemento WHERE 1 = 1" . $this->filtroCatalogo() . " ORDER BY nombre ASC"
             )->fetchAll();
-        } catch (\PDOException $e) {
+        } catch (\Throwable $e) {
             error_log('MembresiaModel::listarSuplementos error: ' . $e->getMessage());
             return [];
         }
@@ -75,7 +107,7 @@ class MembresiaModel
             return $this->db->query(
                 "SELECT * FROM suplemento WHERE estado = 'activo'" . $this->filtroCatalogo() . " ORDER BY nombre ASC"
             )->fetchAll();
-        } catch (\PDOException $e) {
+        } catch (\Throwable $e) {
             error_log('MembresiaModel::listarSuplementosActivos error: ' . $e->getMessage());
             return [];
         }
@@ -95,10 +127,11 @@ class MembresiaModel
     {
         try {
             $stmt = $this->db->prepare(
-                "INSERT INTO suplemento (nombre, descripcion, precio_mensual, estado, id_gimnasio)
-                 VALUES (:nombre, :descripcion, :precio, :estado, :id_gimnasio)"
+                "INSERT INTO suplemento (id_empresa, nombre, descripcion, precio_mensual, estado, id_gimnasio)
+                 VALUES (:id_empresa, :nombre, :descripcion, :precio, :estado, :id_gimnasio)"
             );
             return $stmt->execute([
+                ':id_empresa'  => $this->idEmpresa,
                 ':nombre'      => $nombre,
                 ':descripcion' => $descripcion,
                 ':precio'      => $precioMensual,
@@ -197,10 +230,11 @@ class MembresiaModel
     ): bool {
         try {
             $stmt = $this->db->prepare(
-                "INSERT INTO tipo_membresia (nombre, descripcion, precio, iva, duracion_meses, estado, id_gimnasio)
-                 VALUES (:nombre, :descripcion, :precio, :iva, :duracion_meses, :estado, :id_gimnasio)"
+                "INSERT INTO tipo_membresia (id_empresa, nombre, descripcion, precio, iva, duracion_meses, estado, id_gimnasio)
+                 VALUES (:id_empresa, :nombre, :descripcion, :precio, :iva, :duracion_meses, :estado, :id_gimnasio)"
             );
             return $stmt->execute([
+                ':id_empresa'     => $this->idEmpresa,
                 ':nombre'         => $nombre,
                 ':descripcion'    => $descripcion,
                 ':precio'         => $precio,
@@ -282,11 +316,36 @@ class MembresiaModel
         string $metodoPago,
         string &$error,
         ?int $idSuplemento = null,
-        string $origen = 'mostrador'
+        string $origen = 'mostrador',
+        ?string $idempotencyKey = null,
+        ?int $idUsuario = null
     ): ?int {
         if (!in_array($metodoPago, self::METODOS_VALIDOS, true)) {
             $error = 'Método de pago no válido.';
             return null;
+        }
+        if (!$this->socioEnAmbito($idSocio)) {
+            $error = 'El socio no pertenece al ámbito activo.';
+            return null;
+        }
+        $sedeOperacion = $this->idGimnasio;
+        $empresaOperacion = $this->idEmpresa;
+        if ($sedeOperacion === null || $empresaOperacion === null) {
+            $contexto = $this->db->prepare(
+                'SELECT u.id_gimnasio, COALESCE(u.id_empresa, g.id_empresa) AS id_empresa
+                 FROM usuario u LEFT JOIN gimnasio g ON g.id_gimnasio = u.id_gimnasio
+                 WHERE u.id_usuario = :id LIMIT 1'
+            );
+            $contexto->execute([':id' => $idSocio]);
+            $ctx = $contexto->fetch();
+            $sedeOperacion = (int) ($ctx['id_gimnasio'] ?? 0) ?: null;
+            $empresaOperacion = (int) ($ctx['id_empresa'] ?? 0) ?: null;
+        }
+        if ($idempotencyKey !== null) {
+            $stmt = $this->db->prepare("SELECT id_socio_membresia FROM {$this->tabla} WHERE id_gimnasio = :sede AND idempotency_key = :clave LIMIT 1");
+            $stmt->execute([':sede' => $sedeOperacion, ':clave' => $idempotencyKey]);
+            $existente = (int) $stmt->fetchColumn();
+            if ($existente > 0) return $existente;
         }
 
         $tipo = $this->buscarTipoPorId($idTipo);
@@ -304,11 +363,16 @@ class MembresiaModel
                 $error = 'El suplemento seleccionado no existe.';
                 return null;
             }
-            $precioSuplemento = (float) $suplemento['precio_mensual'] * (int) $tipo['duracion_meses'];
+            $precioSuplemento = Money::multiply($suplemento['precio_mensual'], (int) $tipo['duracion_meses']);
         }
 
-        $vigente = $this->vigenteDeSocio($idSocio);
-        $prueba  = $this->pruebaVigenteDeSocio($idSocio);
+        try {
+            $this->db->beginTransaction();
+            $lock = $this->db->prepare('SELECT id_usuario FROM usuario WHERE id_usuario = :id FOR UPDATE');
+            $lock->execute([':id' => $idSocio]);
+
+            $vigente = $this->vigenteDeSocio($idSocio);
+            $prueba  = $this->pruebaVigenteDeSocio($idSocio);
 
         if ($vigente && empty($vigente['es_prueba'])) {
             // Renovación normal: encadena tras el vencimiento para no quitarle
@@ -321,20 +385,19 @@ class MembresiaModel
         }
         $fechaFin = date('Y-m-d', strtotime($fechaInicio . ' +' . (int) $tipo['duracion_meses'] . ' month -1 day'));
 
-        try {
             $stmt = $this->db->prepare(
                 "INSERT INTO {$this->tabla}
                  (id_socio, id_gimnasio, id_tipo_membresia, id_suplemento, nombre_tipo, nombre_suplemento,
                   precio_pagado, precio_suplemento, iva, metodo_pago, fecha_inicio, fecha_fin,
-                  renovar_auto, origen)
+                   renovar_auto, origen, idempotency_key)
                  VALUES
                  (:id_socio, :id_gimnasio, :id_tipo, :id_suplemento, :nombre_tipo, :nombre_suplemento,
                   :precio, :precio_suplemento, :iva, :metodo_pago, :fecha_inicio, :fecha_fin,
-                  :renovar_auto, :origen)"
+                   :renovar_auto, :origen, :idempotency_key)"
             );
             $stmt->execute([
                 ':id_socio'          => $idSocio,
-                ':id_gimnasio'       => $this->idGimnasio,
+                ':id_gimnasio'       => $sedeOperacion,
                 ':id_tipo'           => $idTipo,
                 ':id_suplemento'     => $suplemento ? (int) $suplemento['id_suplemento'] : null,
                 ':nombre_tipo'       => $tipo['nombre'],
@@ -349,8 +412,16 @@ class MembresiaModel
                 // hay que cobrarlas en persona.
                 ':renovar_auto'      => $metodoPago === 'transferencia' ? 1 : 0,
                 ':origen'            => $origen,
+                ':idempotency_key'   => $idempotencyKey,
             ]);
             $idContrato = (int) $this->db->lastInsertId();
+
+            // Contrato, obligación y cobro inmediato forman una única unidad:
+            // si falla cualquiera, no queda una renovación a medias.
+            if ($empresaOperacion !== null && $sedeOperacion !== null) {
+                (new FinancialModel((int) $empresaOperacion, (int) $sedeOperacion, $this->db))
+                    ->registrarMembresia($idContrato, $idUsuario);
+            }
 
             // La prueba queda cerrada y marcada como resuelta, para que deje de
             // aparecer como "pendiente de pagar".
@@ -363,8 +434,10 @@ class MembresiaModel
                 $cierre->execute([':id' => (int) $prueba['id_socio_membresia']]);
             }
 
+            $this->db->commit();
             return $idContrato;
-        } catch (\PDOException $e) {
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) $this->db->rollBack();
             error_log('MembresiaModel::contratar error: ' . $e->getMessage());
             $error = 'No se pudo registrar la membresía. Inténtalo de nuevo.';
             return null;
@@ -380,8 +453,12 @@ class MembresiaModel
      *
      * Devuelve el id de la prueba, o null dejando el motivo en $error.
      */
-    public function iniciarPrueba(int $idSocio, string &$error): ?int
+    public function iniciarPrueba(int $idSocio, string &$error, ?int $idUsuario = null): ?int
     {
+        if (!$this->socioEnAmbito($idSocio)) {
+            $error = 'El socio no pertenece al ámbito activo.';
+            return null;
+        }
         if ($this->vigenteDeSocio($idSocio)) {
             $error = 'Este socio ya tiene el acceso abierto.';
             return null;
@@ -393,8 +470,22 @@ class MembresiaModel
 
         $fechaInicio = date('Y-m-d');
         $fechaFin    = date('Y-m-d', strtotime('+' . (self::DIAS_PRUEBA - 1) . ' days'));
+        $sedeOperacion = $this->idGimnasio;
+        $empresaOperacion = $this->idEmpresa;
+        if ($sedeOperacion === null || $empresaOperacion === null) {
+            $contexto = $this->db->prepare(
+                'SELECT u.id_gimnasio, COALESCE(u.id_empresa, g.id_empresa) AS id_empresa
+                 FROM usuario u LEFT JOIN gimnasio g ON g.id_gimnasio = u.id_gimnasio
+                 WHERE u.id_usuario = :id LIMIT 1'
+            );
+            $contexto->execute([':id' => $idSocio]);
+            $ctx = $contexto->fetch();
+            $sedeOperacion = (int) ($ctx['id_gimnasio'] ?? 0) ?: null;
+            $empresaOperacion = (int) ($ctx['id_empresa'] ?? 0) ?: null;
+        }
 
         try {
+            $this->db->beginTransaction();
             $stmt = $this->db->prepare(
                 "INSERT INTO {$this->tabla}
                  (id_socio, id_gimnasio, id_tipo_membresia, nombre_tipo, precio_pagado,
@@ -405,13 +496,20 @@ class MembresiaModel
             );
             $stmt->execute([
                 ':id_socio'     => $idSocio,
-                ':id_gimnasio'  => $this->idGimnasio,
+                ':id_gimnasio'  => $sedeOperacion,
                 ':nombre_tipo'  => 'Prueba ' . self::DIAS_PRUEBA . ' días',
                 ':fecha_inicio' => $fechaInicio,
                 ':fecha_fin'    => $fechaFin,
             ]);
-            return (int) $this->db->lastInsertId();
-        } catch (\PDOException $e) {
+            $idPrueba = (int) $this->db->lastInsertId();
+            if ($empresaOperacion !== null && $sedeOperacion !== null) {
+                (new FinancialModel((int) $empresaOperacion, (int) $sedeOperacion, $this->db))
+                    ->registrarMembresia($idPrueba, $idUsuario);
+            }
+            $this->db->commit();
+            return $idPrueba;
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) $this->db->rollBack();
             error_log('MembresiaModel::iniciarPrueba error: ' . $e->getMessage());
             $error = 'No se pudo abrir el acceso de prueba.';
             return null;
@@ -486,7 +584,7 @@ class MembresiaModel
     public function tuvoPrueba(int $idSocio): bool
     {
         $stmt = $this->db->prepare(
-            "SELECT 1 FROM {$this->tabla} WHERE id_socio = :id AND es_prueba = 1 LIMIT 1"
+            "SELECT 1 FROM {$this->tabla} WHERE id_socio = :id AND es_prueba = 1" . $this->filtroSede('') . " LIMIT 1"
         );
         $stmt->execute([':id' => $idSocio]);
         return (bool) $stmt->fetchColumn();
@@ -497,7 +595,7 @@ class MembresiaModel
     {
         $stmt = $this->db->prepare(
             "SELECT * FROM {$this->tabla}
-             WHERE id_socio = :id AND es_prueba = 1 AND fecha_fin >= CURDATE()
+             WHERE id_socio = :id AND es_prueba = 1 AND fecha_fin >= CURDATE()" . $this->filtroSede('') . "
              ORDER BY fecha_fin DESC LIMIT 1"
         );
         $stmt->execute([':id' => $idSocio]);
@@ -550,61 +648,148 @@ class MembresiaModel
     {
         $stmt = $this->db->prepare(
             "SELECT * FROM {$this->tabla}
-             WHERE id_socio = :id
+             WHERE id_socio = :id" . $this->filtroSede('') . "
              ORDER BY fecha_fin DESC"
         );
         $stmt->execute([':id' => $idSocio]);
         return $stmt->fetchAll();
     }
 
-    /**
-     * Lista los socios con su última membresía y el estado calculado
-     * (activa / vencida / sin_membresia).
-     */
-    public function listarSocios(string $busqueda = ''): array
+    /** Condiciones preparadas de búsqueda; el ámbito sigue saliendo del modelo. */
+    private function filtroBusquedaSocios(string $busqueda, array &$parametros): string
     {
-        $sql =
-            "SELECT u.id_usuario, u.nombre, u.apellidos, u.dni, u.email, u.telefono, u.iban,
-                    u.foto, u.activo, u.created_at,
-                    sm.nombre_tipo, sm.nombre_suplemento,
-                    sm.precio_pagado, sm.precio_suplemento,
-                    sm.fecha_inicio, sm.fecha_fin,
-                    sm.es_prueba, sm.estado_pago,
-                    CASE
-                        WHEN sm.fecha_fin IS NULL                     THEN 'sin_membresia'
-                        WHEN sm.fecha_fin >= CURDATE() AND sm.es_prueba = 1 THEN 'prueba'
-                        WHEN sm.fecha_fin >= CURDATE()                THEN 'activa'
-                        WHEN sm.es_prueba = 1                         THEN 'prueba_caducada'
-                        ELSE 'vencida'
-                    END AS estado_membresia,
-                    DATEDIFF(sm.fecha_fin, CURDATE()) AS dias_restantes
-             FROM usuario u
-             LEFT JOIN {$this->tabla} sm ON sm.id_socio_membresia = (
-                 SELECT s2.id_socio_membresia FROM {$this->tabla} s2
-                 WHERE s2.id_socio = u.id_usuario
-                 ORDER BY s2.fecha_fin DESC
-                 LIMIT 1
-             )
-             WHERE u.rol = 'socio'" . $this->filtroSede('u');
+        if ($busqueda === '') return '';
 
+        // % y _ se tratan como texto, no como comodines aportados por el usuario.
+        $texto = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $busqueda);
+        $coincidencia = '%' . $texto . '%';
+        foreach ([':b1', ':b2', ':b3', ':b4', ':b5'] as $nombre) {
+            $parametros[$nombre] = $coincidencia;
+        }
+
+        $sql = " AND (u.nombre LIKE :b1 OR u.apellidos LIKE :b2
+                       OR u.email LIKE :b3 OR u.dni LIKE :b4 OR u.telefono LIKE :b5";
+
+        // Para buscar 600123456 aunque el teléfono se guardase como
+        // "+34 600-123-456". El valor original no se modifica.
+        $telefono = preg_replace('/\D+/u', '', $busqueda);
+        if ($telefono !== '') {
+            $parametros[':telefono'] = '%' . $telefono . '%';
+            $sql .= " OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+                        u.telefono, ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', '')
+                      LIKE :telefono";
+        }
+
+        return $sql . ')';
+    }
+
+    /** Número de socios que cumplen búsqueda y TenantContext. */
+    public function contarSocios(string $busqueda = ''): int
+    {
+        $parametros = [];
+        $sql = "SELECT COUNT(*) FROM usuario u
+                WHERE u.rol = 'socio'" . $this->filtroSede('u')
+             . $this->filtroBusquedaSocios($busqueda, $parametros);
         try {
-            if ($busqueda !== '') {
-                $b = '%' . $busqueda . '%';
-                $sql .= " AND (u.nombre LIKE :b1 OR u.apellidos LIKE :b2
-                               OR u.email LIKE :b3 OR u.dni LIKE :b4)";
-                $sql .= " ORDER BY u.apellidos ASC, u.nombre ASC";
-                $stmt = $this->db->prepare($sql);
-                $stmt->execute([':b1' => $b, ':b2' => $b, ':b3' => $b, ':b4' => $b]);
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($parametros);
+            return (int) $stmt->fetchColumn();
+        } catch (\PDOException $e) {
+            error_log('MembresiaModel::contarSocios error: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Lista los socios con su última membresía y el estado calculado.
+     *
+     * $limite null conserva compatibilidad con procesos internos existentes.
+     * La pantalla operativa siempre aporta límite y offset, por lo que MySQL
+     * pagina antes de transferir o renderizar filas.
+     */
+    public function listarSocios(string $busqueda = '', ?int $limite = null, int $offset = 0): array
+    {
+        try {
+            $parametros = [];
+            $where = " WHERE u.rol = 'socio'" . $this->filtroSede('u')
+                   . $this->filtroBusquedaSocios($busqueda, $parametros);
+
+            // Con paginación, primero se materializan exclusivamente los 50
+            // usuarios de la página. Solo después se busca su última cuota.
+            // Evita ejecutar la subconsulta de membresía para 5.000 socios que
+            // finalmente no iban a enviarse al navegador.
+            if ($limite !== null) {
+                $limite = max(1, min(100, $limite));
+                $offset = max(0, $offset);
+                $origenUsuarios = "(
+                    SELECT u.id_usuario, u.nombre, u.apellidos, u.dni, u.email,
+                           u.telefono, u.iban, u.foto, u.activo, u.created_at
+                    FROM usuario u{$where}
+                    ORDER BY u.apellidos ASC, u.nombre ASC, u.id_usuario ASC
+                    LIMIT :limite OFFSET :offset
+                ) u";
             } else {
-                $sql .= " ORDER BY u.apellidos ASC, u.nombre ASC";
-                $stmt = $this->db->prepare($sql);
-                $stmt->execute();
+                $origenUsuarios = 'usuario u';
             }
+
+            $sql =
+                "SELECT u.id_usuario, u.nombre, u.apellidos, u.dni, u.email, u.telefono, u.iban,
+                        u.foto, u.activo, u.created_at,
+                        sm.nombre_tipo, sm.nombre_suplemento,
+                        sm.precio_pagado, sm.precio_suplemento,
+                        sm.fecha_inicio, sm.fecha_fin,
+                        sm.es_prueba, sm.estado_pago,
+                        CASE
+                            WHEN sm.fecha_fin IS NULL                          THEN 'sin_membresia'
+                            WHEN sm.fecha_fin >= CURDATE() AND sm.es_prueba = 1 THEN 'prueba'
+                            WHEN sm.fecha_fin >= CURDATE()                     THEN 'activa'
+                            WHEN sm.es_prueba = 1                              THEN 'prueba_caducada'
+                            ELSE 'vencida'
+                        END AS estado_membresia,
+                        DATEDIFF(sm.fecha_fin, CURDATE()) AS dias_restantes
+                 FROM {$origenUsuarios}
+                 LEFT JOIN {$this->tabla} sm ON sm.id_socio_membresia = (
+                     SELECT s2.id_socio_membresia FROM {$this->tabla} s2
+                     WHERE s2.id_socio = u.id_usuario
+                     ORDER BY s2.fecha_fin DESC, s2.id_socio_membresia DESC
+                     LIMIT 1
+                 )";
+
+            if ($limite === null) $sql .= $where;
+            $sql .= " ORDER BY u.apellidos ASC, u.nombre ASC, u.id_usuario ASC";
+
+            $stmt = $this->db->prepare($sql);
+            foreach ($parametros as $nombre => $valor) {
+                $stmt->bindValue($nombre, $valor, PDO::PARAM_STR);
+            }
+            if ($limite !== null) {
+                $stmt->bindValue(':limite', $limite, PDO::PARAM_INT);
+                $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+            }
+            $stmt->execute();
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
             error_log('MembresiaModel::listarSocios error: ' . $e->getMessage());
             return [];
         }
+    }
+
+    /** Resultado completo de una página, incluido total y límites seguros. */
+    public function paginarSocios(string $busqueda = '', int $pagina = 1, int $porPagina = 50): array
+    {
+        $porPagina = max(1, min(100, $porPagina));
+        $total = $this->contarSocios($busqueda);
+        $paginas = max(1, (int) ceil($total / $porPagina));
+        $pagina = max(1, min($pagina, $paginas));
+        $offset = ($pagina - 1) * $porPagina;
+
+        return [
+            'items' => $this->listarSocios($busqueda, $porPagina, $offset),
+            'total' => $total,
+            'pagina' => $pagina,
+            'por_pagina' => $porPagina,
+            'paginas' => $paginas,
+        ];
     }
 
     /** Socios cuya membresía vigente vence dentro de los próximos $dias días. */
@@ -672,14 +857,16 @@ class MembresiaModel
         return count($this->listarProximasAVencer($dias));
     }
 
-    /** Ingresos por membresías contratadas en el mes en curso. */
+    /** Cobros de membresía realmente confirmados en el mes en curso. */
     public function sumarIngresosDelMes(): float
     {
         try {
             return (float) $this->db->query(
-                "SELECT COALESCE(SUM(precio_pagado + precio_suplemento), 0) FROM {$this->tabla}
-                 WHERE YEAR(created_at) = YEAR(CURDATE())
-                   AND MONTH(created_at) = MONTH(CURDATE())" . $this->filtroSede('')
+                "SELECT COALESCE(SUM(c.importe), 0) FROM cobro c
+                 WHERE c.estado = 'confirmado'
+                   AND c.id_socio_membresia IS NOT NULL
+                   AND YEAR(c.fecha_estado) = YEAR(CURDATE())
+                   AND MONTH(c.fecha_estado) = MONTH(CURDATE())" . $this->filtroSede('c')
             )->fetchColumn();
         } catch (\PDOException $e) {
             error_log('MembresiaModel::sumarIngresosDelMes error: ' . $e->getMessage());

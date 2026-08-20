@@ -2,13 +2,13 @@
 /**
  * instalar.php — script de instalación inicial.
  *
- * Ejecuta una vez en el navegador (https://.../instalar.php) para:
+ * Ejecuta una vez desde la línea de comandos (`php instalar.php`) para:
  *   1. Aplicar la migración base (app/config/migracion.sql).
- *   2. Crear/actualizar tres usuarios de prueba: admin, profesor, usuario
- *      (todos con contraseña "admin123").
+ *   2. Crear/actualizar tres usuarios iniciales: admin, recepción y socio
+ *      con la contraseña recibida exclusivamente por variable de proceso.
  *
- * BÓRRALO del servidor cuando termines. Mientras esté subido, cualquiera puede
- * resetear las cuentas de admin/profesor/usuario al valor por defecto.
+ * BÓRRALO del servidor cuando termines. El acceso web está bloqueado y solo se
+ * permite ejecutarlo por CLI.
  *
  * Las migraciones posteriores (v2 a v6) hay que aplicarlas a mano desde
  * phpMyAdmin — ver app/config/migracion_v2.sql … migracion_v6.sql.
@@ -18,6 +18,20 @@
  * de `usuario`.`rol` rechazará los valores.
  */
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
+$initialPassword = (string) getenv('INSTALL_ADMIN_PASSWORD');
+if (strlen($initialPassword) < 12) {
+    fwrite(
+        STDERR,
+        "Define INSTALL_ADMIN_PASSWORD con al menos 12 caracteres antes de ejecutar el instalador.\n"
+    );
+    exit(1);
+}
+
 require_once __DIR__ . '/app/config/database.php';
 
 $db  = Database::getInstance()->getConnection();
@@ -25,9 +39,8 @@ $db  = Database::getInstance()->getConnection();
 /*
  * Cerrojo de seguridad.
  *
- * Este script resetea las contraseñas de admin, recepción y socio a un valor
- * conocido. Mientras estuviera subido sin protección, cualquiera que acertara
- * la URL podía apoderarse del panel entero.
+ * Este script define las contraseñas de admin, recepción y socio con un secreto
+ * suministrado por el operador. El valor no vive en Git ni se imprime.
  *
  * A partir de la primera instalación se bloquea solo: si ya hay usuarios de
  * gestión creados, deja de funcionar. Para reinstalar a propósito, vacía la
@@ -66,7 +79,7 @@ foreach ($pasos as $paso) {
     try { $db->exec($paso); } catch (PDOException $e) { $errores[] = $e->getMessage(); }
 }
 
-$hash = password_hash('admin123', PASSWORD_BCRYPT, ['cost' => 12]);
+$hash = password_hash($initialPassword, PASSWORD_BCRYPT, ['cost' => 12]);
 $usuarios = [
     ['Admin',     'Sistema', '00000000A', 'admin@gimnasio.es',     'admin',     'admin'],
     ['Recepción', 'Prueba',  '11111111B', 'recepcion@gimnasio.es', 'recepcion', 'recepcion'],
@@ -106,9 +119,9 @@ foreach ($usuarios as $u) {
     <?php endif; ?>
     <table>
         <tr><th>Usuario</th><th>Contraseña</th><th>Panel</th></tr>
-        <tr><td>admin</td><td>admin123</td><td>Gestión completa</td></tr>
-        <tr><td>recepcion</td><td>admin123</td><td>Ventas y socios</td></tr>
-        <tr><td>socio</td><td>admin123</td><td>Dashboard</td></tr>
+        <tr><td>admin</td><td>Definida externamente</td><td>Gestión completa</td></tr>
+        <tr><td>recepcion</td><td>Definida externamente</td><td>Ventas y socios</td></tr>
+        <tr><td>socio</td><td>Definida externamente</td><td>Dashboard</td></tr>
     </table>
     <a href="public/?action=login">Ir al login</a>
     <div class="warn">Borra este archivo cuando termines.</div>
