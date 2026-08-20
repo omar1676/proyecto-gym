@@ -4,6 +4,18 @@
 - Interfaz física: **NO VERIFICADA / NO IMPLEMENTADA**.
 - Fecha: 20/08/2026.
 
+## Revisión Fase 11
+
+La investigación oficial confirma que DORLET comercializa un **SDK
+Integración módulo de accesos**, referencia `D9110400`, pero no se dispone de
+su contrato técnico, licencia, compatibilidad ni documentación de
+autenticación. Tampoco se ha verificado que Cleto Reyes use DASSnet ni su
+versión.
+
+Por tanto, no se crea `DorletAccessControlProvider`: un nombre de producto no
+es un contrato ejecutable. La decisión, evidencia y preguntas pendientes están
+en `DESCUBRIMIENTO_DORLET_FASE11.md` y `SOLICITUD_TECNICA_DORLET.md`.
+
 ## Contexto
 
 El SaaS conoce socios, empresa, sede, membresías y política comercial. No debe

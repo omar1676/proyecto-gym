@@ -65,3 +65,7 @@ correlación y fecha.
 - RGPD biométrico y responsabilidades: PENDIENTE.
 
 Ningún error técnico puede convertirse automáticamente en autorización física.
+
+El análisis preventivo específico para la futura interfaz DORLET está en
+`CONTROL_ACCESO_THREAT_MODEL_DORLET.md`. Continúa siendo un diseño: no existe
+conexión ni adaptador real.

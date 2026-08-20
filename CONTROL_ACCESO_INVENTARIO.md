@@ -16,6 +16,17 @@ red, capturas de tráfico, extracción de credenciales ni pruebas físicas.
 **INTERFAZ REAL NO VERIFICADA.** No se afirma que exista API, SDK, REST, SOAP,
 web service, OPC, acceso SQL ni módulo de integración.
 
+## Consolidación Fase 11
+
+La investigación pública oficial posterior sí confirma la existencia
+comercial de un SDK DORLET para el módulo de accesos (`D9110400`), pero no su
+contrato, licencia, compatibilidad ni presencia en el gimnasio. La tabla de
+hechos observados, productos candidatos, evidencia y estados se mantiene en
+`DESCUBRIMIENTO_DORLET_FASE11.md`.
+
+Esto no cambia el resultado operativo: **INTERFAZ INSTALADA NO VERIFICADA** y
+no existe autorización para conectar, leer o escribir en el sistema físico.
+
 ## Componentes: no confundir
 
 ```text

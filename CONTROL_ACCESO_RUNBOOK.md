@@ -5,6 +5,10 @@
 Solo existen cálculo lógico, provider genérico, provider mock, outbox MySQL y
 modo shadow. No existe adaptador DORLET ni acción de apertura.
 
+Fase 11 confirma que existe un producto SDK oficial candidato, pero no se ha
+recibido su contrato. Consultar `DESCUBRIMIENTO_DORLET_FASE11.md`,
+`SOLICITUD_TECNICA_DORLET.md` y `PRUEBA_DORLET_REVERSIBLE.md`.
+
 ## Operación segura
 
 Configuración inicial obligatoria:
@@ -81,7 +85,8 @@ Si falta uno, **NO REALIZAR PRUEBA FÍSICA**.
 - Cola: detener cron; no borrar trabajos, conservar auditoría.
 - Identidad: restaurar mediante operación oficial documentada.
 - Permisos: restaurar snapshot previo del único usuario de prueba.
-- Código: volver al tag anterior `v0.8.0-fase9`.
+- Código: volver al último tag operativo sin integración física,
+  `v0.9.0-fase10`.
 - Base SaaS: las tablas v26 son aditivas; conservarlas y dejar modo disabled.
 - Base/configuración del proveedor: restauración exclusiva con procedimiento
   oficial, sin escrituras SQL directas.
