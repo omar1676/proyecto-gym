@@ -59,19 +59,19 @@ Exigir v26, `pending=[]` y `checksum_mismatch=[]`.
 
 ## 6. Backup, cron y alertas
 
-Configurar destino externo y cifrado antes de instalar cron:
+Configurar destino externo y cifrado antes de considerar datos reales. Para la
+alpha controlada se instalan las unidades versionadas de `ops/systemd/`:
 
-```cron
-0 */6 * * * php /var/www/gimnasio-staging/current/cron/copia_seguridad.php
-20 2 * * * php /var/www/gimnasio-staging/current/cron/copia_archivos.php
-40 2 * * * php /var/www/gimnasio-staging/current/cron/mantenimiento.php
-0 6 * * * php /var/www/gimnasio-staging/current/cron/tareas.php
-*/5 * * * * php /var/www/gimnasio-staging/current/cron/monitor.php
+```bash
+sudo cp ops/systemd/gimnera-* /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now gimnera-backup-db.timer gimnera-backup-files.timer
+sudo systemctl enable --now gimnera-maintenance.timer gimnera-monitor.timer
 ```
 
-En staging `tareas.php` debe declarar simulación forzada. `control_acceso.php`
-debe responder `disabled`. Probar una alerta fallida de forma segura y confirmar
-su recepción humana.
+No se habilitan `tareas.php`, remesas, correo a socios ni `control_acceso.php`.
+Este último debe seguir respondiendo `disabled`. Probar una alerta fallida de
+forma segura solo cuando exista un canal humano autorizado.
 
 ## 7. Restore y validación externa
 
