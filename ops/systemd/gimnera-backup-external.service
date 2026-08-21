@@ -1,0 +1,24 @@
+[Unit]
+Description=Gimnera - backup global cifrado a almacenamiento externo
+After=network-online.target mariadb.service
+Wants=network-online.target
+Requires=mariadb.service
+ConditionPathExists=/var/www/gimnasio/current/.env
+ConditionPathExists=/etc/gimnera/rclone.conf
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/gimnasio/current
+LoadCredential=rclone.conf:/etc/gimnera/rclone.conf
+Environment=BACKUP_EXTERNAL_CONFIG=%d/rclone.conf
+ExecStart=/usr/bin/php /var/www/gimnasio/current/cron/copia_externa.php
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/etc/gimnera/rclone.conf
+ReadWritePaths=/var/www/gimnasio/shared
+CapabilityBoundingSet=
