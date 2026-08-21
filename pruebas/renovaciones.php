@@ -105,3 +105,4 @@ pruebasLimpiarMembresias($db, "sm.id_socio IN (SELECT id_usuario FROM usuario WH
 $db->exec("DELETE FROM usuario WHERE nombre_usuario LIKE 'test_%'");
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";
+exit($fallos === 0 ? 0 : 1);

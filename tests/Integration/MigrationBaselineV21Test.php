@@ -1,0 +1,36 @@
+<?php
+require_once dirname(__DIR__) . '/bootstrap.php';
+require_once dirname(__DIR__) . '/Support/SchemaMigrationTestFactory.php';
+
+$fixture = SchemaMigrationTestFactory::create('baseline_v21');
+try {
+    $db = $fixture['db'];
+    SchemaMigrationTestFactory::applyThrough($db, $fixture['name'], 21);
+    $manager = new MigrationManager($db);
+    $manager->baselineExisting();
+    $afterBaseline = $manager->status();
+    check('baseline v21 solo registra hasta v22', $afterBaseline['pending'] === [
+        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql',
+    ]);
+    check('baseline v21 no inventa estructuras v24', !SchemaMigrationTestFactory::tableExists($db, 'migration_batch'));
+    check('baseline v21 no inventa estructuras v25', !SchemaMigrationTestFactory::tableExists($db, 'obligacion_pago'));
+    check('baseline v21 no inventa estructuras v26', !SchemaMigrationTestFactory::tableExists($db, 'access_sync_job'));
+
+    $applied = $manager->migratePending();
+    check('v23-v26 se ejecutan realmente y en orden', $applied === [
+        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql',
+    ]);
+    foreach ([
+        'migration_batch', 'obligacion_pago', 'cobro', 'access_identity_map',
+        'access_sync_job', 'access_control_audit',
+    ] as $table) {
+        check('existe físicamente ' . $table, SchemaMigrationTestFactory::tableExists($db, $table));
+    }
+    $status = $manager->status();
+    check('legacy v21 termina sin migraciones pendientes', $status['pending'] === []);
+    check('legacy v21 termina sin checksum mismatch', $status['checksum_mismatch'] === []);
+    check('legacy v21 termina sin incoherencia estructural', $status['structural_mismatch'] === []);
+} finally {
+    SchemaMigrationTestFactory::drop($fixture);
+}
+finishTests();

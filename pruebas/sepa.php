@@ -177,3 +177,4 @@ pruebasLimpiarMembresias($db, "sm.id_socio = $idSocio");
 $db->exec("UPDATE gimnasio SET razon_social = NULL, cif = NULL, iban = NULL, bic = NULL, identificador_acreedor = NULL WHERE id_gimnasio = $sede");
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";
+exit($fallos === 0 ? 0 : 1);

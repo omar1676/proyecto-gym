@@ -92,3 +92,4 @@ foreach ($socios as $s) { if ((int) $s['id_usuario'] === 3) $estado = $s['estado
 comprobar('estado calculado = activa', 'activa', $estado);
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";
+exit($fallos === 0 ? 0 : 1);

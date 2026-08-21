@@ -65,3 +65,4 @@ comprobar('otra sede no puede cambiarlo', 'ES9121000418450200051332', $user->bus
 $db->exec("UPDATE usuario SET iban = NULL WHERE id_usuario = $idSocio");
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";
+exit($fallos === 0 ? 0 : 1);

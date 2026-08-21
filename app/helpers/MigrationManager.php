@@ -5,11 +5,13 @@ final class MigrationManager
 {
     private PDO $db;
     private string $dir;
+    private int $lockTimeoutSeconds;
 
-    public function __construct(?PDO $db = null)
+    public function __construct(?PDO $db = null, ?string $dir = null, int $lockTimeoutSeconds = 10)
     {
         $this->db = $db ?: Database::getInstance()->getConnection();
-        $this->dir = dirname(__DIR__) . '/config';
+        $this->dir = rtrim($dir ?: dirname(__DIR__) . '/config', '/\\');
+        $this->lockTimeoutSeconds = max(0, min(60, $lockTimeoutSeconds));
     }
 
     public function files(): array
@@ -17,7 +19,9 @@ final class MigrationManager
         $files = [$this->dir . '/schema.sql', $this->dir . '/migracion.sql'];
         for ($i = 2; $i <= 999; $i++) {
             $file = $this->dir . '/migracion_v' . $i . '.sql';
-            if (!is_file($file)) break;
+            if (!is_file($file)) {
+                break;
+            }
             $files[] = $file;
         }
         return $files;
@@ -25,73 +29,392 @@ final class MigrationManager
 
     public function trackingExists(): bool
     {
-        $stmt = $this->db->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='schema_migrations'");
-        return (int) $stmt->fetchColumn() === 1;
+        return $this->hasTable('schema_migrations');
     }
 
     public function isEmptyDatabase(): bool
     {
-        return (int) $this->db->query('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()')->fetchColumn() === 0;
+        return (int) $this->db->query(
+            'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()'
+        )->fetchColumn() === 0;
     }
 
+    /** Registra un legacy probado solo hasta v22; v23-v26 quedan pendientes. */
     public function baselineExisting(): void
     {
-        if ($this->trackingExists()) return;
-        $markers = (int) $this->db->query("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND column_name='idempotency_key' AND table_name IN ('venta','socio_membresia','remesa')")->fetchColumn();
-        if ($markers !== 3) throw new RuntimeException('No puede inferirse que el esquema existente llegue a v21. Baseline detenido.');
-        $v22 = $this->dir . '/migracion_v22.sql';
-        $this->db->exec(file_get_contents($v22));
-        $this->recordFiles($this->files());
+        $this->withAdvisoryLock(function (): void {
+            if ($this->trackingExists()) {
+                $rows = $this->trackingRows();
+                if ($rows !== []) {
+                    $this->assertConsistentStatus($this->status());
+                    return;
+                }
+                $this->assertLegacyV21Schema();
+                $this->assertMigrationEffects('migracion_v22.sql');
+                $this->recordFiles($this->filesThrough('migracion_v22.sql'));
+                return;
+            }
+
+            $this->assertLegacyV21Schema();
+            $v22 = $this->dir . '/migracion_v22.sql';
+            if (!is_file($v22)) {
+                throw new RuntimeException('No existe migracion_v22.sql; baseline detenido.');
+            }
+            $this->executeFile($v22);
+            $this->assertMigrationEffects('migracion_v22.sql');
+            $this->recordFiles($this->filesThrough('migracion_v22.sql'));
+        });
     }
 
     public function migrateFresh(): array
     {
-        if (!$this->isEmptyDatabase()) throw new RuntimeException('La instalación --fresh exige una base completamente vacía.');
-        $applied = [];
-        foreach ($this->files() as $file) {
-            $sql = str_replace(['`portal_de_cursos`', 'portal_de_cursos'], ['`' . DB_NAME . '`', DB_NAME], file_get_contents($file));
-            $this->db->exec($sql);
-            $applied[] = basename($file);
-        }
-        if (!$this->trackingExists()) throw new RuntimeException('La migración de tracking no se creó.');
-        $this->recordFiles($this->files());
-        return $applied;
+        return $this->withAdvisoryLock(function (): array {
+            if (!$this->isEmptyDatabase()) {
+                throw new RuntimeException('La instalación --fresh exige una base completamente vacía.');
+            }
+            $applied = [];
+            $executedBeforeTracking = [];
+            foreach ($this->files() as $file) {
+                $name = basename($file);
+                $this->executeFile($file);
+                $this->assertMigrationEffects($name);
+                $applied[] = $name;
+                $executedBeforeTracking[] = $file;
+                if ($name === 'migracion_v22.sql') {
+                    $this->recordFiles($executedBeforeTracking);
+                } elseif ($this->trackingExists() && $this->migrationNumber($name) > 22) {
+                    $this->recordFiles([$file]);
+                }
+            }
+            if (!$this->trackingExists()) {
+                throw new RuntimeException('La migración de tracking no se creó.');
+            }
+            return $applied;
+        });
     }
 
     public function migratePending(): array
     {
-        if (!$this->trackingExists()) throw new RuntimeException('Falta schema_migrations; ejecuta --baseline-current o --fresh.');
-        $status = $this->status();
-        if ($status['checksum_mismatch']) throw new RuntimeException('Una migración aplicada fue modificada: ' . implode(', ', $status['checksum_mismatch']));
-        $applied = [];
-        foreach ($status['pending'] as $name) {
-            $file = $this->dir . '/' . $name;
-            $sql = str_replace(['`portal_de_cursos`', 'portal_de_cursos'], ['`' . DB_NAME . '`', DB_NAME], file_get_contents($file));
-            $this->db->exec($sql);
-            $this->recordFiles([$file]);
-            $applied[] = $name;
-        }
-        return $applied;
+        return $this->withAdvisoryLock(function (): array {
+            if (!$this->trackingExists()) {
+                throw new RuntimeException('Falta schema_migrations; ejecuta --baseline-current o --fresh.');
+            }
+            $status = $this->status();
+            $this->assertConsistentStatus($status);
+            $applied = [];
+            foreach ($status['pending'] as $name) {
+                $file = $this->dir . '/' . $name;
+                try {
+                    $this->executeFile($file);
+                    $this->assertMigrationEffects($name);
+                    $this->recordFiles([$file]);
+                    $applied[] = $name;
+                } catch (Throwable $e) {
+                    throw new RuntimeException(
+                        'La migración ' . $name . ' falló y no fue registrada: ' . $e->getMessage(),
+                        0,
+                        $e
+                    );
+                }
+            }
+            return $applied;
+        });
     }
 
     public function status(): array
     {
         $files = $this->files();
-        if (!$this->trackingExists()) return ['initialized' => false, 'latest' => basename(end($files)), 'applied' => [], 'pending' => array_map('basename', $files), 'checksum_mismatch' => []];
-        $rows = $this->db->query('SELECT migration, checksum FROM schema_migrations')->fetchAll(PDO::FETCH_KEY_PAIR);
-        $pending = $mismatch = [];
-        foreach ($files as $file) {
-            $name = basename($file); $hash = hash_file('sha256', $file);
-            if (!isset($rows[$name])) $pending[] = $name;
-            elseif (!hash_equals((string) $rows[$name], $hash)) $mismatch[] = $name;
+        $latest = basename(end($files));
+        if (!$this->trackingExists()) {
+            return [
+                'initialized' => false, 'latest' => $latest, 'applied' => [],
+                'pending' => array_map('basename', $files),
+                'checksum_mismatch' => [], 'structural_mismatch' => [],
+            ];
         }
-        return ['initialized' => true, 'latest' => basename(end($files)), 'applied' => array_keys($rows), 'pending' => $pending, 'checksum_mismatch' => $mismatch];
+
+        $rows = $this->trackingRows();
+        $known = array_map('basename', $files);
+        $pending = $checksumMismatch = $structuralMismatch = [];
+        foreach (array_keys($rows) as $recorded) {
+            if (!in_array($recorded, $known, true)) {
+                $structuralMismatch[] = 'unknown_migration:' . $recorded;
+            }
+        }
+
+        $firstMissingSeen = false;
+        foreach ($files as $file) {
+            $name = basename($file);
+            $recorded = array_key_exists($name, $rows);
+            if (!$recorded) {
+                $pending[] = $name;
+                $firstMissingSeen = true;
+            } else {
+                if ($firstMissingSeen) {
+                    $structuralMismatch[] = 'migration_order_gap:' . $name;
+                }
+                $hash = hash_file('sha256', $file);
+                if ($hash === false || !hash_equals((string) $rows[$name], $hash)) {
+                    $checksumMismatch[] = $name;
+                }
+            }
+
+            $checks = $this->structuralChecks($name);
+            if ($checks === []) {
+                continue;
+            }
+            $passed = array_filter($checks, static fn(bool $ok): bool => $ok);
+            if ($recorded && count($passed) !== count($checks)) {
+                $missing = array_keys(array_filter($checks, static fn(bool $ok): bool => !$ok));
+                $structuralMismatch[] = 'applied_missing_effects:' . $name . ':' . implode(',', $missing);
+            } elseif (!$recorded && count($passed) > 0) {
+                $kind = count($passed) === count($checks)
+                    ? 'effects_without_record'
+                    : 'partial_effects_without_record';
+                $structuralMismatch[] = $kind . ':' . $name;
+            }
+        }
+
+        return [
+            'initialized' => true, 'latest' => $latest, 'applied' => array_keys($rows),
+            'pending' => $pending,
+            'checksum_mismatch' => array_values(array_unique($checksumMismatch)),
+            'structural_mismatch' => array_values(array_unique($structuralMismatch)),
+        ];
+    }
+
+    private function assertConsistentStatus(array $status): void
+    {
+        if ($status['checksum_mismatch'] !== []) {
+            throw new RuntimeException(
+                'Una migración aplicada fue modificada: ' . implode(', ', $status['checksum_mismatch'])
+            );
+        }
+        if (($status['structural_mismatch'] ?? []) !== []) {
+            throw new RuntimeException(
+                'El estado estructural de migraciones es inconsistente: '
+                . implode('; ', $status['structural_mismatch'])
+            );
+        }
+    }
+
+    private function assertLegacyV21Schema(): void
+    {
+        $checks = $this->legacyV21Checks();
+        $missing = array_keys(array_filter($checks, static fn(bool $ok): bool => !$ok));
+        if ($missing !== []) {
+            throw new RuntimeException(
+                'No puede demostrarse que el esquema existente llegue íntegramente a v21: '
+                . implode(', ', $missing)
+            );
+        }
+    }
+
+    private function assertMigrationEffects(string $name): void
+    {
+        $checks = $this->structuralChecks($name);
+        $missing = array_keys(array_filter($checks, static fn(bool $ok): bool => !$ok));
+        if ($missing !== []) {
+            throw new RuntimeException(
+                'La migración ' . $name . ' no produjo todas sus estructuras: ' . implode(', ', $missing)
+            );
+        }
+    }
+
+    private function structuralChecks(string $name): array
+    {
+        return match ($name) {
+            'migracion_v21.sql' => $this->legacyV21Checks(),
+            'migracion_v22.sql' => [
+                'table:schema_migrations' => $this->hasTable('schema_migrations'),
+                'column:schema_migrations.migration' => $this->hasColumn('schema_migrations', 'migration'),
+                'column:schema_migrations.checksum' => $this->hasColumn('schema_migrations', 'checksum'),
+                'column:schema_migrations.release_version' => $this->hasColumn('schema_migrations', 'release_version'),
+                'column:schema_migrations.applied_at' => $this->hasColumn('schema_migrations', 'applied_at'),
+            ],
+            'migracion_v23.sql' => [
+                'index:usuario.idx_usuario_empresa_rol_orden' => $this->hasIndex('usuario', 'idx_usuario_empresa_rol_orden'),
+                'index:usuario.idx_usuario_sede_rol_orden' => $this->hasIndex('usuario', 'idx_usuario_sede_rol_orden'),
+                'index:socio_membresia.idx_sm_socio_fin' => $this->hasIndex('socio_membresia', 'idx_sm_socio_fin'),
+            ],
+            'migracion_v24.sql' => $this->tableChecks([
+                'migration_batch', 'migration_batch_issue', 'migration_batch_row', 'migration_entity_map',
+            ]),
+            'migracion_v25.sql' => $this->tableChecks([
+                'obligacion_pago', 'cobro', 'caja_sesion', 'caja_movimiento',
+            ]),
+            'migracion_v26.sql' => array_merge(
+                $this->tableChecks(['access_identity_map', 'access_sync_job', 'access_control_audit']),
+                [
+                    'index:gimnasio.uq_gimnasio_access_scope' => $this->hasIndex('gimnasio', 'uq_gimnasio_access_scope'),
+                    'index:usuario.uq_usuario_access_scope' => $this->hasIndex('usuario', 'uq_usuario_access_scope'),
+                ]
+            ),
+            default => [],
+        };
+    }
+
+    /** Huella acumulada del esquema tras v21, incluidas ausencias de legado. */
+    private function legacyV21Checks(): array
+    {
+        $checks = $this->tableChecks([
+            'usuario', 'categoria_producto', 'producto', 'venta', 'venta_linea',
+            'tipo_membresia', 'socio_membresia', 'suplemento', 'gimnasio',
+            'log_actividad', 'intentos_login', 'intentos_gimnasio', 'empresa',
+            'mandato_sepa', 'remesa', 'remesa_recibo',
+        ]);
+        foreach ([
+            'usuario' => ['rol', 'activo', 'foto', 'reset_token', 'iban', 'id_gimnasio', 'id_empresa', 'sesiones_desde', 'baja_pendiente', 'anonimizado_en'],
+            'producto' => ['iva', 'id_gimnasio', 'stock_minimo'],
+            'venta' => ['serie', 'ejercicio', 'numero', 'base_imponible', 'total_iva', 'estado', 'idempotency_key', 'id_gimnasio'],
+            'venta_linea' => ['iva', 'base_linea', 'cuota_iva'],
+            'tipo_membresia' => ['id_empresa', 'id_gimnasio', 'iva'],
+            'socio_membresia' => ['id_suplemento', 'es_prueba', 'estado_pago', 'renovar_auto', 'origen', 'iva', 'idempotency_key', 'id_gimnasio'],
+            'suplemento' => ['id_empresa', 'id_gimnasio', 'iva'],
+            'gimnasio' => ['id_empresa', 'razon_social', 'cif', 'iban', 'bic', 'identificador_acreedor', 'slug', 'email_acceso'],
+            'log_actividad' => ['id_empresa', 'id_gimnasio', 'id_usuario_afectado', 'entidad', 'id_entidad', 'valor_anterior', 'valor_nuevo', 'ip'],
+            'remesa' => ['idempotency_key'],
+        ] as $table => $columns) {
+            foreach ($columns as $column) {
+                $checks['column:' . $table . '.' . $column] = $this->hasColumn($table, $column);
+            }
+        }
+        foreach ([
+            ['venta', 'uq_venta_idempotencia'], ['socio_membresia', 'uq_membresia_idempotencia'],
+            ['remesa', 'uq_remesa_idempotencia'], ['intentos_login', 'idx_intentos_usuario_fecha'],
+            ['intentos_login', 'idx_intentos_ip_fecha'], ['intentos_gimnasio', 'idx_intentos_gym_email_fecha'],
+            ['intentos_gimnasio', 'idx_intentos_gym_ip_fecha'], ['usuario', 'idx_usuario_empresa'],
+            ['gimnasio', 'idx_gimnasio_empresa'],
+        ] as [$table, $index]) {
+            $checks['index:' . $table . '.' . $index] = $this->hasIndex($table, $index);
+        }
+        foreach (['personas', 'curso', 'categoria', 'visitas', 'usuario_curso', 'verificacion_email'] as $legacy) {
+            $checks['legacy_table_absent:' . $legacy] = !$this->hasTable($legacy);
+        }
+        return $checks;
+    }
+
+    private function tableChecks(array $tables): array
+    {
+        $checks = [];
+        foreach ($tables as $table) {
+            $checks['table:' . $table] = $this->hasTable($table);
+        }
+        return $checks;
+    }
+
+    private function hasTable(string $table): bool
+    {
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=:table'
+        );
+        $stmt->execute([':table' => $table]);
+        return (int) $stmt->fetchColumn() === 1;
+    }
+
+    private function hasColumn(string $table, string $column): bool
+    {
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) FROM information_schema.columns '
+            . 'WHERE table_schema=DATABASE() AND table_name=:table AND column_name=:column'
+        );
+        $stmt->execute([':table' => $table, ':column' => $column]);
+        return (int) $stmt->fetchColumn() === 1;
+    }
+
+    private function hasIndex(string $table, string $index): bool
+    {
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) FROM information_schema.statistics '
+            . 'WHERE table_schema=DATABASE() AND table_name=:table AND index_name=:index'
+        );
+        $stmt->execute([':table' => $table, ':index' => $index]);
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    private function trackingRows(): array
+    {
+        return $this->db->query(
+            'SELECT migration, checksum FROM schema_migrations ORDER BY applied_at, migration'
+        )->fetchAll(PDO::FETCH_KEY_PAIR);
+    }
+
+    private function filesThrough(string $lastName): array
+    {
+        $result = [];
+        foreach ($this->files() as $file) {
+            $result[] = $file;
+            if (basename($file) === $lastName) {
+                return $result;
+            }
+        }
+        throw new RuntimeException('No se encontró ' . $lastName . ' en la cadena de migraciones.');
+    }
+
+    private function executeFile(string $file): void
+    {
+        $sql = file_get_contents($file);
+        if ($sql === false) {
+            throw new RuntimeException('No se pudo leer ' . basename($file) . '.');
+        }
+        $database = $this->currentDatabase();
+        $sql = str_replace(
+            ['`portal_de_cursos`', 'portal_de_cursos'],
+            ['`' . $database . '`', $database],
+            $sql
+        );
+        $this->db->exec($sql);
+    }
+
+    private function currentDatabase(): string
+    {
+        $database = (string) $this->db->query('SELECT DATABASE()')->fetchColumn();
+        if ($database === '' || !preg_match('/^[A-Za-z0-9_]+$/', $database)) {
+            throw new RuntimeException('La base activa no es válida para migraciones.');
+        }
+        return $database;
+    }
+
+    private function migrationNumber(string $name): int
+    {
+        return preg_match('/^migracion_v(\d+)\.sql$/', $name, $match) ? (int) $match[1] : 0;
+    }
+
+    private function advisoryLockName(): string
+    {
+        return 'gimnera:migrations:' . substr(hash('sha256', $this->currentDatabase()), 0, 40);
+    }
+
+    private function withAdvisoryLock(callable $operation): mixed
+    {
+        $name = $this->advisoryLockName();
+        $stmt = $this->db->prepare('SELECT GET_LOCK(:name, :timeout)');
+        $stmt->bindValue(':name', $name, PDO::PARAM_STR);
+        $stmt->bindValue(':timeout', $this->lockTimeoutSeconds, PDO::PARAM_INT);
+        $stmt->execute();
+        if ((int) $stmt->fetchColumn() !== 1) {
+            throw new RuntimeException('Otro migrador mantiene el cerrojo de esta base.');
+        }
+        try {
+            return $operation();
+        } finally {
+            $release = $this->db->prepare('SELECT RELEASE_LOCK(:name)');
+            $release->execute([':name' => $name]);
+        }
     }
 
     private function recordFiles(array $files): void
     {
         $version = trim((string) @file_get_contents(dirname(__DIR__, 2) . '/VERSION')) ?: null;
-        $stmt = $this->db->prepare('INSERT INTO schema_migrations (migration, checksum, release_version) VALUES (:name,:hash,:version) ON DUPLICATE KEY UPDATE checksum=VALUES(checksum), release_version=VALUES(release_version)');
-        foreach ($files as $file) $stmt->execute([':name' => basename($file), ':hash' => hash_file('sha256', $file), ':version' => $version]);
+        $stmt = $this->db->prepare(
+            'INSERT INTO schema_migrations (migration, checksum, release_version) VALUES (:name,:hash,:version)'
+        );
+        foreach ($files as $file) {
+            $hash = hash_file('sha256', $file);
+            if ($hash === false) {
+                throw new RuntimeException('No se pudo calcular el checksum de ' . basename($file) . '.');
+            }
+            $stmt->execute([':name' => basename($file), ':hash' => $hash, ':version' => $version]);
+        }
     }
 }

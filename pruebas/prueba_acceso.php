@@ -94,3 +94,4 @@ comprobar('el socio pasa a activa', 'activa', $fila['estado_membresia']);
 pruebasLimpiarMembresias($db, "sm.id_socio = $idSocio");
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";
+exit($fallos === 0 ? 0 : 1);

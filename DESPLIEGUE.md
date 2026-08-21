@@ -46,7 +46,16 @@ release sigue a cargo del sistema del servidor porque depende del hosting.
 
 `schema_migrations` conserva nombre, SHA-256, release y fecha. Un checksum
 alterado o una migración fallida devuelve código distinto de cero y detiene el
-despliegue. No editar migraciones aplicadas: crear la siguiente.
+despliegue. El migrador usa un advisory lock por base y valida efectos
+estructurales antes de registrar cada fichero. No editar migraciones aplicadas:
+crear la siguiente.
+
+Si una migración falla después de ejecutar parte de su DDL: mantener el modo
+mantenimiento, no relanzar el migrador y conservar el backup y los logs. Ejecutar
+solo `php ops/migrate.php --status`. Un resultado `structural_mismatch` confirma
+el estado parcial y bloquea la continuación. La recuperación debe consistir en
+restaurar el backup predespliegue o en una migración correctiva revisada; nunca
+insertar manualmente una fila en `schema_migrations` para aparentar éxito.
 
 Para volver atrás tras un fallo de ventas: poner mantenimiento, conservar logs,
 volver el symlink `current` a la release anterior y ejecutar smoke tests. Si la

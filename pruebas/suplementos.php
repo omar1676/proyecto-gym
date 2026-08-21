@@ -70,3 +70,4 @@ comprobar('ingresos del mes incluyen el plus', true, $m->sumarIngresosDelMes() >
 pruebasLimpiarMembresias($db, 'sm.id_socio = 3');
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";
+exit($fallos === 0 ? 0 : 1);

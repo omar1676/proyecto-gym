@@ -112,3 +112,4 @@ $db->exec("DELETE FROM log_actividad WHERE accion LIKE 'TEST %'");
 $db->exec("DELETE FROM gimnasio WHERE id_gimnasio = $sedeB");
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";
+exit($fallos === 0 ? 0 : 1);

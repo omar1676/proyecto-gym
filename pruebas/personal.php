@@ -147,3 +147,4 @@ $db->exec("DELETE FROM usuario  WHERE nombre_usuario LIKE 'test_%'");
 $db->exec("DELETE FROM gimnasio WHERE nombre LIKE 'TEST %'");
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";
+exit($fallos === 0 ? 0 : 1);

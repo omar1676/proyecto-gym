@@ -1,6 +1,6 @@
 # Proyecto Gym — Centro Deportivo Cleto Reyes
 
-Versión actual: **0.9.0-fase10**. La Fase 10 prepara una frontera genérica de control de acceso, provider mock, outbox e integración shadow; no conecta DORLET, lectores, controladoras ni biometría. Consulta `ADR_ACCESS_CONTROL_PROVIDER.md` y `CONTROL_ACCESO_RUNBOOK.md`.
+Versión actual: **0.10.0-fase19**. Esta versión recupera la trazabilidad Git → release, endurece el migrador legacy y hace vinculante el código de salida de las pruebas. No conecta DORLET, lectores, controladoras ni biometría.
 
 Panel de gestión para un gimnasio multisede: socios y membresías, venta de productos,
 empleados, remesas SEPA y control de acceso desde el panel.
@@ -39,9 +39,13 @@ productivo. En producción se sigue `DESPLIEGUE.md` y se aplican migraciones con
 ## Pruebas
 
 ```bash
-php pruebas/negocio.php
-php pruebas/acceso.php     # necesita el servidor levantado en el 8080
+php tests/run.php --p0-gate  # gate técnico; excluye y declara los P1 conocidos
+php tests/run.php            # suite completa, incluido trial económico
 ```
+
+`EXIT 0` significa que todos los scripts ejecutados han pasado realmente. La
+suite completa seguirá devolviendo error mientras exista un P1 conocido que
+falle; no se convierte en verde por interpretar únicamente su texto.
 
 Las suites que modifican datos usan exclusivamente `DB_NAME_PRUEBAS` y abortan
 si coincide con `DB_NAME` o si `APP_ENV=production`. Prepara esa base con

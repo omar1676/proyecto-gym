@@ -15,7 +15,14 @@ try {
     elseif (!in_array('--status', $args, true)) $manager->migratePending();
     $status = $manager->status();
     echo json_encode($status, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
-    exit(!$status['initialized'] || $status['pending'] || $status['checksum_mismatch'] ? 1 : 0);
+    exit(
+        !$status['initialized']
+        || $status['pending']
+        || $status['checksum_mismatch']
+        || ($status['structural_mismatch'] ?? [])
+        ? 1
+        : 0
+    );
 } catch (Throwable $e) {
     fwrite(STDERR, 'MIGRACIÓN DETENIDA: ' . $e->getMessage() . PHP_EOL);
     exit(1);

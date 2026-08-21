@@ -110,3 +110,4 @@ $db->exec("DELETE FROM producto WHERE nombre LIKE 'TEST %'");
 $db->exec("DELETE FROM gimnasio WHERE id_gimnasio = $idSedeB");
 
 echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";
+exit($fallos === 0 ? 0 : 1);
