@@ -40,6 +40,7 @@ require_once __DIR__ . '/../helpers/InputValidator.php';
 require_once __DIR__ . '/../services/MigrationService.php';
 require_once __DIR__ . '/../services/SocioFinancialService.php';
 require_once __DIR__ . '/../services/AccessEligibilityService.php';
+require_once __DIR__ . '/../services/SocioRegistrationService.php';
 
 class AdminController
 {
@@ -294,12 +295,16 @@ class AdminController
                 }
 
                 if ($accion === 'actualizar_stock') {
-                    $idProducto = (int) ($_POST['id_producto'] ?? 0);
-                    $stock      = (int) ($_POST['stock'] ?? 0);
-                    if ($idProducto > 0 && $stock >= 0) {
-                        $this->productoModel->actualizarStock($idProducto, $stock);
-                        $this->registrarLog('Actualizar stock', 'Producto #' . $idProducto . ' → ' . $stock . ' uds.');
+                    $idProducto = InputValidator::id($_POST['id_producto'] ?? null);
+                    $stockRaw   = filter_var($_POST['stock'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+                    if ($idProducto === null || $stockRaw === false) {
+                        $this->irAConError('admin_productos', 'El producto o el stock indicado no es válido.');
                     }
+                    $stock = (int) $stockRaw;
+                    if (!$this->productoModel->actualizarStock($idProducto, $stock)) {
+                        $this->irAConError('admin_productos', 'No se pudo actualizar el stock del producto.');
+                    }
+                    $this->registrarLog('Actualizar stock', 'Producto #' . $idProducto . ' → ' . $stock . ' uds.', 'exito', 'producto', $idProducto);
                     $this->irA('admin_productos', ['ok_stock' => 1]);
                 }
 
@@ -334,14 +339,14 @@ class AdminController
                     } else {
                         if ($accion === 'crear_producto') {
                             $ok = $this->productoModel->crear(
-                                $nombre, $descripcion, (float) $precioValido,
+                                $nombre, $descripcion, $precioValido,
                                 (int) $stock, (int) $stockMinimo, $estado, $idCategoria, $iva
                             );
                             $flag = ['ok' => 1];
                             $detalleLog = 'Alta de producto: ' . $nombre;
                         } else {
                             $ok = $idProducto > 0 && $this->productoModel->actualizar(
-                                $idProducto, $nombre, $descripcion, (float) $precioValido,
+                                $idProducto, $nombre, $descripcion, $precioValido,
                                 (int) $stockMinimo, $estado, $idCategoria, $iva
                             );
                             $flag = ['ok_editar' => 1];
@@ -511,7 +516,7 @@ class AdminController
         }
 
         $venta = $this->ventaModel->buscarPorId($idVenta);
-        $this->registrarLog('Venta', 'Venta #' . $idVenta . ' — ' . number_format((float) ($venta['total'] ?? 0), 2, ',', '.') . ' € (' . $metodoPago . ')');
+        $this->registrarLog('Venta', 'Venta #' . $idVenta . ' — ' . number_format((float) ($venta['total'] ?? 0), 2, ',', '.') . ' € (' . $metodoPago . ')', 'exito', 'venta', $idVenta);
 
         $this->irA('admin_ventas', ['ok' => 1]);
     }
@@ -536,7 +541,8 @@ class AdminController
                 'Ticket ' . VentaModel::referencia($venta)
                     . ' — ' . number_format((float) $venta['total'], 2, ',', '.') . ' €'
                     . ' — stock devuelto'
-                    . ($motivo !== '' ? ' — motivo: ' . $motivo : '')
+                    . ($motivo !== '' ? ' — motivo: ' . $motivo : ''),
+                'exito', 'venta', $idVenta
             );
             $this->irA('admin_ventas', ['ok_anular' => 1]);
         }
@@ -588,7 +594,7 @@ class AdminController
         if ($accion === 'abrir') {
             $id = $caja->abrir($_POST['saldo_inicial'] ?? '', $usuario, $error);
             if ($id === null) $this->irAConError('admin_caja', $error);
-            $this->registrarLog('Apertura de caja', 'Sesión #' . $id . ' — saldo inicial ' . ($_POST['saldo_inicial'] ?? '') . ' €');
+            $this->registrarLog('Apertura de caja', 'Sesión #' . $id . ' — saldo inicial ' . ($_POST['saldo_inicial'] ?? '') . ' €', 'exito', 'caja_sesion', $id);
             $this->irA('admin_caja', ['ok_abrir' => 1]);
         }
         if (in_array($accion, ['ajuste_entrada', 'ajuste_salida'], true)) {
@@ -598,7 +604,7 @@ class AdminController
                 $usuario, $error, $operacionId
             );
             if ($id === null) $this->irAConError('admin_caja', $error);
-            $this->registrarLog('Ajuste de caja', 'Movimiento #' . $id . ' — ' . $accion . ' — motivo: ' . trim((string) $_POST['motivo']));
+            $this->registrarLog('Ajuste de caja', 'Movimiento #' . $id . ' — ' . $accion . ' — motivo: ' . trim((string) $_POST['motivo']), 'exito', 'caja_movimiento', $id);
             $this->irA('admin_caja', ['ok_ajuste' => 1]);
         }
         if ($accion === 'cerrar') {
@@ -610,7 +616,8 @@ class AdminController
             $this->registrarLog(
                 'Cierre de caja',
                 'Sesión #' . $cierre['id_sesion_caja'] . ' — esperado ' . $cierre['saldo_esperado']
-                    . ' € — declarado ' . $cierre['saldo_declarado'] . ' € — diferencia ' . $cierre['diferencia'] . ' €'
+                    . ' € — declarado ' . $cierre['saldo_declarado'] . ' € — diferencia ' . $cierre['diferencia'] . ' €',
+                'exito', 'caja_sesion', (int) $cierre['id_sesion_caja']
             );
             $this->irA('admin_caja', ['ok_cerrar' => 1]);
         }
@@ -633,7 +640,7 @@ class AdminController
         if (isset($_GET['ok']))            $mensajeExito = 'Socio dado de alta correctamente.';
         if (isset($_GET['ok_membresia']))  $mensajeExito = 'Membresía registrada correctamente.';
         if (isset($_GET['ok_estado']))     $mensajeExito = 'Estado del socio actualizado.';
-        if (isset($_GET['ok_prueba']))     $mensajeExito = 'Acceso de prueba abierto por ' . MembresiaModel::DIAS_PRUEBA . ' días. Se cerrará solo si no se confirma el pago.';
+        if (isset($_GET['ok_prueba']))     $mensajeExito = 'Acceso gratuito de prueba abierto por ' . MembresiaModel::DIAS_PRUEBA . ' días.';
         if (isset($_GET['ok_editar']))     $mensajeExito = 'Datos del socio actualizados.';
         if (isset($_GET['ok_mandato']))    $mensajeExito = 'Mandato SEPA registrado. Ya se le puede domiciliar la cuota.';
 
@@ -716,6 +723,7 @@ class AdminController
         $metodoPago   = $_POST['metodo_pago'] ?? 'efectivo';
         $idSuplemento = (int) ($_POST['id_suplemento'] ?? 0) ?: null;
         $iban         = Iban::normalizar($_POST['iban'] ?? '') ?: null;
+        $operacionId  = preg_match('/^[a-f0-9]{32}$/', (string) ($_POST['_operation_id'] ?? '')) ? (string) $_POST['_operation_id'] : null;
 
         $error = '';
         if ($nombre === '' || $apellidos === '' || $dni === '' || $email === '' || $usuario === '') {
@@ -742,31 +750,20 @@ class AdminController
             $this->irAConError('admin_socios', $error, $navegacion);
         }
 
-        $creado = $this->userModel->crear(
-            $nombre, $apellidos, $dni, $telefono, $email, $usuario, $contrasena, $iban
-        );
-
-        if (!$creado) {
-            $this->irAConError('admin_socios', 'No se pudo dar de alta al socio.', $navegacion);
+        $servicioAlta = new SocioRegistrationService((int) $this->tenant->empresaId(), (int) $this->tenant->sedeId());
+        $resultadoAlta = $servicioAlta->registrar([
+            'nombre' => $nombre, 'apellidos' => $apellidos, 'dni' => $dni,
+            'telefono' => $telefono, 'email' => $email, 'usuario' => $usuario,
+            'contrasena' => $contrasena, 'iban' => $iban,
+        ], $idTipo > 0 ? $idTipo : null, $metodoPago, $idSuplemento,
+            $this->tenant->usuarioId(), $operacionId, $error);
+        if ($resultadoAlta === null) {
+            $this->irAConError('admin_socios', $error, $navegacion);
         }
-
-        $nuevo = $this->userModel->buscarPorCorreo($email);
-        $idSocio = (int) ($nuevo['id_usuario'] ?? 0);
-        $this->registrarLogSobre('Alta de socio', $idSocio, $nombre . ' ' . $apellidos . ' (' . $email . ')');
-
-        // Si en el alta se eligió una membresía, se contrata en el mismo paso.
-        if ($idSocio > 0 && $idTipo > 0) {
-            $errorMembresia = '';
-            $idContrato = $this->membresiaModel->contratar(
-                $idSocio, $idTipo, $metodoPago, $errorMembresia, $idSuplemento,
-                'mostrador', null, $this->tenant->usuarioId()
-            );
-            if ($idContrato !== null) {
-                $vigente = $this->membresiaModel->vigenteDeSocio($idSocio);
-                if ($vigente) {
-                    Mailer::membresiaContratada($email, $nombre, $vigente['nombre_tipo'], $vigente['fecha_fin']);
-                }
-            }
+        $idSocio = (int) $resultadoAlta['id_socio'];
+        $vigente = !empty($resultadoAlta['id_membresia']) ? $this->membresiaModel->vigenteDeSocio($idSocio) : null;
+        if ($vigente) {
+            Mailer::membresiaContratada($email, $nombre, $vigente['nombre_tipo'], $vigente['fecha_fin']);
         }
 
         $this->irA('admin_socios', array_merge($navegacion, ['ok' => 1]));
@@ -863,24 +860,14 @@ class AdminController
 
         // Si se cobra por transferencia hace falta el IBAN. El formulario permite
         // teclearlo en el momento si el socio aún no lo tiene guardado.
+        $ibanFormulario = null;
         if ($metodoPago === 'transferencia') {
             $ibanFormulario = Iban::normalizar($_POST['iban'] ?? '') ?: null;
 
             if ($ibanFormulario !== null && !Iban::esValido($ibanFormulario)) {
                 $this->irAConError('admin_socios', 'El IBAN no es válido. Revisa que esté completo y bien tecleado.', $navegacion);
             }
-            if ($ibanFormulario !== null && $ibanFormulario !== ($socio['iban'] ?? null)) {
-                $this->userModel->actualizarIban($idSocio, $ibanFormulario);
-                $this->registrarLogSobre(
-                    'Cambio de IBAN',
-                    $idSocio,
-                    trim(($socio['nombre'] ?? '') . ' ' . ($socio['apellidos'] ?? '')),
-                    !empty($socio['iban']) ? Iban::enmascarar($socio['iban']) : 'sin IBAN',
-                    Iban::enmascarar($ibanFormulario)
-                );
-                $socio['iban'] = $ibanFormulario;
-            }
-            if (empty($socio['iban'])) {
+            if ($ibanFormulario === null && empty($socio['iban'])) {
                 $this->irAConError('admin_socios', 'Para cobrar por transferencia hace falta el IBAN del socio.', $navegacion);
             }
         }
@@ -892,7 +879,7 @@ class AdminController
         $error = '';
         $idContrato = $this->membresiaModel->contratar(
             $idSocio, $idTipo, $metodoPago, $error, $idSuplemento,
-            'mostrador', $operacionId, $this->tenant->usuarioId()
+            'mostrador', $operacionId, $this->tenant->usuarioId(), $ibanFormulario
         );
 
         if ($idContrato === null) {
@@ -901,13 +888,22 @@ class AdminController
 
         $vigente = $this->membresiaModel->vigenteDeSocio($idSocio);
         $nombreSocio = trim(($socio['nombre'] ?? '') . ' ' . ($socio['apellidos'] ?? ''));
+        if ($ibanFormulario !== null && $ibanFormulario !== ($socio['iban'] ?? null)) {
+            $this->registrarLogSobre(
+                'Cambio de IBAN', $idSocio, $nombreSocio,
+                !empty($socio['iban']) ? Iban::enmascarar($socio['iban']) : 'sin IBAN',
+                Iban::enmascarar($ibanFormulario)
+            );
+        }
         $this->registrarLogSobre(
             $anterior ? 'Renovación de membresía' : 'Alta de membresía',
             $idSocio,
             $nombreSocio . ' — ' . ($vigente['nombre_tipo'] ?? '')
                 . (!empty($vigente['nombre_suplemento']) ? ' + ' . $vigente['nombre_suplemento'] : ''),
             $vencimientoAnterior,
-            $vigente['fecha_fin'] ?? ''
+            $vigente['fecha_fin'] ?? '',
+            'socio_membresia',
+            $idContrato
         );
 
         if ($vigente && !empty($socio['email'])) {
@@ -918,7 +914,7 @@ class AdminController
     }
 
     /**
-     * Abre el acceso de prueba: gratis, pendiente de pago y con caducidad
+     * Abre el acceso de prueba: gratis, exento de pago y con caducidad
      * automática a los días que fije MembresiaModel::DIAS_PRUEBA.
      */
     public function iniciarPruebaSocio(): void
@@ -940,7 +936,8 @@ class AdminController
         }
 
         $error = '';
-        $idPrueba = $this->membresiaModel->iniciarPrueba($idSocio, $error, $this->tenant->usuarioId());
+        $operacionId = preg_match('/^[a-f0-9]{32}$/', (string) ($_POST['_operation_id'] ?? '')) ? (string) $_POST['_operation_id'] : null;
+        $idPrueba = $this->membresiaModel->iniciarPrueba($idSocio, $error, $this->tenant->usuarioId(), $operacionId);
 
         if ($idPrueba === null) {
             $this->irAConError('admin_socios', $error, $navegacion);
@@ -951,9 +948,11 @@ class AdminController
             'Apertura de prueba',
             $idSocio,
             trim(($socio['nombre'] ?? '') . ' ' . ($socio['apellidos'] ?? ''))
-                . ' — acceso de prueba pendiente de pago',
+                . ' — acceso gratuito exento de pago',
             'sin acceso',
-            'prueba hasta ' . ($prueba['fecha_fin'] ?? '')
+            'prueba hasta ' . ($prueba['fecha_fin'] ?? ''),
+            'socio_membresia',
+            $idPrueba
         );
 
         $this->irA('admin_socios', array_merge($navegacion, ['ok_prueba' => 1]));
@@ -987,6 +986,7 @@ class AdminController
                     $nombre        = trim($_POST['nombre']      ?? '');
                     $descripcion   = trim($_POST['descripcion'] ?? '') ?: null;
                     $precio        = $_POST['precio']           ?? '';
+                    $precioValido  = InputValidator::money($precio);
                     $duracionMeses = $_POST['duracion_meses']   ?? '';
                     $estado        = trim($_POST['estado']      ?? '');
                     $iva           = is_numeric($_POST['iva'] ?? null) ? (float) $_POST['iva'] : 21.0;
@@ -994,7 +994,7 @@ class AdminController
 
                     if ($nombre === '') {
                         $errorMembresia = 'El nombre de la membresía es obligatorio.';
-                    } elseif (!is_numeric($precio) || (float) $precio < 0) {
+                    } elseif ($precioValido === null) {
                         $errorMembresia = 'El precio debe ser un número igual o mayor que 0.';
                     } elseif (!is_numeric($duracionMeses) || (int) $duracionMeses < 1) {
                         $errorMembresia = 'La duración debe ser de al menos 1 mes.';
@@ -1003,12 +1003,12 @@ class AdminController
                     } else {
                         if ($accion === 'crear_tipo') {
                             $ok = $this->membresiaModel->crearTipo(
-                                $nombre, $descripcion, (float) $precio, (int) $duracionMeses, $estado, $iva
+                                $nombre, $descripcion, $precioValido, (int) $duracionMeses, $estado, $iva
                             );
                             $flag = ['ok' => 1];
                         } else {
                             $ok = $idTipo > 0 && $this->membresiaModel->actualizarTipo(
-                                $idTipo, $nombre, $descripcion, (float) $precio, (int) $duracionMeses, $estado, $iva
+                                $idTipo, $nombre, $descripcion, $precioValido, (int) $duracionMeses, $estado, $iva
                             );
                             $flag = ['ok_editar' => 1];
                         }
@@ -1468,13 +1468,15 @@ class AdminController
                     if ($ibanAcreedor !== '' && !Iban::esValido($ibanAcreedor)) {
                         $this->irAConError('admin_remesas', 'El IBAN del gimnasio no es válido.');
                     }
-                    $this->sepaModel->guardarAcreedor($sede, [
+                    if (!$this->sepaModel->guardarAcreedor($sede, [
                         'razon_social'           => trim($_POST['razon_social'] ?? ''),
                         'cif'                    => trim($_POST['cif'] ?? ''),
                         'iban'                   => $ibanAcreedor,
                         'bic'                    => trim($_POST['bic'] ?? ''),
                         'identificador_acreedor' => trim($_POST['identificador_acreedor'] ?? ''),
-                    ]);
+                    ])) {
+                        $this->irAConError('admin_remesas', 'No se pudieron guardar los datos bancarios.');
+                    }
                     $this->registrarLog('Datos bancarios', 'Actualizados los datos de acreedor SEPA');
                     $this->irA('admin_remesas', ['ok_acreedor' => 1]);
                 }
@@ -1510,7 +1512,8 @@ class AdminController
                     $this->registrarLog(
                         'Remesa SEPA',
                         'Remesa #' . $idRemesa . ' — ' . (int) $remesa['num_recibos'] . ' recibos, '
-                            . number_format((float) $remesa['importe_total'], 2, ',', '.') . ' €'
+                            . number_format((float) $remesa['importe_total'], 2, ',', '.') . ' €',
+                        'exito', 'remesa', $idRemesa
                     );
                     $this->irA('admin_remesas', ['ok_remesa' => 1]);
                 }
@@ -1519,12 +1522,16 @@ class AdminController
                     $idRemesa = (int) ($_POST['id_remesa'] ?? 0);
                     if ($idRemesa > 0 && $this->sepaModel->buscarRemesa($idRemesa)) {
                         if ($accion === 'marcar_enviada') {
-                            $this->sepaModel->marcarEnviada($idRemesa);
-                            $this->registrarLog('Remesa SEPA', 'Remesa #' . $idRemesa . ' enviada al banco');
+                            if (!$this->sepaModel->marcarEnviada($idRemesa)) {
+                                $this->irAConError('admin_remesas', 'La remesa ya no está en borrador o no pertenece a esta sede.');
+                            }
+                            $this->registrarLog('Remesa SEPA', 'Remesa #' . $idRemesa . ' enviada al banco', 'exito', 'remesa', $idRemesa);
                             $flag = ['ok_enviada' => 1];
                         } else {
-                            $this->sepaModel->marcarCobrada($idRemesa, $this->tenant->usuarioId());
-                            $this->registrarLog('Remesa SEPA', 'Remesa #' . $idRemesa . ' cobrada');
+                            if (!$this->sepaModel->marcarCobrada($idRemesa, $this->tenant->usuarioId())) {
+                                $this->irAConError('admin_remesas', 'La remesa no está enviada, ya fue cobrada o no pertenece a esta sede.');
+                            }
+                            $this->registrarLog('Remesa SEPA', 'Remesa #' . $idRemesa . ' cobrada', 'exito', 'remesa', $idRemesa);
                             $flag = ['ok_cobrada' => 1];
                         }
                         $this->irA('admin_remesas', $flag);
@@ -1538,7 +1545,7 @@ class AdminController
                         if (!$this->sepaModel->marcarDevuelto($idRecibo, $motivo, $this->tenant->usuarioId())) {
                             $this->irAConError('admin_remesas', 'Ese recibo no existe, no es de esta sede o ya estaba devuelto.');
                         }
-                        $this->registrarLog('Recibo devuelto', 'Recibo #' . $idRecibo . ' — ' . $motivo);
+                        $this->registrarLog('Recibo devuelto', 'Recibo #' . $idRecibo . ' — ' . $motivo, 'exito', 'remesa_recibo', $idRecibo);
                         $this->irA('admin_remesas', ['ok_devuelto' => 1]);
                     }
                 }
@@ -1635,14 +1642,12 @@ class AdminController
         }
 
         $error = '';
-        $idMandato = $this->sepaModel->crearMandato($idSocio, $iban, $fechaFirma, $error);
+        $operacionId = preg_match('/^[a-f0-9]{32}$/', (string) ($_POST['_operation_id'] ?? '')) ? (string) $_POST['_operation_id'] : null;
+        $idMandato = $this->sepaModel->crearMandato($idSocio, $iban, $fechaFirma, $error, 'recurrente', $operacionId);
 
         if ($idMandato === null) {
             $this->irAConError('admin_socios', $error, $navegacion);
         }
-
-        // El IBAN del mandato pasa a ser el de la ficha del socio.
-        $this->userModel->actualizarIban($idSocio, Iban::normalizar($iban));
 
         $mandato = $this->sepaModel->mandatoActivo($idSocio);
         $this->registrarLogSobre(
@@ -1651,7 +1656,9 @@ class AdminController
             trim(($socio['nombre'] ?? '') . ' ' . ($socio['apellidos'] ?? ''))
                 . ' — ref. ' . ($mandato['referencia'] ?? ''),
             'sin mandato',
-            Iban::enmascarar($iban)
+            Iban::enmascarar($iban),
+            'mandato_sepa',
+            $idMandato
         );
 
         $this->irA('admin_socios', array_merge($navegacion, ['ok_mandato' => 1]));
@@ -1846,12 +1853,18 @@ class AdminController
     }
 
     /** Atajo para registrar en el log con el id del usuario en sesión. */
-    private function registrarLog(string $accion, string $detalle): void
+    private function registrarLog(
+        string $accion,
+        string $detalle,
+        string $resultado = 'exito',
+        ?string $entidad = null,
+        ?int $idEntidad = null
+    ): void
     {
         $log = new LogModel($this->tenant->empresaId());
         $log->registrarCambio(
             (int) ($_SESSION['usuario_id'] ?? 0), $accion, $detalle,
-            null, null, null, null, null, $this->gimnasioActual()
+            null, $entidad, $idEntidad, null, null, $this->gimnasioActual(), $resultado
         );
     }
 
@@ -1866,13 +1879,15 @@ class AdminController
         string $detalle = '',
         ?string $valorAnterior = null,
         ?string $valorNuevo = null,
-        string $entidad = 'socio'
+        string $entidad = 'socio',
+        ?int $idEntidad = null,
+        string $resultado = 'exito'
     ): void {
         $log = new LogModel($this->tenant->empresaId());
         $log->registrarCambio(
             (int) ($_SESSION['usuario_id'] ?? 0), $accion, $detalle,
-            $idAfectado, $entidad, $idAfectado,
-            $valorAnterior, $valorNuevo, $this->gimnasioActual()
+            $idAfectado, $entidad, $idEntidad ?? $idAfectado,
+            $valorAnterior, $valorNuevo, $this->gimnasioActual(), $resultado
         );
     }
 

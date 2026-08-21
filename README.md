@@ -1,6 +1,6 @@
 # Proyecto Gym — Centro Deportivo Cleto Reyes
 
-Versión actual: **0.10.0-fase19**. Esta versión recupera la trazabilidad Git → release, endurece el migrador legacy y hace vinculante el código de salida de las pruebas. No conecta DORLET, lectores, controladoras ni biometría.
+Versión actual: **0.11.0-fase20**. Esta versión conserva la trazabilidad Git → release y endurece la integridad económica: trial gratuito, altas atómicas, IBAN transaccional, mandatos/remesas concurrentes e idempotencia verificable. No conecta DORLET, lectores, controladoras ni biometría.
 
 Panel de gestión para un gimnasio multisede: socios y membresías, venta de productos,
 empleados, remesas SEPA y control de acceso desde el panel.

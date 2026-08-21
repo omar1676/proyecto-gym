@@ -18,6 +18,8 @@ $suites = [
         'tests/Integration/MigrationPartialFailureTest.php', 'tests/Integration/MigrationImportTest.php',
         'tests/Integration/MigrationResumeTest.php', 'tests/Integration/MigrationDuplicateTest.php',
         'tests/Integration/EconomicModelTest.php', 'tests/Integration/CashTest.php',
+        'tests/Integration/EconomicAtomicityTest.php',
+        'tests/Integration/EconomicConcurrencyTest.php',
         'tests/Integration/CashConcurrencyTest.php', 'tests/Integration/AccessControlSyncTest.php',
         'tests/Integration/SecondGymGeneralizationTest.php',
     ],
@@ -41,7 +43,7 @@ $suites = [
 $args = array_slice($argv, 1);
 $p0Gate = in_array('--p0-gate', $args, true);
 $injectFailure = in_array('--inject-failure', $args, true);
-$knownP1 = ['pruebas/prueba_acceso.php'];
+$knownP1 = [];
 
 if (APP_ENV !== 'test' || DB_NAME_PRUEBAS === '' || DB_NAME_PRUEBAS === DB_NAME) {
     fwrite(STDERR, "TEST HARNESS BLOQUEADO: configuración de base no aislada.\n");

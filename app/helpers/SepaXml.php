@@ -14,6 +14,7 @@
  */
 
 require_once __DIR__ . '/Iban.php';
+require_once __DIR__ . '/Money.php';
 
 class SepaXml
 {
@@ -35,8 +36,8 @@ class SepaXml
         }
 
         $totalNum     = count($recibos);
-        $totalImporte = 0.0;
-        foreach ($recibos as $r) $totalImporte += (float) $r['importe'];
+        $totalCents = 0;
+        foreach ($recibos as $r) $totalCents += Money::cents($r['importe']);
 
         $doc = new DOMDocument('1.0', 'UTF-8');
         $doc->formatOutput = true;
@@ -53,7 +54,7 @@ class SepaXml
         $cabecera->appendChild($doc->createElement('MsgId', self::limpiar($idMensaje, 35)));
         $cabecera->appendChild($doc->createElement('CreDtTm', date('Y-m-d\TH:i:s')));
         $cabecera->appendChild($doc->createElement('NbOfTxs', (string) $totalNum));
-        $cabecera->appendChild($doc->createElement('CtrlSum', number_format($totalImporte, 2, '.', '')));
+        $cabecera->appendChild($doc->createElement('CtrlSum', Money::decimal($totalCents)));
         $iniciador = $doc->createElement('InitgPty');
         $cabecera->appendChild($iniciador);
         $iniciador->appendChild(self::texto($doc, 'Nm', self::limpiar($acreedor['nombre'] ?? 'Gimnasio', 70)));
@@ -62,8 +63,8 @@ class SepaXml
         foreach ($porSecuencia as $secuencia => $lista) {
             if (empty($lista)) continue;
 
-            $sumaBloque = 0.0;
-            foreach ($lista as $r) $sumaBloque += (float) $r['importe'];
+            $sumaBloqueCents = 0;
+            foreach ($lista as $r) $sumaBloqueCents += Money::cents($r['importe']);
 
             $bloque = $doc->createElement('PmtInf');
             $inicio->appendChild($bloque);
@@ -71,7 +72,7 @@ class SepaXml
             $bloque->appendChild($doc->createElement('PmtInfId', self::limpiar($idMensaje . '-' . $secuencia, 35)));
             $bloque->appendChild($doc->createElement('PmtMtd', 'DD'));
             $bloque->appendChild($doc->createElement('NbOfTxs', (string) count($lista)));
-            $bloque->appendChild($doc->createElement('CtrlSum', number_format($sumaBloque, 2, '.', '')));
+            $bloque->appendChild($doc->createElement('CtrlSum', Money::decimal($sumaBloqueCents)));
 
             $tipoPago = $doc->createElement('PmtTpInf');
             $bloque->appendChild($tipoPago);
@@ -135,7 +136,7 @@ class SepaXml
                     self::limpiar('REC' . ($r['id_recibo'] ?? '0'), 35)
                 ));
 
-                $importe = $doc->createElement('InstdAmt', number_format((float) $r['importe'], 2, '.', ''));
+                $importe = $doc->createElement('InstdAmt', Money::decimal(Money::cents($r['importe'])));
                 $importe->setAttribute('Ccy', 'EUR');
                 $operacion->appendChild($importe);
 

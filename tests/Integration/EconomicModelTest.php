@@ -46,6 +46,8 @@ check('doble envío no duplica obligación ni cobro',
 
 pruebasLimpiarMembresias($db, "sm.id_socio = $socio");
 $error = '';
+$ibanOriginal = $db->query('SELECT iban FROM usuario WHERE id_usuario=' . $socio)->fetchColumn();
+$db->prepare('UPDATE usuario SET iban=:iban WHERE id_usuario=:id')->execute([':iban'=>'ES9121000418450200051332', ':id'=>$socio]);
 $idMembresia = $m->contratar($socio, (int) $tipo['id_tipo_membresia'], 'transferencia', $error, null, 'mostrador', 'f9000000000000000000000000000002', 1);
 $estado = $finanzas->estado($socio);
 check('domiciliación nace pendiente, no pagada por defecto', $estado['estado_economico'] === 'PENDIENTE' && $estado['deuda_cents'] === Money::cents($precioOriginal));
@@ -84,4 +86,5 @@ $db->exec("DELETE FROM obligacion_pago WHERE idempotency_key IN ('f9-deuda-decim
 pruebasLimpiarRemesas($db, "r.concepto LIKE 'F9 TEST %'");
 $db->exec("DELETE FROM mandato_sepa WHERE id_socio = $socio");
 pruebasLimpiarMembresias($db, "sm.id_socio = $socio");
+$db->prepare('UPDATE usuario SET iban=:iban WHERE id_usuario=:id')->execute([':iban'=>$ibanOriginal !== false ? $ibanOriginal : null, ':id'=>$socio]);
 finishTests();

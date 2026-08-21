@@ -62,7 +62,7 @@ class ProductoModel
     public function crear(
         string $nombre,
         ?string $descripcion,
-        float $precio,
+        string $precio,
         int $stock,
         int $stockMinimo,
         string $estado,
@@ -97,7 +97,7 @@ class ProductoModel
         int $idProducto,
         string $nombre,
         ?string $descripcion,
-        float $precio,
+        string $precio,
         int $stockMinimo,
         string $estado,
         ?int $idCategoria,
@@ -115,7 +115,7 @@ class ProductoModel
                     id_categoria = :id_categoria
                  WHERE id_producto = :id" . $this->filtroSede('')
             );
-            return $stmt->execute([
+            $ok = $stmt->execute([
                 ':nombre'       => $nombre,
                 ':descripcion'  => $descripcion,
                 ':precio'       => $precio,
@@ -125,6 +125,10 @@ class ProductoModel
                 ':id_categoria' => $idCategoria,
                 ':id'           => $idProducto,
             ]);
+            if (!$ok) return false;
+            $verificar = $this->db->prepare("SELECT 1 FROM {$this->tabla} WHERE id_producto = :id" . $this->filtroSede('') . ' LIMIT 1');
+            $verificar->execute([':id' => $idProducto]);
+            return (bool) $verificar->fetchColumn();
         } catch (\PDOException $e) {
             error_log('ProductoModel::actualizar error: ' . $e->getMessage());
             return false;
@@ -255,7 +259,8 @@ class ProductoModel
                  SET estado = IF(estado = 'activo', 'inactivo', 'activo')
                  WHERE id_producto = :id" . $this->filtroSede('')
             );
-            return $stmt->execute([':id' => $idProducto]);
+            $stmt->execute([':id' => $idProducto]);
+            return $stmt->rowCount() === 1;
         } catch (\PDOException $e) {
             error_log('ProductoModel::toggleEstado error: ' . $e->getMessage());
             return false;
@@ -269,7 +274,11 @@ class ProductoModel
             $stmt = $this->db->prepare(
                 "UPDATE {$this->tabla} SET stock = :stock WHERE id_producto = :id" . $this->filtroSede('')
             );
-            return $stmt->execute([':stock' => max(0, $stock), ':id' => $idProducto]);
+            if (!$stmt->execute([':stock' => max(0, $stock), ':id' => $idProducto])) return false;
+            $verificar = $this->db->prepare("SELECT stock FROM {$this->tabla} WHERE id_producto = :id" . $this->filtroSede('') . ' LIMIT 1');
+            $verificar->execute([':id' => $idProducto]);
+            $guardado = $verificar->fetchColumn();
+            return $guardado !== false && (int) $guardado === max(0, $stock);
         } catch (\PDOException $e) {
             error_log('ProductoModel::actualizarStock error: ' . $e->getMessage());
             return false;

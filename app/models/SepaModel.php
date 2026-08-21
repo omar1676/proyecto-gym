@@ -32,6 +32,11 @@ class SepaModel
         $this->db = Database::getInstance()->getConnection();
         $this->idGimnasio = $idGimnasio;
         $this->idEmpresa = $idEmpresa;
+        if ($this->idEmpresa === null && $this->idGimnasio !== null) {
+            $stmt = $this->db->prepare('SELECT id_empresa FROM gimnasio WHERE id_gimnasio = :id LIMIT 1');
+            $stmt->execute([':id' => $this->idGimnasio]);
+            $this->idEmpresa = (int) $stmt->fetchColumn() ?: null;
+        }
     }
 
     private function filtroSede(string $alias = ''): string
@@ -98,7 +103,7 @@ class SepaModel
                     identificador_acreedor = :id_acreedor
                  WHERE id_gimnasio = :id" . $this->filtroSede()
             );
-            return $stmt->execute([
+            $ok = $stmt->execute([
                 ':razon_social' => $datos['razon_social'] ?: null,
                 ':cif'          => $datos['cif'] ?: null,
                 ':iban'         => $datos['iban'] ? Iban::normalizar($datos['iban']) : null,
@@ -106,6 +111,10 @@ class SepaModel
                 ':id_acreedor'  => $datos['identificador_acreedor'] ?: null,
                 ':id'           => $idGimnasio,
             ]);
+            if (!$ok) return false;
+            $verificar = $this->db->prepare('SELECT 1 FROM gimnasio WHERE id_gimnasio = :id' . $this->filtroSede() . ' LIMIT 1');
+            $verificar->execute([':id' => $idGimnasio]);
+            return (bool) $verificar->fetchColumn();
         } catch (\Throwable $e) {
             error_log('SepaModel::guardarAcreedor error: ' . $e->getMessage());
             return false;
@@ -133,7 +142,8 @@ class SepaModel
         string $iban,
         string $fechaFirma,
         string &$error,
-        string $tipo = 'recurrente'
+        string $tipo = 'recurrente',
+        ?string $idempotencyKey = null
     ): ?int {
         $iban = Iban::normalizar($iban);
         if (!Iban::esValido($iban)) {
@@ -147,9 +157,32 @@ class SepaModel
             $error = 'El socio no pertenece al ámbito activo.';
             return null;
         }
+        if ($this->idGimnasio === null || $this->idEmpresa === null) {
+            $error = 'El mandato exige una sede concreta.';
+            return null;
+        }
 
         try {
             $this->db->beginTransaction();
+
+            // Serializa todos los mandatos del socio y hace que el cambio de
+            // IBAN forme parte de la misma unidad que la firma del mandato.
+            $lock = $this->db->prepare(
+                "SELECT id_usuario FROM usuario WHERE id_usuario = :id AND id_empresa = :empresa AND id_gimnasio = :sede FOR UPDATE"
+            );
+            $lock->execute([':id' => $idSocio, ':empresa' => $this->idEmpresa, ':sede' => $this->idGimnasio]);
+            if (!$lock->fetchColumn()) throw new DomainException('El socio no pertenece al ámbito activo.');
+            if ($idempotencyKey !== null) {
+                $existente = $this->db->prepare(
+                    'SELECT id_mandato FROM mandato_sepa WHERE id_gimnasio = :sede AND idempotency_key = :clave LIMIT 1'
+                );
+                $existente->execute([':sede' => $this->idGimnasio, ':clave' => $idempotencyKey]);
+                $idExistente = (int) $existente->fetchColumn();
+                if ($idExistente > 0) {
+                    $this->db->commit();
+                    return $idExistente;
+                }
+            }
 
             // Un socio solo puede tener un mandato activo: firmar uno nuevo
             // revoca el anterior, que es lo que ocurre al cambiar de banco.
@@ -162,8 +195,8 @@ class SepaModel
             $provisional = 'TMP-' . uniqid('', true);
 
             $stmt = $this->db->prepare(
-                "INSERT INTO mandato_sepa (id_socio, id_gimnasio, referencia, iban, fecha_firma, tipo)
-                 VALUES (:id_socio, :id_gimnasio, :referencia, :iban, :fecha_firma, :tipo)"
+                "INSERT INTO mandato_sepa (id_socio, id_gimnasio, referencia, iban, fecha_firma, tipo, idempotency_key)
+                 VALUES (:id_socio, :id_gimnasio, :referencia, :iban, :fecha_firma, :tipo, :idempotency_key)"
             );
             $stmt->execute([
                 ':id_socio'    => $idSocio,
@@ -172,14 +205,25 @@ class SepaModel
                 ':iban'        => $iban,
                 ':fecha_firma' => $fechaFirma,
                 ':tipo'        => $tipo,
+                ':idempotency_key' => $idempotencyKey,
             ]);
             $idMandato = (int) $this->db->lastInsertId();
 
-            $this->db->prepare(
+            $referencia = $this->db->prepare(
                 "UPDATE mandato_sepa SET referencia = :referencia WHERE id_mandato = :id"
-            )->execute([
+            );
+            $referencia->execute([
                 ':referencia' => $this->generarReferencia($idSocio, $idMandato),
                 ':id'         => $idMandato,
+            ]);
+            if ($referencia->rowCount() !== 1) throw new RuntimeException('No se pudo fijar la referencia del mandato.');
+
+            $actualizarIban = $this->db->prepare(
+                'UPDATE usuario SET iban = :iban WHERE id_usuario = :id AND id_empresa = :empresa AND id_gimnasio = :sede'
+            );
+            $actualizarIban->execute([
+                ':iban' => $iban, ':id' => $idSocio,
+                ':empresa' => $this->idEmpresa, ':sede' => $this->idGimnasio,
             ]);
 
             $this->db->commit();
@@ -187,7 +231,7 @@ class SepaModel
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
             error_log('SepaModel::crearMandato error: ' . $e->getMessage());
-            $error = 'No se pudo registrar el mandato.';
+            $error = $e instanceof DomainException ? $e->getMessage() : 'No se pudo registrar el mandato.';
             return null;
         }
     }
@@ -210,7 +254,8 @@ class SepaModel
             $stmt = $this->db->prepare(
                 "UPDATE mandato_sepa SET estado = 'revocado' WHERE id_mandato = :id" . $this->filtroSede()
             );
-            return $stmt->execute([':id' => $idMandato]);
+            $stmt->execute([':id' => $idMandato]);
+            return $stmt->rowCount() === 1;
         } catch (\Throwable $e) {
             error_log('SepaModel::revocarMandato error: ' . $e->getMessage());
             return false;
@@ -293,24 +338,59 @@ class SepaModel
             $existente = (int) $stmt->fetchColumn();
             if ($existente > 0) return $existente;
         }
-        $candidatos = [];
-        foreach ($this->listarDomiciliablesPendientes() as $fila) {
-            $candidatos[(int) $fila['id_socio_membresia']] = $fila;
-        }
-
-        $seleccion = [];
-        foreach ($idsMembresia as $id) {
-            $id = (int) $id;
-            if (isset($candidatos[$id])) $seleccion[] = $candidatos[$id];
-        }
-
-        if (empty($seleccion)) {
+        $idsMembresia = array_values(array_unique(array_filter(array_map('intval', $idsMembresia), static fn(int $id): bool => $id > 0)));
+        sort($idsMembresia, SORT_NUMERIC);
+        if (empty($idsMembresia)) {
             $error = 'No hay cobros seleccionados que se puedan domiciliar.';
             return null;
         }
 
         try {
             $this->db->beginTransaction();
+
+            if ($idempotencyKey !== null) {
+                $repetida = $this->db->prepare(
+                    'SELECT id_remesa FROM remesa WHERE id_gimnasio = :sede AND idempotency_key = :clave LIMIT 1 FOR UPDATE'
+                );
+                $repetida->execute([':sede' => $this->idGimnasio, ':clave' => $idempotencyKey]);
+                $idRepetido = (int) $repetida->fetchColumn();
+                if ($idRepetido > 0) {
+                    $this->db->commit();
+                    return $idRepetido;
+                }
+            }
+
+            // Cada membresía se reclama mediante lectura bloqueante y la clave
+            // única v27. Dos procesos nunca pueden presentar a la vez el mismo
+            // cobro; tras una devolución sí puede volver a remesarse.
+            $candidato = $this->db->prepare(
+                "SELECT sm.id_socio_membresia, sm.id_socio, sm.nombre_tipo, sm.nombre_suplemento,
+                        (sm.precio_pagado + sm.precio_suplemento) AS importe,
+                        u.nombre, u.apellidos, m.referencia, m.iban, m.fecha_firma, m.primer_cobro_hecho
+                 FROM socio_membresia sm
+                 INNER JOIN usuario u ON u.id_usuario = sm.id_socio
+                 INNER JOIN mandato_sepa m ON m.id_socio = sm.id_socio AND m.estado = 'activo'
+                 WHERE sm.id_socio_membresia = :id
+                   AND sm.metodo_pago = 'transferencia' AND sm.es_prueba = 0
+                   AND (sm.precio_pagado + sm.precio_suplemento) > 0" . $this->filtroSede('sm') . "
+                   AND NOT EXISTS (
+                       SELECT 1 FROM remesa_recibo rr
+                       WHERE rr.id_socio_membresia = sm.id_socio_membresia
+                         AND rr.estado <> 'devuelto'
+                   )
+                 LIMIT 1 FOR UPDATE"
+            );
+            $seleccion = [];
+            foreach ($idsMembresia as $id) {
+                $candidato->execute([':id' => $id]);
+                $fila = $candidato->fetch();
+                if ($fila) $seleccion[] = $fila;
+            }
+            if (empty($seleccion)) {
+                $this->db->rollBack();
+                $error = 'No hay cobros seleccionados que se puedan domiciliar.';
+                return null;
+            }
 
             $stmtRemesa = $this->db->prepare(
                 "INSERT INTO remesa (id_gimnasio, concepto, fecha_cobro, id_usuario_creador, idempotency_key)

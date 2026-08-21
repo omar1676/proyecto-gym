@@ -230,9 +230,10 @@ class VentaModel
                 // teclea en el mostrador y lo que paga el cliente. La base se
                 // saca hacia atrás, así el desglose nunca altera el cobro.
                 $precioCents   = Money::cents($producto['precio']);
-                $ivaBasis      = (int) round(((float) $producto['iva']) * 100);
+                $ivaBasis      = Money::cents($producto['iva']);
                 $subtotalCents = $precioCents * $cantidad;
-                $baseCents     = (int) round($subtotalCents * 10000 / (10000 + $ivaBasis));
+                $divisor       = 10000 + $ivaBasis;
+                $baseCents     = intdiv(($subtotalCents * 10000) + intdiv($divisor, 2), $divisor);
                 $cuotaCents    = $subtotalCents - $baseCents;
                 $precio = Money::decimal($precioCents);
                 $iva = $producto['iva'];

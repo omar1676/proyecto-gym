@@ -2,24 +2,26 @@
 
 ## Identidad
 
-- Versión declarada por la aplicación: `0.10.0-fase19`.
-- Migración más reciente: `migracion_v26.sql`.
+- Versión declarada por la aplicación: `0.11.0-fase20`.
+- Migración más reciente: `migracion_v27.sql`.
 - Último tag histórico de release anotado: `v0.9.0-fase10`.
 - El commit exacto del tag se obtiene con
   `git rev-parse v0.9.0-fase10^{commit}`. Fases 11–12 añaden preparación y una
   corrección neutral de mensajes; no se ha creado un tag nuevo.
 - Fecha de saneamiento: 21/08/2026 (Europe/Madrid).
 
-F19 no añade funciones de negocio. Cada artefacto se genera desde un commit
+F20 no añade funciones de negocio. Cada artefacto se genera desde un commit
 limpio mediante `php ops/build_release.php --output-dir=<directorio>` y se
 acompaña de un manifiesto determinista de hashes por archivo.
 
 ## Requisitos
 
-- PHP `8.1+`; verificado localmente con PHP `8.2.12`.
+- PHP `8.1+`; verificado localmente con PHP `8.2.12`; la verificación final
+  de esta release se ejecuta también con PHP 8.3 en staging.
 - Extensiones: `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `curl`, `dom`,
   `simplexml` y `zlib`.
-- Base verificada localmente: MariaDB `10.4.32`.
+- Base verificada localmente: MariaDB `10.4.32`; los tests económicos críticos
+  se repiten en MariaDB `10.11` sobre bases temporales.
 - Servidor web con document root en `public/` y HTTPS en producción.
 - Tareas técnicas configuradas desde `cron/`.
 
@@ -52,21 +54,21 @@ reales dentro de la release.
 pero se excluye de la release productiva. La instalación productiva debe usar
 el procedimiento de `DESPLIEGUE.md` y `ops/migrate.php`.
 
-## Evidencia anterior y contrato de F19
+## Evidencia y contrato de F20
 
-- La evidencia de Fase 12 (4 suites, 37 scripts, 464 comprobaciones) es
-  histórica y no se reutiliza para declarar F19 aprobada.
+- La evidencia de fases anteriores es histórica y no se reutiliza para declarar
+  F20 aprobada.
 - HTTP: 37 correctas, 0 fallidas.
 - Render: 12 pantallas correctas.
 - Smoke: 11 comprobaciones correctas.
 - Lint: 145 archivos PHP, 0 fallos.
-- Migraciones: `pending=[]`, `checksum_mismatch=[]`, última v26.
+- Migraciones: `pending=[]`, `checksum_mismatch=[]`, última v27.
 - Segundo gimnasio sintético: 16 comprobaciones, 0 fallos; fixture eliminada.
 
 El gate P0 se ejecuta con `php tests/run.php --p0-gate`; el contrato del runner
 es `exit 0 = PASS real`. `--inject-failure` debe provocar una salida distinta de
-cero. La suite completa, sin el flag P0, mantiene visibles los fallos económicos
-de trial que pertenecen al saneamiento P1.
+cero. La suite completa incluye trial, atomicidad, concurrencia económica,
+aislamiento, seguridad, caja, ventas, stock, mandatos y remesas.
 
 ## Exclusiones obligatorias
 

@@ -10,15 +10,15 @@ try {
     $manager->baselineExisting();
     $afterBaseline = $manager->status();
     check('baseline v21 solo registra hasta v22', $afterBaseline['pending'] === [
-        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql',
+        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql',
     ]);
     check('baseline v21 no inventa estructuras v24', !SchemaMigrationTestFactory::tableExists($db, 'migration_batch'));
     check('baseline v21 no inventa estructuras v25', !SchemaMigrationTestFactory::tableExists($db, 'obligacion_pago'));
     check('baseline v21 no inventa estructuras v26', !SchemaMigrationTestFactory::tableExists($db, 'access_sync_job'));
 
     $applied = $manager->migratePending();
-    check('v23-v26 se ejecutan realmente y en orden', $applied === [
-        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql',
+    check('v23-v27 se ejecutan realmente y en orden', $applied === [
+        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql',
     ]);
     foreach ([
         'migration_batch', 'obligacion_pago', 'cobro', 'access_identity_map',
@@ -26,6 +26,8 @@ try {
     ] as $table) {
         check('existe físicamente ' . $table, SchemaMigrationTestFactory::tableExists($db, $table));
     }
+    check('v27 crea unicidad de mandato activo', SchemaMigrationTestFactory::indexExists($db, 'mandato_sepa', 'uq_mandato_socio_activo'));
+    check('v27 crea claim único de remesa', SchemaMigrationTestFactory::indexExists($db, 'remesa_recibo', 'uq_recibo_membresia_en_cobro'));
     $status = $manager->status();
     check('legacy v21 termina sin migraciones pendientes', $status['pending'] === []);
     check('legacy v21 termina sin checksum mismatch', $status['checksum_mismatch'] === []);

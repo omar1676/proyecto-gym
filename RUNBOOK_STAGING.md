@@ -55,7 +55,7 @@ php ops/migrate.php --confirm-staging
 php ops/status.php
 ```
 
-Exigir v26, `pending=[]` y `checksum_mismatch=[]`.
+Exigir v27, `pending=[]` y `checksum_mismatch=[]`.
 
 ## 6. Backup, cron y alertas
 

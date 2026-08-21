@@ -1,5 +1,6 @@
 <?php
 require_once dirname(__DIR__) . '/helpers/Money.php';
+require_once dirname(__DIR__) . '/helpers/Iban.php';
 require_once __DIR__ . '/FinancialModel.php';
 /**
  * MembresiaModel — acceso a las tablas `tipo_membresia` y `socio_membresia`.
@@ -123,7 +124,7 @@ class MembresiaModel
         return $row ?: null;
     }
 
-    public function crearSuplemento(string $nombre, ?string $descripcion, float $precioMensual, string $estado): bool
+    public function crearSuplemento(string $nombre, ?string $descripcion, string $precioMensual, string $estado): bool
     {
         try {
             $stmt = $this->db->prepare(
@@ -144,7 +145,7 @@ class MembresiaModel
         }
     }
 
-    public function actualizarSuplemento(int $idSuplemento, string $nombre, ?string $descripcion, float $precioMensual, string $estado): bool
+    public function actualizarSuplemento(int $idSuplemento, string $nombre, ?string $descripcion, string $precioMensual, string $estado): bool
     {
         try {
             $stmt = $this->db->prepare(
@@ -155,13 +156,15 @@ class MembresiaModel
                     estado         = :estado
                  WHERE id_suplemento = :id" . $this->filtroCatalogo()
             );
-            return $stmt->execute([
+            $ok = $stmt->execute([
                 ':nombre'      => $nombre,
                 ':descripcion' => $descripcion,
                 ':precio'      => $precioMensual,
                 ':estado'      => $estado,
                 ':id'          => $idSuplemento,
             ]);
+            if (!$ok) return false;
+            return $this->buscarSuplementoPorId($idSuplemento) !== null;
         } catch (\PDOException $e) {
             error_log('MembresiaModel::actualizarSuplemento error: ' . $e->getMessage());
             return false;
@@ -176,7 +179,8 @@ class MembresiaModel
                  SET estado = IF(estado = 'activo', 'inactivo', 'activo')
                  WHERE id_suplemento = :id" . $this->filtroCatalogo()
             );
-            return $stmt->execute([':id' => $idSuplemento]);
+            $stmt->execute([':id' => $idSuplemento]);
+            return $stmt->rowCount() === 1;
         } catch (\PDOException $e) {
             error_log('MembresiaModel::toggleEstadoSuplemento error: ' . $e->getMessage());
             return false;
@@ -223,7 +227,7 @@ class MembresiaModel
     public function crearTipo(
         string $nombre,
         ?string $descripcion,
-        float $precio,
+        string $precio,
         int $duracionMeses,
         string $estado,
         float $iva = 21.0
@@ -253,7 +257,7 @@ class MembresiaModel
         int $idTipo,
         string $nombre,
         ?string $descripcion,
-        float $precio,
+        string $precio,
         int $duracionMeses,
         string $estado,
         float $iva = 21.0
@@ -271,7 +275,7 @@ class MembresiaModel
                     estado         = :estado
                  WHERE id_tipo_membresia = :id" . $this->filtroCatalogo()
             );
-            return $stmt->execute([
+            $ok = $stmt->execute([
                 ':nombre'         => $nombre,
                 ':descripcion'    => $descripcion,
                 ':precio'         => $precio,
@@ -280,6 +284,8 @@ class MembresiaModel
                 ':estado'         => $estado,
                 ':id'             => $idTipo,
             ]);
+            if (!$ok) return false;
+            return $this->buscarTipoPorId($idTipo) !== null;
         } catch (\PDOException $e) {
             error_log('MembresiaModel::actualizarTipo error: ' . $e->getMessage());
             return false;
@@ -294,7 +300,8 @@ class MembresiaModel
                  SET estado = IF(estado = 'activo', 'inactivo', 'activo')
                  WHERE id_tipo_membresia = :id" . $this->filtroCatalogo()
             );
-            return $stmt->execute([':id' => $idTipo]);
+            $stmt->execute([':id' => $idTipo]);
+            return $stmt->rowCount() === 1;
         } catch (\PDOException $e) {
             error_log('MembresiaModel::toggleEstadoTipo error: ' . $e->getMessage());
             return false;
@@ -318,7 +325,8 @@ class MembresiaModel
         ?int $idSuplemento = null,
         string $origen = 'mostrador',
         ?string $idempotencyKey = null,
-        ?int $idUsuario = null
+        ?int $idUsuario = null,
+        ?string $ibanNuevo = null
     ): ?int {
         if (!in_array($metodoPago, self::METODOS_VALIDOS, true)) {
             $error = 'Método de pago no válido.';
@@ -326,6 +334,11 @@ class MembresiaModel
         }
         if (!$this->socioEnAmbito($idSocio)) {
             $error = 'El socio no pertenece al ámbito activo.';
+            return null;
+        }
+        $ibanNuevo = $ibanNuevo !== null ? Iban::normalizar($ibanNuevo) : null;
+        if ($ibanNuevo !== null && !Iban::esValido($ibanNuevo)) {
+            $error = 'El IBAN no es válido.';
             return null;
         }
         $sedeOperacion = $this->idGimnasio;
@@ -367,9 +380,30 @@ class MembresiaModel
         }
 
         try {
-            $this->db->beginTransaction();
-            $lock = $this->db->prepare('SELECT id_usuario FROM usuario WHERE id_usuario = :id FOR UPDATE');
+            $esTransaccionPropia = !$this->db->inTransaction();
+            if ($esTransaccionPropia) $this->db->beginTransaction();
+            $lock = $this->db->prepare('SELECT id_usuario, iban FROM usuario WHERE id_usuario = :id FOR UPDATE');
             $lock->execute([':id' => $idSocio]);
+            $socioBloqueado = $lock->fetch();
+            if (!$socioBloqueado) throw new DomainException('El socio no existe.');
+            if ($idempotencyKey !== null) {
+                $repetida = $this->db->prepare("SELECT id_socio_membresia FROM {$this->tabla} WHERE id_gimnasio = :sede AND idempotency_key = :clave LIMIT 1");
+                $repetida->execute([':sede' => $sedeOperacion, ':clave' => $idempotencyKey]);
+                $idRepetido = (int) $repetida->fetchColumn();
+                if ($idRepetido > 0) {
+                    if ($esTransaccionPropia) $this->db->commit();
+                    return $idRepetido;
+                }
+            }
+            if ($metodoPago === 'transferencia') {
+                $ibanEfectivo = $ibanNuevo ?: ($socioBloqueado['iban'] ?? null);
+                if (empty($ibanEfectivo)) throw new DomainException('Para cobrar por transferencia hace falta el IBAN del socio.');
+                if ($ibanNuevo !== null && $ibanNuevo !== ($socioBloqueado['iban'] ?? null)) {
+                    $actualizarIban = $this->db->prepare('UPDATE usuario SET iban = :iban WHERE id_usuario = :id');
+                    $actualizarIban->execute([':iban' => $ibanNuevo, ':id' => $idSocio]);
+                    if ($actualizarIban->rowCount() !== 1) throw new RuntimeException('No se pudo actualizar el IBAN.');
+                }
+            }
 
             $vigente = $this->vigenteDeSocio($idSocio);
             $prueba  = $this->pruebaVigenteDeSocio($idSocio);
@@ -434,18 +468,18 @@ class MembresiaModel
                 $cierre->execute([':id' => (int) $prueba['id_socio_membresia']]);
             }
 
-            $this->db->commit();
+            if ($esTransaccionPropia) $this->db->commit();
             return $idContrato;
         } catch (\Throwable $e) {
-            if ($this->db->inTransaction()) $this->db->rollBack();
+            if (($esTransaccionPropia ?? false) && $this->db->inTransaction()) $this->db->rollBack();
             error_log('MembresiaModel::contratar error: ' . $e->getMessage());
-            $error = 'No se pudo registrar la membresía. Inténtalo de nuevo.';
+            $error = $e instanceof DomainException ? $e->getMessage() : 'No se pudo registrar la membresía. Inténtalo de nuevo.';
             return null;
         }
     }
 
     /**
-     * Abre el acceso de prueba a un socio: gratis, pendiente de pago y con
+     * Abre el acceso de prueba a un socio: gratis, exento de pago y con
      * caducidad a los DIAS_PRUEBA días (hoy cuenta como el primero).
      *
      * No hay que cerrarla luego: al pasar `fecha_fin`, vigenteDeSocio() deja de
@@ -453,21 +487,17 @@ class MembresiaModel
      *
      * Devuelve el id de la prueba, o null dejando el motivo en $error.
      */
-    public function iniciarPrueba(int $idSocio, string &$error, ?int $idUsuario = null): ?int
+    public function iniciarPrueba(
+        int $idSocio,
+        string &$error,
+        ?int $idUsuario = null,
+        ?string $idempotencyKey = null
+    ): ?int
     {
         if (!$this->socioEnAmbito($idSocio)) {
             $error = 'El socio no pertenece al ámbito activo.';
             return null;
         }
-        if ($this->vigenteDeSocio($idSocio)) {
-            $error = 'Este socio ya tiene el acceso abierto.';
-            return null;
-        }
-        if ($this->tuvoPrueba($idSocio)) {
-            $error = 'Este socio ya disfrutó de un periodo de prueba.';
-            return null;
-        }
-
         $fechaInicio = date('Y-m-d');
         $fechaFin    = date('Y-m-d', strtotime('+' . (self::DIAS_PRUEBA - 1) . ' days'));
         $sedeOperacion = $this->idGimnasio;
@@ -486,13 +516,27 @@ class MembresiaModel
 
         try {
             $this->db->beginTransaction();
+            $lock = $this->db->prepare('SELECT id_usuario FROM usuario WHERE id_usuario = :id FOR UPDATE');
+            $lock->execute([':id' => $idSocio]);
+            if (!$lock->fetchColumn()) throw new DomainException('El socio no existe.');
+            if ($idempotencyKey !== null) {
+                $repetida = $this->db->prepare("SELECT id_socio_membresia FROM {$this->tabla} WHERE id_gimnasio = :sede AND idempotency_key = :clave LIMIT 1");
+                $repetida->execute([':sede' => $sedeOperacion, ':clave' => $idempotencyKey]);
+                $idRepetido = (int) $repetida->fetchColumn();
+                if ($idRepetido > 0) {
+                    $this->db->commit();
+                    return $idRepetido;
+                }
+            }
+            if ($this->vigenteDeSocio($idSocio)) throw new DomainException('Este socio ya tiene el acceso abierto.');
+            if ($this->tuvoPrueba($idSocio)) throw new DomainException('Este socio ya disfrutó de un periodo de prueba.');
             $stmt = $this->db->prepare(
                 "INSERT INTO {$this->tabla}
                  (id_socio, id_gimnasio, id_tipo_membresia, nombre_tipo, precio_pagado,
-                  precio_suplemento, metodo_pago, fecha_inicio, fecha_fin, es_prueba, estado_pago)
+                   precio_suplemento, metodo_pago, fecha_inicio, fecha_fin, es_prueba, estado_pago, idempotency_key)
                  VALUES
                  (:id_socio, :id_gimnasio, NULL, :nombre_tipo, 0.00,
-                  0.00, 'efectivo', :fecha_inicio, :fecha_fin, 1, 'pendiente')"
+                   0.00, 'efectivo', :fecha_inicio, :fecha_fin, 1, 'pagado', :idempotency_key)"
             );
             $stmt->execute([
                 ':id_socio'     => $idSocio,
@@ -500,6 +544,7 @@ class MembresiaModel
                 ':nombre_tipo'  => 'Prueba ' . self::DIAS_PRUEBA . ' días',
                 ':fecha_inicio' => $fechaInicio,
                 ':fecha_fin'    => $fechaFin,
+                ':idempotency_key' => $idempotencyKey,
             ]);
             $idPrueba = (int) $this->db->lastInsertId();
             if ($empresaOperacion !== null && $sedeOperacion !== null) {
@@ -511,7 +556,7 @@ class MembresiaModel
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
             error_log('MembresiaModel::iniciarPrueba error: ' . $e->getMessage());
-            $error = 'No se pudo abrir el acceso de prueba.';
+            $error = $e instanceof DomainException ? $e->getMessage() : 'No se pudo abrir el acceso de prueba.';
             return null;
         }
     }
@@ -603,7 +648,7 @@ class MembresiaModel
         return $row ?: null;
     }
 
-    /** Pruebas abiertas ahora mismo, pendientes de que alguien las confirme. */
+    /** Pruebas gratuitas abiertas ahora mismo, pendientes de conversión o caducidad. */
     public function listarPruebasPendientes(): array
     {
         try {
@@ -612,8 +657,7 @@ class MembresiaModel
                         DATEDIFF(sm.fecha_fin, CURDATE()) AS dias_restantes
                  FROM {$this->tabla} sm
                  INNER JOIN usuario u ON u.id_usuario = sm.id_socio
-                 WHERE sm.es_prueba = 1
-                   AND sm.estado_pago = 'pendiente'
+                  WHERE sm.es_prueba = 1
                    AND sm.fecha_fin >= CURDATE()" . $this->filtroSede() . "
                  ORDER BY sm.fecha_fin ASC"
             );

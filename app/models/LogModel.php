@@ -51,9 +51,13 @@ class LogModel {
         ?int    $idEntidad = null,
         ?string $valorAnterior = null,
         ?string $valorNuevo = null,
-        ?int    $idGimnasio = null
+        ?int    $idGimnasio = null,
+        string  $resultado = 'exito'
     ): void {
         try {
+            if (!in_array($resultado, ['exito', 'fallo'], true)) {
+                $resultado = 'fallo';
+            }
             $empresa = $this->idEmpresa;
             if ($empresa === null && $idGimnasio !== null) {
                 $q = $this->db->prepare('SELECT id_empresa FROM gimnasio WHERE id_gimnasio = :id');
@@ -62,16 +66,17 @@ class LogModel {
             }
             $stmt = $this->db->prepare(
                 "INSERT INTO log_actividad
-                 (id_usuario, id_usuario_afectado, accion, entidad, id_entidad,
-                  detalle, valor_anterior, valor_nuevo, ip, id_gimnasio, id_empresa, fecha)
+                 (id_usuario, id_usuario_afectado, accion, resultado, entidad, id_entidad,
+                   detalle, valor_anterior, valor_nuevo, ip, id_gimnasio, id_empresa, fecha)
                  VALUES
-                 (:id_usuario, :id_afectado, :accion, :entidad, :id_entidad,
+                 (:id_usuario, :id_afectado, :accion, :resultado, :entidad, :id_entidad,
                   :detalle, :valor_anterior, :valor_nuevo, :ip, :id_gimnasio, :id_empresa, NOW())"
             );
             $stmt->execute([
                 ':id_usuario'     => $idUsuario ?: null,
                 ':id_afectado'    => $idUsuarioAfectado ?: null,
                 ':accion'         => $accion,
+                ':resultado'      => $resultado,
                 ':entidad'        => $entidad,
                 ':id_entidad'     => $idEntidad ?: null,
                 ':detalle'        => mb_substr($detalle, 0, 500),

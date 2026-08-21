@@ -38,6 +38,10 @@ function socioConCuota(PDO $db, UserModel $usuarios, string $usuario, string $me
     $usuarios->crear('Test', ucfirst($usuario), strtoupper($usuario) . '1T', null,
         $usuario . '@test.es', $usuario, 'clave12345');
     $id = (int) $db->query("SELECT id_usuario FROM usuario WHERE nombre_usuario = " . $db->quote($usuario))->fetchColumn();
+    if ($metodo === 'transferencia') {
+        $db->prepare('UPDATE usuario SET iban = :iban WHERE id_usuario = :id')
+            ->execute([':iban' => 'ES9121000418450200051332', ':id' => $id]);
+    }
 
     $db->prepare(
         "INSERT INTO socio_membresia
@@ -65,13 +69,33 @@ comprobar('NO entra el que vence dentro de 20 días',  false, in_array($idLejano
 echo "\n== LA RENOVACIÓN ENCADENA SIN REGALAR DÍAS ==\n";
 $antes  = $membresias->vigenteDeSocio($idDomiciliado);
 $error  = '';
-$membresias->contratar($idDomiciliado, $idTipo, 'transferencia', $error, null, 'automatica');
+$claveRenovacion = 'auto-renovacion:' . (int) $antes['id_socio_membresia'];
+$idRenovacion = $membresias->contratar(
+    $idDomiciliado,
+    $idTipo,
+    'transferencia',
+    $error,
+    null,
+    'automatica',
+    $claveRenovacion
+);
 $despues = $membresias->vigenteDeSocio($idDomiciliado);
 
 comprobar('la cuota nueva empieza al día siguiente del vencimiento',
     date('Y-m-d', strtotime($antes['fecha_fin'] . ' +1 day')), $despues['fecha_inicio']);
 comprobar('queda marcada como automática', 'automatica', $despues['origen']);
 comprobar('sigue domiciliada para la próxima vez', 1, $despues['renovar_auto']);
+
+$reenvioRenovacion = $membresias->contratar(
+    $idDomiciliado,
+    $idTipo,
+    'transferencia',
+    $error,
+    null,
+    'automatica',
+    $claveRenovacion
+);
+comprobar('reintentar la misma renovación devuelve la misma operación', $idRenovacion, $reenvioRenovacion);
 
 echo "\n== NO SE COBRA DOS VECES ==\n";
 $aRenovar = array_column($membresias->listarParaRenovar(3), 'id_socio');

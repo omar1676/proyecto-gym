@@ -291,8 +291,9 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
                                         if ($puedeProbar):
                                         ?>
                                         <form method="POST" action="index.php?action=admin_socio_prueba" style="display:inline"
-                                            onsubmit="return confirm('¿Abrir el acceso de prueba <?= (int) $diasPrueba ?> días para <?= htmlspecialchars(addslashes($socio['nombre']), ENT_QUOTES, 'UTF-8') ?>? Se cerrará solo si no se confirma el pago.');">
+                                            onsubmit="return confirm('¿Abrir el acceso gratuito de prueba <?= (int) $diasPrueba ?> días para <?= htmlspecialchars(addslashes($socio['nombre']), ENT_QUOTES, 'UTF-8') ?>?');">
                                             <?= Csrf::field() ?>
+                                            <input type="hidden" name="_operation_id" value="<?= bin2hex(random_bytes(16)) ?>">
                                             <input type="hidden" name="volver_buscar" value="<?= htmlspecialchars($busqueda, ENT_QUOTES, 'UTF-8') ?>">
                                             <input type="hidden" name="volver_pagina" value="<?= $paginaActual ?>">
                                             <input type="hidden" name="id_socio" value="<?= (int) $socio['id_usuario'] ?>">
@@ -380,6 +381,7 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
 
         <form method="POST" action="index.php?action=admin_socio_registrar" class="space-y-4">
             <?= Csrf::field() ?>
+            <input type="hidden" name="_operation_id" value="<?= bin2hex(random_bytes(16)) ?>">
             <input type="hidden" name="volver_buscar" value="<?= htmlspecialchars($busqueda, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="volver_pagina" value="<?= $paginaActual ?>">
 
@@ -719,6 +721,7 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
                 <?= Csrf::field() ?>
                 <input type="hidden" name="volver_buscar" value="<?= htmlspecialchars($busqueda, ENT_QUOTES, 'UTF-8') ?>">
                 <input type="hidden" name="volver_pagina" value="<?= $paginaActual ?>">
+                <input type="hidden" name="_operation_id" value="<?= bin2hex(random_bytes(16)) ?>">
                 <input type="hidden" name="id_socio" id="mandato-id-socio" value="0">
                 <input type="hidden" name="iban"     id="mandato-iban"     value="">
                 <div>

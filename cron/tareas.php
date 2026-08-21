@@ -117,7 +117,8 @@ function renovarCuotas(int $idSede, bool $simular, array &$resumen, LogModel $lo
             $cuota['metodo_pago'],
             $error,
             $cuota['id_suplemento'] ? (int) $cuota['id_suplemento'] : null,
-            'automatica'
+            'automatica',
+            'auto-renovacion:' . (int) $cuota['id_socio_membresia']
         );
 
         if ($idNuevo === null) {

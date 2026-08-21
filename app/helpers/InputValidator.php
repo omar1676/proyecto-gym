@@ -29,7 +29,8 @@ final class InputValidator
         return preg_match('/^\+?[0-9]{7,15}$/', $phone) ? $phone : null;
     }
 
-    public static function money($value, int $maxCents = 999999999): ?string
+    /** Límite por defecto alineado con los precios DECIMAL(8,2) del catálogo. */
+    public static function money($value, int $maxCents = 99999999): ?string
     {
         require_once __DIR__ . '/Money.php';
         try {

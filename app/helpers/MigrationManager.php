@@ -39,7 +39,7 @@ final class MigrationManager
         )->fetchColumn() === 0;
     }
 
-    /** Registra un legacy probado solo hasta v22; v23-v26 quedan pendientes. */
+    /** Registra un legacy probado solo hasta v22; v23 en adelante quedan pendientes. */
     public function baselineExisting(): void
     {
         $this->withAdvisoryLock(function (): void {
@@ -250,6 +250,15 @@ final class MigrationManager
                     'index:usuario.uq_usuario_access_scope' => $this->hasIndex('usuario', 'uq_usuario_access_scope'),
                 ]
             ),
+            'migracion_v27.sql' => [
+                'column:mandato_sepa.idempotency_key' => $this->hasColumn('mandato_sepa', 'idempotency_key'),
+                'column:mandato_sepa.socio_activo_unico' => $this->hasColumn('mandato_sepa', 'socio_activo_unico'),
+                'index:mandato_sepa.uq_mandato_idempotencia' => $this->hasIndex('mandato_sepa', 'uq_mandato_idempotencia'),
+                'index:mandato_sepa.uq_mandato_socio_activo' => $this->hasIndex('mandato_sepa', 'uq_mandato_socio_activo'),
+                'column:remesa_recibo.membresia_en_cobro' => $this->hasColumn('remesa_recibo', 'membresia_en_cobro'),
+                'index:remesa_recibo.uq_recibo_membresia_en_cobro' => $this->hasIndex('remesa_recibo', 'uq_recibo_membresia_en_cobro'),
+                'column:log_actividad.resultado' => $this->hasColumn('log_actividad', 'resultado'),
+            ],
             default => [],
         };
     }
