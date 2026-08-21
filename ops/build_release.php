@@ -100,10 +100,36 @@ try {
         throw new RuntimeException('No se pudo generar el ZIP: ' . trim($archive['stderr']));
     }
 
+    $tarPath = $outputDir . DIRECTORY_SEPARATOR
+        . '.gimnera_manifest_' . bin2hex(random_bytes(8)) . '.tar';
     $entries = [];
-    foreach ($files as $file) {
-        $blob = releaseGit(['cat-file', 'blob', 'HEAD:' . $file], $root);
-        $entries[] = ['path' => $file, 'bytes' => strlen($blob), 'sha256' => hash('sha256', $blob)];
+    try {
+        $tarArchive = releaseCommand(
+            array_merge(['git', 'archive', '--format=tar', '--output=' . $tarPath, 'HEAD', '--'], $pathspecs),
+            $root
+        );
+        if ($tarArchive['exit'] !== 0 || !is_file($tarPath)) {
+            throw new RuntimeException(
+                'No se pudo generar el TAR temporal de verificación: ' . trim($tarArchive['stderr'])
+            );
+        }
+        $tar = new PharData($tarPath);
+        foreach ($files as $file) {
+            if (!isset($tar[$file])) {
+                throw new RuntimeException('El archivo temporal no contiene: ' . $file);
+            }
+            $blob = $tar[$file]->getContent();
+            $entries[] = [
+                'path' => $file,
+                'bytes' => strlen($blob),
+                'sha256' => hash('sha256', $blob),
+            ];
+        }
+    } finally {
+        unset($tar);
+        if (is_file($tarPath) && !unlink($tarPath)) {
+            throw new RuntimeException('No se pudo eliminar el TAR temporal de verificación.');
+        }
     }
     $zipHash = hash_file('sha256', $zipPath);
     $manifest = [
