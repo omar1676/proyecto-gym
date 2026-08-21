@@ -20,12 +20,15 @@ foreach ($lineas as $linea) {
 }
 
 $clavesEntorno = [
-    'APP_ENV', 'APP_URL', 'APP_NOMBRE', 'APP_LOGO', 'APP_ZONA_HORARIA',
+    'APP_ENV', 'APP_URL', 'APP_NOMBRE', 'APP_LOGO', 'APP_ZONA_HORARIA', 'APP_RELEASE',
     'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASS', 'DB_CHARSET', 'DB_NAME_PRUEBAS',
     'SESION_MINUTOS', 'SESSION_DIR', 'MAIL_FROM', 'MAIL_NOMBRE', 'MAIL_SMTP_HOST', 'MAIL_SMTP_PUERTO',
     'MAIL_SMTP_USUARIO', 'MAIL_SMTP_CLAVE', 'MAIL_SMTP_SEGURIDAD', 'STAGING_MAIL_ALLOWLIST',
     'COPIAS_DIR', 'COPIAS_EXTERNAS_DIR', 'COPIAS_DIARIAS', 'COPIAS_SEMANALES', 'COPIAS_MENSUALES',
+    'BACKUP_EXTERNAL_ENABLED', 'BACKUP_EXTERNAL_REMOTE', 'BACKUP_EXTERNAL_CONFIG',
+    'BACKUP_EXTERNAL_ENCRYPTED', 'BACKUP_EXTERNAL_VERIFY_DIR',
     'LOG_DIR', 'LOG_DIAS', 'LOG_MAX_BYTES', 'LOG_ERRORS_HORA_MAX', 'DISCO_LIBRE_MINIMO_PCT', 'MONITOR_URL',
+    'MONITOR_STATE_DIR', 'MONITOR_ALERT_COOLDOWN_MINUTES', 'MONITOR_ALERT_EMAIL',
     'IMPORT_DIR', 'IMPORT_MAX_BYTES', 'IMPORT_MAX_ROWS', 'IMPORT_RETENTION_DAYS',
     'ACCESS_CONTROL_MODE', 'ACCESS_CONTROL_PROVIDER', 'ACCESS_CONTROL_ACTIVE_CONFIRM',
     'ACCESS_CONTROL_MAX_ATTEMPTS', 'ACCESS_CONTROL_BACKOFF_SECONDS',
@@ -48,6 +51,7 @@ define('DB_CHARSET', $_ENV['DB_CHARSET'] ?? 'utf8mb4');
 define('DB_NAME_PRUEBAS', $_ENV['DB_NAME_PRUEBAS'] ?? (DB_NAME . '_pruebas'));
 
 define('APP_ENV',    $_ENV['APP_ENV']    ?? 'development');
+define('APP_RELEASE', trim((string) ($_ENV['APP_RELEASE'] ?? '')));
 
 // Zona horaria de todo el sistema. Sin fijarla, la caja "del día" y los
 // vencimientos dependen de cómo esté configurado el servidor, que en
@@ -102,6 +106,11 @@ define('COPIAS_EXTERNAS_DIR', trim((string) ($_ENV['COPIAS_EXTERNAS_DIR'] ?? '')
 define('COPIAS_DIARIAS', max(1, (int) ($_ENV['COPIAS_DIARIAS'] ?? 7)));
 define('COPIAS_SEMANALES', max(0, (int) ($_ENV['COPIAS_SEMANALES'] ?? 4)));
 define('COPIAS_MENSUALES', max(0, (int) ($_ENV['COPIAS_MENSUALES'] ?? 6)));
+define('BACKUP_EXTERNAL_ENABLED', filter_var($_ENV['BACKUP_EXTERNAL_ENABLED'] ?? false, FILTER_VALIDATE_BOOLEAN));
+define('BACKUP_EXTERNAL_REMOTE', trim((string) ($_ENV['BACKUP_EXTERNAL_REMOTE'] ?? '')));
+define('BACKUP_EXTERNAL_CONFIG', trim((string) ($_ENV['BACKUP_EXTERNAL_CONFIG'] ?? '')));
+define('BACKUP_EXTERNAL_ENCRYPTED', filter_var($_ENV['BACKUP_EXTERNAL_ENCRYPTED'] ?? false, FILTER_VALIDATE_BOOLEAN));
+define('BACKUP_EXTERNAL_VERIFY_DIR', trim((string) ($_ENV['BACKUP_EXTERNAL_VERIFY_DIR'] ?? '')));
 
 define('LOG_DIR', ($_ENV['LOG_DIR'] ?? '') ?: (__DIR__ . '/../../storage/logs'));
 define('LOG_DIAS', max(1, (int) ($_ENV['LOG_DIAS'] ?? 30)));
@@ -109,6 +118,9 @@ define('LOG_MAX_BYTES', max(1048576, (int) ($_ENV['LOG_MAX_BYTES'] ?? 10485760))
 define('LOG_ERRORS_HORA_MAX', max(1, (int) ($_ENV['LOG_ERRORS_HORA_MAX'] ?? 50)));
 define('DISCO_LIBRE_MINIMO_PCT', max(1, min(50, (int) ($_ENV['DISCO_LIBRE_MINIMO_PCT'] ?? 15))));
 define('MONITOR_URL', rtrim((string) ($_ENV['MONITOR_URL'] ?? ''), '/'));
+define('MONITOR_STATE_DIR', trim((string) ($_ENV['MONITOR_STATE_DIR'] ?? '')));
+define('MONITOR_ALERT_COOLDOWN_MINUTES', max(5, min(1440, (int) ($_ENV['MONITOR_ALERT_COOLDOWN_MINUTES'] ?? 60))));
+define('MONITOR_ALERT_EMAIL', trim((string) ($_ENV['MONITOR_ALERT_EMAIL'] ?? '')));
 
 // Staging temporal de importaciones. Debe vivir fuera de public/ y se limpia
 // automáticamente al vencer cada batch.

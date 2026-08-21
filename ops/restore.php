@@ -2,7 +2,7 @@
 require_once dirname(__DIR__) . '/app/config/config.php';
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 
-$options = getopt('', ['database:', 'target:', 'files::', 'files-target::', 'recreate']);
+$options = getopt('', ['database:', 'target:', 'files::', 'files-target::', 'recreate', 'existing-empty']);
 $backup = isset($options['database']) ? realpath((string) $options['database']) : false;
 $target = (string) ($options['target'] ?? '');
 if (!$backup || !is_file($backup)) { fwrite(STDERR, "Falta --database=<dump.sql[.gz]> válido.\n"); exit(1); }
@@ -14,9 +14,16 @@ try {
     $dsn = 'mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';charset=' . DB_CHARSET;
     $admin = new PDO($dsn, DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false]);
     $exists = (int) $admin->query("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name=" . $admin->quote($target))->fetchColumn();
-    if ($exists && !isset($options['recreate'])) throw new RuntimeException('La base destino ya existe; usa otra o --recreate explícitamente.');
-    if ($exists) $admin->exec('DROP DATABASE `' . $target . '`');
-    $admin->exec('CREATE DATABASE `' . $target . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    $existingEmpty = isset($options['existing-empty']);
+    if ($existingEmpty) {
+        if (!$exists) throw new RuntimeException('--existing-empty exige una base temporal precreada.');
+        $tablesExisting = (int) $admin->query('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=' . $admin->quote($target))->fetchColumn();
+        if ($tablesExisting !== 0) throw new RuntimeException('La base temporal precreada no está vacía.');
+    } else {
+        if ($exists && !isset($options['recreate'])) throw new RuntimeException('La base destino ya existe; usa otra, --existing-empty o --recreate explícitamente.');
+        if ($exists) $admin->exec('DROP DATABASE `' . $target . '`');
+        $admin->exec('CREATE DATABASE `' . $target . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    }
     $db = new PDO($dsn . ';dbname=' . $target, DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false]);
     importSql($db, $backup);
     $tables = (int) $db->query('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()')->fetchColumn();

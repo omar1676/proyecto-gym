@@ -1,0 +1,19 @@
+[Unit]
+Description=Gimnera - mantenimiento técnico seguro
+After=mariadb.service
+Requires=mariadb.service
+ConditionPathExists=/var/www/gimnasio/current/.env
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/gimnasio/current
+ExecStart=/usr/bin/php /var/www/gimnasio/current/cron/mantenimiento.php
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/gimnasio/shared
+CapabilityBoundingSet=

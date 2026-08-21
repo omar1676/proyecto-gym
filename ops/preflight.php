@@ -7,13 +7,17 @@ $check = function (string $name, bool $ok, string $detail = '') use (&$results):
 $check('PHP >= 8.1', PHP_VERSION_ID >= 80100, PHP_VERSION);
 foreach (['pdo_mysql','mbstring','openssl','fileinfo','curl','dom','simplexml','zlib'] as $ext) $check('ext-' . $ext, extension_loaded($ext));
 $check('APP_ENV válido', in_array(APP_ENV, ['development','test','staging','production'], true), APP_ENV);
+$check('release identificada', !in_array(APP_ENV, ['staging','production'], true) || APP_RELEASE !== '', APP_RELEASE === '' ? 'PENDIENTE' : APP_RELEASE);
 $check('base test separada', DB_NAME_PRUEBAS !== '' && DB_NAME_PRUEBAS !== DB_NAME);
 $check('URL HTTPS entorno protegido', !in_array(APP_ENV, ['staging','production'], true) || str_starts_with(APP_URL, 'https://'), APP_URL);
 $check('base staging identificable', APP_ENV !== 'staging' || (stripos(DB_NAME, 'staging') !== false && DB_NAME !== DB_NAME_PRUEBAS), DB_NAME);
 $check('acceso físico deshabilitado en staging', APP_ENV !== 'staging' || ACCESS_CONTROL_MODE === 'disabled', ACCESS_CONTROL_MODE);
 $check('.env no versionado', trim((string) shell_exec('git -C ' . escapeshellarg($root) . ' ls-files .env')) === '');
 $check('document root public', realpath($root . '/public') !== false);
-$check('copia externa configurada', COPIAS_EXTERNAS_DIR !== '' && is_dir(COPIAS_EXTERNAS_DIR), COPIAS_EXTERNAS_DIR === '' ? 'PENDIENTE' : COPIAS_EXTERNAS_DIR);
+$externalConfigured = (COPIAS_EXTERNAS_DIR !== '' && is_dir(COPIAS_EXTERNAS_DIR))
+    || (BACKUP_EXTERNAL_ENABLED && BACKUP_EXTERNAL_ENCRYPTED && BACKUP_EXTERNAL_REMOTE !== ''
+        && BACKUP_EXTERNAL_CONFIG !== '' && is_file(BACKUP_EXTERNAL_CONFIG));
+$check('copia externa configurada', $externalConfigured, $externalConfigured ? 'configurada' : 'PENDIENTE');
 $check('sin backup local de secretos en release', !is_file($root . '/.env.produccion.bak'));
 $check('sin repositorio de respaldo en release', !is_dir($root . '/.git.bak'));
 $check('sin ZIP histórico de inscripciones', !is_file($root . '/recursos/inscripciones.zip'));
@@ -21,8 +25,12 @@ $check('sin instalador en release', !is_file($root . '/instalar.php'));
 foreach ([LOG_DIR, COPIAS_DIR, IMPORT_DIR, $root . '/public/assets/fotos', $root . '/public/assets/productos', $root . '/public/assets/gimnasios'] as $dir) {
     $check('escritura ' . str_replace($root, '<root>', $dir), is_dir($dir) && is_writable($dir));
 }
+foreach (array_filter([MONITOR_STATE_DIR, BACKUP_EXTERNAL_VERIFY_DIR]) as $dir) {
+    $check('escritura ' . str_replace($root, '<root>', $dir), is_dir($dir) && is_writable($dir));
+}
 if (SESSION_DIR !== '') $check('escritura SESSION_DIR', is_dir(SESSION_DIR) && is_writable(SESSION_DIR));
 $check('SESSION_DIR propio de staging', APP_ENV !== 'staging' || (SESSION_DIR !== '' && stripos(SESSION_DIR, 'staging') !== false), SESSION_DIR ?: 'PENDIENTE');
+$check('monitor HTTPS staging', APP_ENV !== 'staging' || (MONITOR_URL !== '' && str_starts_with(MONITOR_URL, 'https://')), MONITOR_URL ?: 'PENDIENTE');
 $paths = [LOG_DIR, COPIAS_DIR, IMPORT_DIR, SESSION_DIR];
 $paths = array_values(array_filter(array_map(static fn($path) => rtrim(str_replace('\\', '/', (string) $path), '/'), $paths)));
 $check('almacenamientos staging separados', APP_ENV !== 'staging' || (count($paths) === 4 && count(array_unique($paths)) === 4), implode(', ', $paths));

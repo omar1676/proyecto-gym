@@ -1,0 +1,20 @@
+[Unit]
+Description=Gimnera - monitor técnico de staging
+After=network-online.target nginx.service php8.3-fpm.service mariadb.service
+Wants=network-online.target
+ConditionPathExists=/var/www/gimnasio/current/.env
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/gimnasio/current
+ExecStart=/usr/bin/php /var/www/gimnasio/current/cron/monitor.php
+SuccessExitStatus=1 2
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/gimnasio/shared
+CapabilityBoundingSet=

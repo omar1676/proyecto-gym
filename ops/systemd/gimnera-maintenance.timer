@@ -1,0 +1,11 @@
+[Unit]
+Description=Gimnera - mantenimiento técnico diario
+
+[Timer]
+OnCalendar=*-*-* 02:40:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+Unit=gimnera-maintenance.service
+
+[Install]
+WantedBy=timers.target

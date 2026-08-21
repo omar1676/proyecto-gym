@@ -19,6 +19,7 @@
 require_once __DIR__ . '/../app/config/config.php';
 require_once __DIR__ . '/../app/config/database.php';
 require_once __DIR__ . '/../app/helpers/BackupStorage.php';
+require_once __DIR__ . '/../app/helpers/BackupManifest.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
 
 if (PHP_SAPI !== 'cli') {
@@ -37,12 +38,17 @@ catch (Throwable $e) { AppLogger::error('backup_database_failed', ['reason' => $
 // volcado entero (con los IBAN dentro) quedaría descargable desde la web.
 protegerCarpeta($destino);
 
-$archivo = $destino . DIRECTORY_SEPARATOR . 'backup_db_' . date('Y-m-d_His') . '.sql';
+$archivo = $destino . DIRECTORY_SEPARATOR . 'backup_db_' . gmdate('Y-m-d_His\Z') . '.sql';
 
 // Con --php se salta mysqldump. Sirve para comprobar que la vía de emergencia
 // funciona en este servidor ANTES de necesitarla.
 $forzarPhp = in_array('--php', $argv ?? [], true);
-$hecho = (!$forzarPhp && volcarConMysqldump($archivo)) || volcarConPhp($archivo);
+$metodo = 'mysqldump-single-transaction';
+$hecho = !$forzarPhp && volcarConMysqldump($archivo);
+if (!$hecho) {
+    $metodo = 'php-consistent-snapshot';
+    $hecho = volcarConPhp($archivo);
+}
 
 if (!$hecho || !is_file($archivo) || filesize($archivo) === 0) {
     @unlink($archivo);
@@ -60,6 +66,10 @@ if (!validarDump($archivo)) {
 }
 try {
     $hash = BackupStorage::checksum($archivo);
+    BackupManifest::writeForArtifact($archivo, 'database', [
+        'dump_method' => $metodo,
+        'consistent_snapshot' => true,
+    ]);
     $externa = BackupStorage::externalCopy($archivo);
     $borradas = BackupStorage::rotate($destino, 'backup_db_');
     if ($externa !== null) BackupStorage::rotate(COPIAS_EXTERNAS_DIR, 'backup_db_');
@@ -71,7 +81,7 @@ try {
 
 AppLogger::info('backup_database_ok', [
     'file' => basename($archivo), 'bytes' => filesize($archivo),
-    'sha256' => $hash, 'external' => $externa !== null, 'deleted' => $borradas,
+    'sha256' => $hash, 'method' => $metodo, 'external' => $externa !== null, 'deleted' => $borradas,
 ]);
 
 printf(
@@ -138,10 +148,12 @@ function volcarConPhp(string $archivo): bool
         return false;
     }
 
-    fwrite($f, "-- Copia de " . DB_NAME . " generada el " . date('d/m/Y H:i:s') . "\n");
+    fwrite($f, "-- Copia de " . DB_NAME . " generada UTC " . gmdate('Y-m-d H:i:s') . "\n");
     fwrite($f, "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\n\n");
 
     try {
+        $db->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+        $db->beginTransaction();
         $tablas = $db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
 
         foreach ($tablas as $tabla) {
@@ -169,10 +181,12 @@ function volcarConPhp(string $archivo): bool
         }
 
         fwrite($f, "SET FOREIGN_KEY_CHECKS = 1;\n");
+        $db->commit();
         fclose($f);
         return true;
 
     } catch (\PDOException $e) {
+        if ($db->inTransaction()) $db->rollBack();
         fclose($f);
         error_log('copia_seguridad: ' . $e->getMessage());
         return false;

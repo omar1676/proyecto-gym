@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../app/config/config.php';
 require_once __DIR__ . '/../app/helpers/BackupStorage.php';
+require_once __DIR__ . '/../app/helpers/BackupManifest.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
 
 if (PHP_SAPI !== 'cli') { http_response_code(403); fwrite(STDERR, "Solo CLI.\n"); exit(1); }
@@ -9,7 +10,7 @@ $root = dirname(__DIR__);
 $dest = rtrim(COPIAS_DIR, '/\\');
 try {
     BackupStorage::ensureDirectory($dest);
-    $base = $dest . DIRECTORY_SEPARATOR . 'backup_files_' . date('Y-m-d_His');
+    $base = $dest . DIRECTORY_SEPARATOR . 'backup_files_' . gmdate('Y-m-d_His\Z');
     $tarPath = $base . '.tar';
     $archive = new PharData($tarPath);
     $roots = ['public/assets/fotos', 'public/assets/productos', 'public/assets/gimnasios', 'public/assets/marca'];
@@ -31,7 +32,10 @@ try {
             $files[] = ['path' => $relative, 'bytes' => filesize($root . DIRECTORY_SEPARATOR . $relative), 'sha256' => hash_file('sha256', $root . DIRECTORY_SEPARATOR . $relative)];
         }
     }
-    $archive->addFromString('BACKUP_MANIFEST.json', json_encode(['created_at' => date(DATE_ATOM), 'files' => $files], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    $archive->addFromString('BACKUP_MANIFEST.json', json_encode(array_merge(
+        BackupManifest::identity(),
+        ['kind' => 'files', 'file_count' => count($files), 'files' => $files]
+    ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     $archive->compress(Phar::GZ);
     unset($archive);
     @unlink($tarPath);
@@ -40,6 +44,7 @@ try {
     if (!isset($check['BACKUP_MANIFEST.json']) || count($files) === 0) throw new RuntimeException('El archivo no contiene manifiesto o está vacío.');
     unset($check);
     $hash = BackupStorage::checksum($file);
+    BackupManifest::writeForArtifact($file, 'files', ['file_count' => count($files)]);
     $external = BackupStorage::externalCopy($file);
     $deleted = BackupStorage::rotate($dest, 'backup_files_');
     if ($external !== null) BackupStorage::rotate(COPIAS_EXTERNAS_DIR, 'backup_files_');

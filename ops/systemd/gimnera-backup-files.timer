@@ -1,0 +1,11 @@
+[Unit]
+Description=Gimnera - backup diario de archivos
+
+[Timer]
+OnCalendar=*-*-* 02:20:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+Unit=gimnera-backup-files.service
+
+[Install]
+WantedBy=timers.target
