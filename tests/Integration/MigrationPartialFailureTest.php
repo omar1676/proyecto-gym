@@ -3,7 +3,7 @@ require_once dirname(__DIR__) . '/bootstrap.php';
 require_once dirname(__DIR__) . '/Support/SchemaMigrationTestFactory.php';
 
 $fixture = SchemaMigrationTestFactory::create('partial_failure');
-$migrationDir = sys_get_temp_dir() . '/gimnera_f19_migrations_' . bin2hex(random_bytes(6));
+$migrationDir = sys_get_temp_dir() . '/gimnera_f20_migrations_' . bin2hex(random_bytes(6));
 try {
     SchemaMigrationTestFactory::copyMigrationsThrough($migrationDir, 24);
     file_put_contents(

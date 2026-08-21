@@ -10,7 +10,7 @@ final class SchemaMigrationTestFactory
             throw new RuntimeException('Las pruebas de migración exigen APP_ENV=test.');
         }
         $purpose = strtolower(preg_replace('/[^a-z0-9]+/i', '_', $purpose) ?: 'schema');
-        $name = substr('gimnera_f19_test_' . $purpose . '_' . bin2hex(random_bytes(5)), 0, 60);
+        $name = substr('gimnera_f20_test_' . $purpose . '_' . bin2hex(random_bytes(5)), 0, 60);
         if (!preg_match('/test/i', $name) || $name === DB_NAME) {
             throw new RuntimeException('Nombre inseguro para base temporal.');
         }
@@ -112,8 +112,8 @@ final class SchemaMigrationTestFactory
     public static function drop(array $fixture): void
     {
         $name = (string) ($fixture['name'] ?? '');
-        if (!preg_match('/^gimnera_f19_test_[a-z0-9_]+$/', $name)) {
-            throw new RuntimeException('Se rechazó borrar una base fuera del patrón F19.');
+        if (!preg_match('/^gimnera_f20_test_[a-z0-9_]+$/', $name)) {
+            throw new RuntimeException('Se rechazó borrar una base fuera del patrón F20.');
         }
         $fixture['db'] = null;
         $fixture['admin']->exec('DROP DATABASE IF EXISTS ' . self::quoted($name));

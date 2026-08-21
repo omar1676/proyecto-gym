@@ -56,7 +56,7 @@ if (!preg_match('/(?:test|prueba)/i', DB_NAME_PRUEBAS)) {
 
 $temporaryFailure = null;
 if ($injectFailure) {
-    $temporaryFailure = tempnam(sys_get_temp_dir(), 'gimnera_f19_deliberate_fail_');
+    $temporaryFailure = tempnam(sys_get_temp_dir(), 'gimnera_f20_deliberate_fail_');
     if ($temporaryFailure === false) {
         fwrite(STDERR, "No se pudo crear el test de fallo deliberado.\n");
         exit(2);
@@ -102,13 +102,13 @@ function suiteDatabaseName(string $base, string $suite, string $runId): string
 {
     $prefix = strtolower(preg_replace('/[^a-z0-9_]+/i', '_', $base) ?: 'gimnera_test');
     $suite = strtolower(preg_replace('/[^a-z0-9]+/i', '_', $suite) ?: 'suite');
-    return substr($prefix . '_f19_' . $suite . '_' . $runId . '_test', 0, 60);
+    return substr($prefix . '_f20_' . $suite . '_' . $runId . '_test', 0, 60);
 }
 
 function dropSuiteDatabase(string $database): void
 {
-    if (!preg_match('/^[a-z0-9_]*f19_[a-z0-9_]+_test$/i', $database) || !preg_match('/test/i', $database)) {
-        throw new RuntimeException('Se rechazó limpiar una base fuera del patrón temporal F19.');
+    if (!preg_match('/^[a-z0-9_]*f20_[a-z0-9_]+_test$/i', $database) || !preg_match('/test/i', $database)) {
+        throw new RuntimeException('Se rechazó limpiar una base fuera del patrón temporal F20.');
     }
     $admin = new PDO(
         'mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';charset=' . DB_CHARSET,
@@ -190,7 +190,7 @@ try {
             dropSuiteDatabase($database);
         } catch (Throwable $e) {
             $failed[] = 'CLEANUP:' . $database;
-            fwrite(STDERR, 'No se pudo limpiar una base temporal F19: ' . $e->getMessage() . "\n");
+            fwrite(STDERR, 'No se pudo limpiar una base temporal F20: ' . $e->getMessage() . "\n");
         }
     }
     if ($temporaryFailure !== null && is_file($temporaryFailure)) {
