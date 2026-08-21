@@ -223,7 +223,7 @@ final class MigrationService
                 }
                 $stmt = $this->db->prepare(
                     'INSERT INTO migration_batch_row
-                     (id_batch,row_number,row_hash,external_id,classification,status,normalized_json,internal_id)
+                     (id_batch,`row_number`,row_hash,external_id,classification,status,normalized_json,internal_id)
                      VALUES (:b,:n,:h,:x,:c,:s,:j,:i)'
                 );
                 $stmt->execute([
@@ -438,7 +438,7 @@ final class MigrationService
             while (true) {
                 $stmt = $this->db->prepare(
                     "SELECT * FROM migration_batch_row WHERE id_batch=:b AND status IN ('ready','link')
-                     ORDER BY row_number LIMIT {$chunkSize}"
+                     ORDER BY `row_number` LIMIT {$chunkSize}"
                 );
                 $stmt->execute([':b'=>$batch['id_batch']]);
                 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -605,8 +605,8 @@ final class MigrationService
     {
         $batch = $this->getBatch($uuid);
         $stmt = $this->db->prepare(
-            'SELECT row_number,severity,field_name,problem_code,message,value_excerpt,proposed_action
-             FROM migration_batch_issue WHERE id_batch=:b ORDER BY row_number,id_issue LIMIT 500'
+            'SELECT `row_number`,severity,field_name,problem_code,message,value_excerpt,proposed_action
+             FROM migration_batch_issue WHERE id_batch=:b ORDER BY `row_number`,id_issue LIMIT 500'
         );
         $stmt->execute([':b'=>$batch['id_batch']]);
         return ['batch'=>$batch,'issues'=>$stmt->fetchAll(PDO::FETCH_ASSOC)];
@@ -657,7 +657,7 @@ final class MigrationService
     {
         $stmt = $this->db->prepare(
             'INSERT INTO migration_batch_issue
-             (id_batch,row_number,severity,field_name,problem_code,message,value_excerpt,proposed_action)
+             (id_batch,`row_number`,severity,field_name,problem_code,message,value_excerpt,proposed_action)
              VALUES (:b,:r,:s,:f,:c,:m,:v,:a)'
         );
         $stmt->execute([':b'=>$batchId,':r'=>max(1,$row),':s'=>$severity,':f'=>$field,

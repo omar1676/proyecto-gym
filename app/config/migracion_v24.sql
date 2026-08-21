@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS migration_batch (
 CREATE TABLE IF NOT EXISTS migration_batch_issue (
     id_issue BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     id_batch BIGINT UNSIGNED NOT NULL,
-    row_number INT UNSIGNED NOT NULL,
+    `row_number` INT UNSIGNED NOT NULL,
     severity ENUM('ERROR','WARNING') NOT NULL,
     field_name VARCHAR(64) NULL,
     problem_code VARCHAR(80) NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS migration_batch_issue (
     proposed_action VARCHAR(255) NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id_issue),
-    KEY idx_migration_issue_batch_row (id_batch, row_number),
+    KEY idx_migration_issue_batch_row (id_batch, `row_number`),
     CONSTRAINT fk_migration_issue_batch
         FOREIGN KEY (id_batch) REFERENCES migration_batch(id_batch) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS migration_batch_issue (
 CREATE TABLE IF NOT EXISTS migration_batch_row (
     id_row BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     id_batch BIGINT UNSIGNED NOT NULL,
-    row_number INT UNSIGNED NOT NULL,
+    `row_number` INT UNSIGNED NOT NULL,
     row_hash CHAR(64) NOT NULL,
     external_id VARCHAR(190) NULL,
     classification ENUM(
@@ -85,8 +85,8 @@ CREATE TABLE IF NOT EXISTS migration_batch_row (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id_row),
-    UNIQUE KEY uq_migration_row_number (id_batch, row_number),
-    KEY idx_migration_row_pending (id_batch, status, row_number),
+    UNIQUE KEY uq_migration_row_number (id_batch, `row_number`),
+    KEY idx_migration_row_pending (id_batch, status, `row_number`),
     KEY idx_migration_row_external (id_batch, external_id),
     CONSTRAINT fk_migration_row_batch
         FOREIGN KEY (id_batch) REFERENCES migration_batch(id_batch) ON DELETE CASCADE
