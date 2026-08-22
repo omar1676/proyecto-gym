@@ -16,6 +16,8 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../helpers/PrivatePhotoStorage.php';
+require_once __DIR__ . '/../helpers/TenantLifecyclePolicy.php';
+require_once __DIR__ . '/../helpers/SafeException.php';
 
 class UserModel {
     private $db;
@@ -61,6 +63,11 @@ class UserModel {
         return '';
     }
 
+    private function acquireBusinessWrite(): ?TenantLifecycleLease {
+        if ($this->idEmpresa === null) return null; // identidad global de plataforma
+        return TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
+    }
+
     /**
      * Alta de socio. La sede sale del propio modelo, así que un socio siempre
      * nace en el gimnasio desde el que se le da de alta.
@@ -76,6 +83,7 @@ class UserModel {
         ?string $iban = null,
         ?string $foto = null
     ): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         $hash = password_hash($contrasena, PASSWORD_BCRYPT, ['cost' => 12]);
         try {
             $stmt = $this->db->prepare(
@@ -98,7 +106,7 @@ class UserModel {
                 ':id_gimnasio' => $this->idGimnasio,
             ]);
         } catch (\PDOException $e) {
-            error_log('UserModel::crear error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.crear');
             return false;
         }
     }
@@ -171,7 +179,7 @@ class UserModel {
             $row = $stmt->fetch();
             return $row ?: null;
         } catch (\PDOException $e) {
-            error_log('UserModel::buscarPorTokenReset error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.buscarPorTokenReset');
             return null;
         }
     }
@@ -208,6 +216,7 @@ class UserModel {
         string $correo,
         ?string $iban
     ): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
                 'UPDATE usuario SET
@@ -227,19 +236,20 @@ class UserModel {
                 ':id'        => $id,
             ]);
         } catch (\PDOException $e) {
-            error_log('UserModel::actualizarDatosSocio error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.actualizarDatosSocio');
             return false;
         }
     }
 
     public function actualizarIban(int $id, ?string $iban): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
                 'UPDATE usuario SET iban = :iban WHERE id_usuario = :id' . $this->filtroSede()
             );
             return $stmt->execute([':iban' => $iban, ':id' => $id]);
         } catch (\PDOException $e) {
-            error_log('UserModel::actualizarIban error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.actualizarIban');
             return false;
         }
     }
@@ -262,6 +272,7 @@ class UserModel {
         string $rol,
         ?int $idGimnasio
     ): ?int {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         if (!in_array($rol, ['admin', 'recepcion'], true)) {
             return null;
         }
@@ -287,7 +298,7 @@ class UserModel {
             ]);
             return (int) $this->db->lastInsertId();
         } catch (\PDOException $e) {
-            error_log('UserModel::crearEmpleado error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.crearEmpleado');
             return null;
         }
     }
@@ -316,7 +327,7 @@ class UserModel {
             $stmt->execute($params);
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
-            error_log('UserModel::listarEmpleados error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.listarEmpleados');
             return [];
         }
     }
@@ -334,6 +345,7 @@ class UserModel {
         string $rol,
         ?int $idGimnasio
     ): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         if (!in_array($rol, ['direccion', 'admin', 'recepcion'], true)) {
             return false;
         }
@@ -368,7 +380,7 @@ class UserModel {
                 ':id'          => $id,
             ]);
         } catch (\PDOException $e) {
-            error_log('UserModel::actualizarEmpleado error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.actualizarEmpleado');
             return false;
         }
     }
@@ -383,7 +395,7 @@ class UserModel {
             $stmt->execute([':id' => $excluirId]);
             return (int) $stmt->fetchColumn();
         } catch (\PDOException $e) {
-            error_log('UserModel::contarGestoresActivos error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.contarGestoresActivos');
             return 0;
         }
     }
@@ -427,6 +439,7 @@ class UserModel {
 
     /** Devuelve false si el usuario no es de esta sede y no se ha tocado nada. */
     public function toggleActivo(int $id): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         $stmt = $this->db->prepare(
             'UPDATE usuario SET
                 sesiones_desde = CASE
@@ -455,6 +468,7 @@ class UserModel {
         string $correo,
         ?string $foto = null
     ): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         $sql = 'UPDATE usuario SET
                     nombre    = :nombre,
                     apellidos = :apellidos,
@@ -475,7 +489,7 @@ class UserModel {
         try {
             return $this->db->prepare($sql)->execute($params);
         } catch (\PDOException $e) {
-            error_log('UserModel::actualizarPerfil error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.actualizarPerfil');
             return false;
         }
     }
@@ -488,6 +502,7 @@ class UserModel {
      * uno espera al cambiar la clave porque cree que alguien ha entrado.
      */
     public function cambiarContrasena(int $id, string $nuevaContrasena): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         $hash = password_hash($nuevaContrasena, PASSWORD_BCRYPT, ['cost' => 12]);
         try {
             $stmt = $this->db->prepare(
@@ -495,22 +510,24 @@ class UserModel {
             );
             return $stmt->execute([':hash' => $hash, ':id' => $id]);
         } catch (\PDOException $e) {
-            error_log('UserModel::cambiarContrasena error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.cambiarContrasena');
             return false;
         }
     }
 
     public function actualizarFoto(int $id, string $foto): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare('UPDATE usuario SET foto = :foto WHERE id_usuario = :id');
             return $stmt->execute([':foto' => $foto, ':id' => $id]);
         } catch (\PDOException $e) {
-            error_log('UserModel::actualizarFoto error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.actualizarFoto');
             return false;
         }
     }
 
     public function guardarTokenReset(int $idUsuario, string $token, string $expiraDateTime): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
                 'UPDATE usuario SET reset_token = :token, reset_expira = :expira WHERE id_usuario = :id'
@@ -521,25 +538,27 @@ class UserModel {
                 ':id'     => $idUsuario,
             ]);
         } catch (\PDOException $e) {
-            error_log('UserModel::guardarTokenReset error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.guardarTokenReset');
             return false;
         }
     }
 
     public function limpiarTokenReset(int $idUsuario): void {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
                 'UPDATE usuario SET reset_token = NULL, reset_expira = NULL WHERE id_usuario = :id'
             );
             $stmt->execute([':id' => $idUsuario]);
         } catch (\PDOException $e) {
-            error_log('UserModel::limpiarTokenReset error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.limpiarTokenReset');
         }
     }
 
     /** Invalida solo el token que originó el intento; no pisa uno posterior. */
     public function invalidarTokenReset(int $idUsuario, string $token): bool
     {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         $stmt = $this->db->prepare(
             'UPDATE usuario
                 SET reset_token = NULL, reset_expira = NULL
@@ -561,6 +580,7 @@ class UserModel {
      */
     public function consumirTokenReset(string $token, string $nuevaContrasena): ?array
     {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         if ($token === '') {
             return null;
         }
@@ -627,6 +647,7 @@ class UserModel {
      * borra nada. El filtro de sede impide marcar a un socio de otro gimnasio.
      */
     public function marcarBaja(int $id, int $idAdmin): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
                 "UPDATE usuario
@@ -637,13 +658,14 @@ class UserModel {
             $stmt->execute([':admin' => $idAdmin, ':id' => $id]);
             return $stmt->rowCount() > 0;
         } catch (\PDOException $e) {
-            error_log('UserModel::marcarBaja error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.marcarBaja');
             return false;
         }
     }
 
     /** Quita la marca de baja: el socio se queda como estaba. */
     public function desmarcarBaja(int $id): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
                 "UPDATE usuario
@@ -653,7 +675,7 @@ class UserModel {
             $stmt->execute([':id' => $id]);
             return $stmt->rowCount() > 0;
         } catch (\PDOException $e) {
-            error_log('UserModel::desmarcarBaja error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.desmarcarBaja');
             return false;
         }
     }
@@ -673,7 +695,7 @@ class UserModel {
             $stmt->execute();
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
-            error_log('UserModel::listarBajasPendientes error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.listarBajasPendientes');
             return [];
         }
     }
@@ -693,6 +715,7 @@ class UserModel {
      * Devuelve el nombre que tenía (para el log) o null si no se pudo.
      */
     public function anonimizar(int $id): ?string {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         $socio = $this->buscarPorId($id);
         if (!$socio || ($socio['rol'] ?? '') !== 'socio' || !empty($socio['anonimizado_en'])) {
             return null;
@@ -731,12 +754,13 @@ class UserModel {
             }
             return $nombrePrevio;
         } catch (\PDOException $e) {
-            error_log('UserModel::anonimizar error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.anonimizar');
             return null;
         }
     }
 
     public function eliminarUsuario(int $id): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         $usuario = $this->buscarPorId($id);
         if (!$usuario) return false;
         try {
@@ -749,7 +773,7 @@ class UserModel {
                     $stmt = $this->db->prepare("DELETE FROM {$tabla} WHERE id_usuario = :id");
                     $stmt->execute([':id' => $id]);
                 } catch (\PDOException $e) {
-                    error_log("UserModel::eliminarUsuario aviso ({$tabla}): " . $e->getMessage());
+                    SafeException::log('user_model_legacy_cleanup_failed', $e, 'UserModel.eliminarUsuario.' . $tabla);
                 }
             }
 
@@ -757,7 +781,7 @@ class UserModel {
                 $stmt = $this->db->prepare('UPDATE curso SET id_profesor = NULL WHERE id_profesor = :id');
                 $stmt->execute([':id' => $id]);
             } catch (\PDOException $e) {
-                error_log('UserModel::eliminarUsuario aviso (curso.id_profesor): ' . $e->getMessage());
+                SafeException::log('user_model_legacy_cleanup_failed', $e, 'UserModel.eliminarUsuario.curso');
             }
 
             $stmt = $this->db->prepare('DELETE FROM usuario WHERE id_usuario = :id');
@@ -774,7 +798,7 @@ class UserModel {
             return false;
         } catch (\PDOException $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
-            error_log('UserModel::eliminarUsuario error: ' . $e->getMessage());
+            SafeException::log('user_model_failed', $e, 'UserModel.eliminarUsuario');
             return false;
         }
     }

@@ -16,6 +16,7 @@
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/ClientIp.php';
+require_once __DIR__ . '/SafeException.php';
 
 class Sesion
 {
@@ -122,7 +123,7 @@ class Sesion
         } catch (\Throwable $e) {
             // Si la base no responde, no se echa a nadie: peor sería dejar el
             // panel inservible por un problema de conexión.
-            error_log('Sesion::comprobarContrasenaCambiada: ' . $e->getMessage());
+            SafeException::log('session_revocation_check_failed', $e, 'Sesion.comprobarContrasenaCambiada');
             return;
         }
 

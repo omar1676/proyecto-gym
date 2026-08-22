@@ -22,6 +22,7 @@ require_once __DIR__ . '/../app/helpers/BackupStorage.php';
 require_once __DIR__ . '/../app/helpers/BackupManifest.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
 require_once __DIR__ . '/../app/helpers/RequestContext.php';
+require_once __DIR__ . '/../app/helpers/SafeException.php';
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
@@ -34,7 +35,7 @@ $inicio  = microtime(true);
 $destino = rtrim(COPIAS_DIR, "/\\");
 
 try { BackupStorage::ensureDirectory($destino); }
-catch (Throwable $e) { AppLogger::error('backup_database_failed', ['reason' => $e->getMessage()]); fwrite(STDERR, "ERROR: {$e->getMessage()}\n"); exit(1); }
+catch (Throwable $e) { SafeException::log('backup_database_failed', $e, 'cron.copia_seguridad.prepare'); fwrite(STDERR, "ERROR: no se pudo preparar el backup. Consulta el correlation ID del log.\n"); exit(1); }
 
 // Si la carpeta acabara dentro de public/ por un COPIAS_DIR mal puesto, el
 // volcado entero (con los IBAN dentro) quedaría descargable desde la web.
@@ -76,8 +77,8 @@ try {
     $borradas = BackupStorage::rotate($destino, 'backup_db_');
     if ($externa !== null) BackupStorage::rotate(COPIAS_EXTERNAS_DIR, 'backup_db_');
 } catch (Throwable $e) {
-    AppLogger::error('backup_database_failed', ['reason' => $e->getMessage()]);
-    fwrite(STDERR, "ERROR: {$e->getMessage()}\n");
+    SafeException::log('backup_database_failed', $e, 'cron.copia_seguridad.finalize');
+    fwrite(STDERR, "ERROR: no se pudo finalizar el backup. Consulta el correlation ID del log.\n");
     exit(1);
 }
 
@@ -190,7 +191,7 @@ function volcarConPhp(string $archivo): bool
     } catch (\PDOException $e) {
         if ($db->inTransaction()) $db->rollBack();
         fclose($f);
-        error_log('copia_seguridad: ' . $e->getMessage());
+        SafeException::log('backup_database_dump_failed', $e, 'cron.copia_seguridad.php_dump');
         return false;
     }
 }

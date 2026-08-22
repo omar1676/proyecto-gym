@@ -3,6 +3,7 @@ require_once __DIR__ . '/../app/config/config.php';
 require_once __DIR__ . '/../app/config/database.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
 require_once __DIR__ . '/../app/helpers/RequestContext.php';
+require_once __DIR__ . '/../app/helpers/SafeException.php';
 require_once __DIR__ . '/../app/services/MigrationMaintenance.php';
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
 RequestContext::bootstrap('CRON');
@@ -24,6 +25,6 @@ try {
     echo json_encode(['status'=>'ok','database'=>$deleted,'logs_deleted'=>$logsDeleted]) . PHP_EOL;
     exit(0);
 } catch (Throwable $e) {
-    AppLogger::error('maintenance_failed', ['reason'=>$e->getMessage()]);
+    SafeException::log('maintenance_failed', $e, 'cron.mantenimiento');
     fwrite(STDERR, "ERROR de mantenimiento.\n"); exit(1);
 }

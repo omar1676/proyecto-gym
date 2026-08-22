@@ -2,6 +2,7 @@
 require_once dirname(__DIR__) . '/app/config/config.php';
 require_once dirname(__DIR__) . '/app/helpers/BackupStorage.php';
 require_once dirname(__DIR__) . '/app/helpers/AppLogger.php';
+require_once dirname(__DIR__) . '/app/helpers/SafeException.php';
 
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit(1); }
 
@@ -70,8 +71,8 @@ try {
     echo json_encode(['status' => 'verified-external', 'set' => basename($setInput), 'artifacts' => count($artifacts)], JSON_PRETTY_PRINT) . PHP_EOL;
     exit(0);
 } catch (Throwable $e) {
-    AppLogger::error('backup_external_failed', ['reason' => $e->getMessage()]);
-    fwrite(STDERR, 'BACKUP EXTERNO DETENIDO: ' . $e->getMessage() . PHP_EOL);
+    SafeException::log('backup_external_failed', $e, 'ops.backup_external');
+    fwrite(STDERR, "BACKUP EXTERNO DETENIDO. Consulta el correlation ID del log.\n");
     exit(1);
 }
 

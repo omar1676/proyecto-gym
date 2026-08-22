@@ -2,6 +2,7 @@
 
 require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/helpers/Money.php';
+require_once dirname(__DIR__) . '/helpers/TenantLifecyclePolicy.php';
 
 /**
  * Registra el reflejo operativo de ventas y cobros en la caja de una sede.
@@ -48,6 +49,7 @@ final class CashMovementRecorder
         ?string $motivo,
         string $idempotencyKey
     ): int {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->empresaId);
         if ($importeCents === 0) {
             throw new InvalidArgumentException('Un movimiento de caja no puede tener importe cero.');
         }

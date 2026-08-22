@@ -15,6 +15,8 @@
  */
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../helpers/TenantLifecyclePolicy.php';
+require_once __DIR__ . '/../helpers/SafeException.php';
 
 class ProductoModel
 {
@@ -33,6 +35,13 @@ class ProductoModel
         $this->db = Database::getInstance()->getConnection();
         $this->idGimnasio = $idGimnasio;
         $this->idEmpresa = $idEmpresa;
+        // Compatibilidad segura con llamadas históricas que solo pasan sede:
+        // la empresa se calcula en servidor a partir de la relación persistida.
+        if ($this->idEmpresa === null && $this->idGimnasio !== null) {
+            $stmt = $this->db->prepare('SELECT id_empresa FROM gimnasio WHERE id_gimnasio=:id LIMIT 1');
+            $stmt->execute([':id'=>$this->idGimnasio]);
+            $this->idEmpresa = (int) $stmt->fetchColumn() ?: null;
+        }
     }
 
     /**
@@ -69,6 +78,7 @@ class ProductoModel
         ?int $idCategoria,
         float $iva = 21.0
     ): bool {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         if ($idCategoria !== null && !$this->categoriaEnAmbito($idCategoria)) return false;
         try {
             $stmt = $this->db->prepare(
@@ -89,7 +99,7 @@ class ProductoModel
                 ':id_gimnasio'  => $this->idGimnasio,
             ]);
         } catch (\PDOException $e) {
-            error_log('ProductoModel::crear error: ' . $e->getMessage());
+            SafeException::log('product_model_failed', $e, 'ProductoModel.crear');
             return false;
         }
     }
@@ -104,6 +114,7 @@ class ProductoModel
         ?int $idCategoria,
         float $iva = 21.0
     ): bool {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         if ($idCategoria !== null && !$this->categoriaEnAmbito($idCategoria)) return false;
         try {
             $stmt = $this->db->prepare(
@@ -132,20 +143,21 @@ class ProductoModel
             $verificar->execute([':id' => $idProducto]);
             return (bool) $verificar->fetchColumn();
         } catch (\PDOException $e) {
-            error_log('ProductoModel::actualizar error: ' . $e->getMessage());
+            SafeException::log('product_model_failed', $e, 'ProductoModel.actualizar');
             return false;
         }
     }
 
     public function actualizarImagen(int $idProducto, ?string $nombreArchivo): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             $stmt = $this->db->prepare(
                 "UPDATE {$this->tabla} SET imagen = :img WHERE id_producto = :id" . $this->filtroSede('')
             );
             return $stmt->execute([':img' => $nombreArchivo, ':id' => $idProducto]);
         } catch (\PDOException $e) {
-            error_log('ProductoModel::actualizarImagen error: ' . $e->getMessage());
+            SafeException::log('product_model_failed', $e, 'ProductoModel.actualizarImagen');
             return false;
         }
     }
@@ -212,6 +224,7 @@ class ProductoModel
 
     public function crearCategoria(string $nombre): ?int
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         $nombre = trim($nombre);
         if ($this->idEmpresa === null || $nombre === '' || mb_strlen($nombre) > 100) return null;
         try {
@@ -258,13 +271,14 @@ class ProductoModel
                  WHERE p.estado = 'activo'" . $this->filtroSede()
             )->fetchColumn();
         } catch (\PDOException $e) {
-            error_log('ProductoModel::valorInventario error: ' . $e->getMessage());
+            SafeException::log('product_model_failed', $e, 'ProductoModel.valorInventario');
             return 0.0;
         }
     }
 
     public function cambiarEstado(int $idProducto, string $nuevoEstado): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         if (!in_array($nuevoEstado, ['activo', 'inactivo'], true)) {
             return false;
         }
@@ -274,13 +288,14 @@ class ProductoModel
             );
             return $stmt->execute([':estado' => $nuevoEstado, ':id' => $idProducto]);
         } catch (\PDOException $e) {
-            error_log('ProductoModel::cambiarEstado error: ' . $e->getMessage());
+            SafeException::log('product_model_failed', $e, 'ProductoModel.cambiarEstado');
             return false;
         }
     }
 
     public function toggleEstado(int $idProducto): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             $stmt = $this->db->prepare(
                 "UPDATE {$this->tabla}
@@ -290,7 +305,7 @@ class ProductoModel
             $stmt->execute([':id' => $idProducto]);
             return $stmt->rowCount() === 1;
         } catch (\PDOException $e) {
-            error_log('ProductoModel::toggleEstado error: ' . $e->getMessage());
+            SafeException::log('product_model_failed', $e, 'ProductoModel.toggleEstado');
             return false;
         }
     }
@@ -298,6 +313,7 @@ class ProductoModel
     /** Fija el stock a un valor absoluto (reposición manual desde el panel). */
     public function actualizarStock(int $idProducto, int $stock): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             $stmt = $this->db->prepare(
                 "UPDATE {$this->tabla} SET stock = :stock WHERE id_producto = :id" . $this->filtroSede('')
@@ -308,7 +324,7 @@ class ProductoModel
             $guardado = $verificar->fetchColumn();
             return $guardado !== false && (int) $guardado === max(0, $stock);
         } catch (\PDOException $e) {
-            error_log('ProductoModel::actualizarStock error: ' . $e->getMessage());
+            SafeException::log('product_model_failed', $e, 'ProductoModel.actualizarStock');
             return false;
         }
     }
@@ -325,7 +341,7 @@ class ProductoModel
                  ORDER BY p.stock ASC, p.nombre ASC"
             )->fetchAll();
         } catch (\PDOException $e) {
-            error_log('ProductoModel::listarBajoStock error: ' . $e->getMessage());
+            SafeException::log('product_model_failed', $e, 'ProductoModel.listarBajoStock');
             return [];
         }
     }
@@ -338,7 +354,7 @@ class ProductoModel
                  WHERE p.estado = 'activo' AND p.stock <= p.stock_minimo" . $this->filtroSede()
             )->fetchColumn();
         } catch (\PDOException $e) {
-            error_log('ProductoModel::contarBajoStock error: ' . $e->getMessage());
+            SafeException::log('product_model_failed', $e, 'ProductoModel.contarBajoStock');
             return 0;
         }
     }

@@ -4,6 +4,7 @@ require_once __DIR__ . '/../app/helpers/BackupStorage.php';
 require_once __DIR__ . '/../app/helpers/BackupManifest.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
 require_once __DIR__ . '/../app/helpers/RequestContext.php';
+require_once __DIR__ . '/../app/helpers/SafeException.php';
 
 if (PHP_SAPI !== 'cli') { http_response_code(403); fwrite(STDERR, "Solo CLI.\n"); exit(1); }
 RequestContext::bootstrap('CRON');
@@ -65,7 +66,7 @@ try {
     exit(0);
 } catch (Throwable $e) {
     if (isset($tarPath)) { @unlink($tarPath); @unlink($tarPath . '.gz'); }
-    AppLogger::error('backup_files_failed', ['reason' => $e->getMessage()]);
-    fwrite(STDERR, 'ERROR: ' . $e->getMessage() . PHP_EOL);
+    SafeException::log('backup_files_failed', $e, 'cron.copia_archivos');
+    fwrite(STDERR, "ERROR: no se pudo completar el backup de archivos. Consulta el correlation ID del log.\n");
     exit(1);
 }

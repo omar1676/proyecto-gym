@@ -31,6 +31,7 @@ require_once __DIR__ . '/../helpers/Csrf.php';
 require_once __DIR__ . '/../helpers/Sesion.php';
 require_once __DIR__ . '/../helpers/TenantContext.php';
 require_once __DIR__ . '/../helpers/AppLogger.php';
+require_once __DIR__ . '/../helpers/SafeException.php';
 require_once __DIR__ . '/../helpers/Mailer.php';
 require_once __DIR__ . '/../models/LogModel.php';
 require_once __DIR__ . '/../services/PasswordResetDeliveryService.php';
@@ -286,7 +287,7 @@ class AuthController {
             $db->prepare("INSERT INTO intentos_gimnasio (ip_address, email) VALUES (:ip, :email)")
                ->execute([':ip' => $ip, ':email' => mb_substr($email, 0, 255)]);
         } catch (\PDOException $e) {
-            error_log('registrarIntentoGimnasio error: ' . $e->getMessage());
+            SafeException::log('gym_login_rate_limit_failed', $e, 'AuthController.registrarIntentoGimnasio');
         }
     }
 
@@ -304,7 +305,7 @@ class AuthController {
             $conteos = $stmt->fetch();
             return (int) ($conteos['por_email'] ?? 0) >= $maximo || (int) ($conteos['por_ip'] ?? 0) >= 30;
         } catch (\PDOException $e) {
-            error_log('intentosGimnasioBloqueado error: ' . $e->getMessage());
+            SafeException::log('gym_login_rate_limit_failed', $e, 'AuthController.intentosGimnasioBloqueado');
             return false;
         }
     }

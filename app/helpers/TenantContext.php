@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/TenantLifecyclePolicy.php';
 
 /** Contexto de autorización calculado en servidor para la petición actual. */
 final class TenantContext
@@ -68,9 +69,10 @@ final class TenantContext
         if ($empresa <= 0) {
             return new self($db, 0, '', null, null);
         }
-        $stmt = $db->prepare("SELECT 1 FROM empresa WHERE id_empresa = :id AND estado = 'activa'");
+        $stmt = $db->prepare('SELECT estado,onboarding_state FROM empresa WHERE id_empresa = :id');
         $stmt->execute([':id' => $empresa]);
-        if (!$stmt->fetchColumn()) {
+        $empresaState = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$empresaState || !TenantLifecyclePolicy::allows($empresaState, TenantLifecyclePolicy::LOGIN)) {
             return new self($db, 0, '', null, null);
         }
         $sede = null;

@@ -45,7 +45,9 @@ $companyB = (int) $b['company_id'];
 $catB = (int) $db->query("SELECT id_categoria FROM categoria_producto WHERE id_empresa={$companyB} ORDER BY id_categoria LIMIT 1")->fetchColumn();
 $productB = new ProductoModel($siteB, $companyB);
 check('fixture B crea producto dentro de su categoría', $productB->crear('Producto privado B', null, '2.00', 3, 0, 'activo', $catB, 21.0));
-$productBId = (int) $db->lastInsertId();
+$productBId = (int) $db->query(
+    "SELECT id_producto FROM producto WHERE nombre='Producto privado B' AND id_gimnasio={$siteB}"
+)->fetchColumn();
 
 check('empresa A no ve sede B', (new GimnasioModel($companyA))->buscarPorId($siteB) === null);
 check('empresa A no ve producto B', (new ProductoModel(null, $companyA))->buscarPorId($productBId) === null);

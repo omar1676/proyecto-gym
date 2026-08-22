@@ -36,6 +36,7 @@ require_once __DIR__ . '/../helpers/Sesion.php';
 require_once __DIR__ . '/../helpers/TenantContext.php';
 require_once __DIR__ . '/../helpers/Authorization.php';
 require_once __DIR__ . '/../helpers/AppLogger.php';
+require_once __DIR__ . '/../helpers/SafeException.php';
 require_once __DIR__ . '/../helpers/InputValidator.php';
 require_once __DIR__ . '/../services/MigrationService.php';
 require_once __DIR__ . '/../services/SocioFinancialService.php';
@@ -1745,7 +1746,9 @@ class AdminController
         } catch (MigrationException $e) {
             $this->irAConError('admin_importaciones', $e->getMessage());
         } catch (Throwable $e) {
-            AppLogger::error('migration_upload_failed', ['company_id'=>$this->tenant->empresaId(),'reason'=>$e->getMessage()]);
+            AppLogger::error('migration_upload_failed', array_merge(
+                ['company_id'=>$this->tenant->empresaId()], SafeException::context($e, 'AdminController.migrationUpload')
+            ));
             $this->irAConError('admin_importaciones', 'No se pudo preparar el archivo.');
         }
     }
@@ -1769,7 +1772,9 @@ class AdminController
         } catch (MigrationException $e) {
             $this->irAConError('admin_importaciones', $e->getMessage(), ['batch'=>$uuid]);
         } catch (Throwable $e) {
-            AppLogger::error('migration_dry_run_failed', ['batch'=>$uuid,'company_id'=>$this->tenant->empresaId(),'reason'=>$e->getMessage()]);
+            AppLogger::error('migration_dry_run_failed', array_merge(
+                ['batch'=>$uuid,'company_id'=>$this->tenant->empresaId()], SafeException::context($e, 'AdminController.migrationDryRun')
+            ));
             $this->irAConError('admin_importaciones', 'No se pudo completar el dry-run.', ['batch'=>$uuid]);
         }
     }
@@ -1787,7 +1792,9 @@ class AdminController
         } catch (MigrationException $e) {
             $this->irAConError('admin_importaciones', $e->getMessage(), ['batch'=>$uuid]);
         } catch (Throwable $e) {
-            AppLogger::error('migration_confirm_failed', ['batch'=>$uuid,'company_id'=>$this->tenant->empresaId(),'reason'=>$e->getMessage()]);
+            AppLogger::error('migration_confirm_failed', array_merge(
+                ['batch'=>$uuid,'company_id'=>$this->tenant->empresaId()], SafeException::context($e, 'AdminController.migrationConfirm')
+            ));
             $this->irAConError('admin_importaciones', 'No se pudo completar la importación.', ['batch'=>$uuid]);
         }
     }
@@ -1805,7 +1812,9 @@ class AdminController
         } catch (MigrationException $e) {
             $this->irAConError('admin_importaciones', $e->getMessage(), ['batch'=>$uuid]);
         } catch (Throwable $e) {
-            AppLogger::error('migration_discard_failed', ['batch'=>$uuid,'company_id'=>$this->tenant->empresaId(),'reason'=>$e->getMessage()]);
+            AppLogger::error('migration_discard_failed', array_merge(
+                ['batch'=>$uuid,'company_id'=>$this->tenant->empresaId()], SafeException::context($e, 'AdminController.migrationDiscard')
+            ));
             $this->irAConError('admin_importaciones', 'No se pudo descartar el batch.', ['batch'=>$uuid]);
         }
     }

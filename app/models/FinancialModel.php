@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../helpers/Money.php';
+require_once __DIR__ . '/../helpers/TenantLifecyclePolicy.php';
 require_once __DIR__ . '/../services/CashMovementRecorder.php';
 
 /** Escrituras económicas centralizadas. No inicia transacciones anidadas. */
@@ -26,6 +27,7 @@ final class FinancialModel
     /** Crea obligación y, si el cobro es inmediato, el cobro confirmado. */
     public function registrarMembresia(int $idMembresia, ?int $idUsuario = null): array
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->empresaId);
         $stmt = $this->db->prepare(
             "SELECT sm.*, g.id_empresa
              FROM socio_membresia sm
@@ -106,6 +108,7 @@ final class FinancialModel
     /** Crea el intento de cobro asociado a un recibo SEPA recién generado. */
     public function registrarReciboRemesa(int $idRecibo, ?int $idUsuario = null): int
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->empresaId);
         $stmt = $this->db->prepare(
             "SELECT rr.*, r.id_gimnasio, r.created_at, g.id_empresa, o.id_obligacion
              FROM remesa_recibo rr
@@ -138,6 +141,7 @@ final class FinancialModel
     /** Confirma exactamente los cobros presentados de una remesa. */
     public function confirmarRemesa(int $idRemesa, ?int $idUsuario = null): void
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->empresaId);
         $stmt = $this->db->prepare(
             "SELECT c.id_cobro, c.id_obligacion, c.importe, c.concepto
              FROM cobro c
@@ -168,6 +172,7 @@ final class FinancialModel
     /** Devuelve un cobro una sola vez y reactiva la deuda de su obligación. */
     public function devolverRecibo(int $idRecibo, string $motivo, ?int $idUsuario = null): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->empresaId);
         $stmt = $this->db->prepare(
             "SELECT c.* FROM cobro c
              INNER JOIN remesa_recibo rr ON rr.id_recibo = c.id_remesa_recibo

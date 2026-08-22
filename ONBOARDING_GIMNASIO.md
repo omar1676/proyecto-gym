@@ -25,12 +25,14 @@ importaciones.
 
 ## 2. Alta inicial
 
-Prerequisito de una instalación que todavía no tenga identidad de plataforma:
-un operador autorizado ejecuta una sola vez `ops/bootstrap_platform_admin.php`
+Prerequisito de una instalación que no tenga ninguna identidad global activa:
+un operador autorizado ejecuta `ops/bootstrap_platform_admin.php`
 con los cinco campos `PLATFORM_ADMIN_*` recibidos por entorno y la confirmación
 del entorno. El comando no muestra la contraseña, se bloquea contra carreras,
-se audita y se niega a crear una segunda identidad. No promueve cuentas de un
-gimnasio ni requiere SQL manual.
+se audita y se niega a crear una segunda identidad activa. Si solo existen
+identidades globales históricas desactivadas, crea una identidad nominal nueva:
+no reactiva, reutiliza ni revela credenciales antiguas. No promueve cuentas de
+un gimnasio ni requiere SQL manual.
 
 1. Entrar con cuenta nominal `superadmin`.
 2. Abrir `Empresas`.
@@ -86,16 +88,30 @@ puede crear empresas ni asignar `superadmin`.
 - [ ] Eventos `ONBOARDING_*`, `TENANT_CREATED`, `SEDE_CREATED` y
   `OWNER_CREATED` presentes sin secretos.
 
-## 6. Reentrada, concurrencia y cancelación
+## 6. Reentrada, concurrencia y ciclo de vida
 
 La idempotency key evita duplicados por doble clic, reintento o dos procesos.
 Las unicidades de base protegen empresa, sede e identidades. La unidad inicial
 es atómica, por lo que una interrupción no deja empresa/sede/owner huérfanos.
 
-No existe borrado web de empresas. Los tests crean bases efímeras y las
-eliminan completas. Un tenant sintético de staging se conserva identificado o
-se marca para revisión operativa; no se borra mediante SQL ad hoc. Diseñar una
-cancelación productiva con retención/auditoría es trabajo separado.
+No existe borrado web de empresas. La transición interna de plataforma a
+`CANCELLED` deja la empresa inactiva, es idempotente y queda auditada. Comparte
+un lock por empresa con las escrituras normales: una operación que ya adquirió
+el lock termina antes de cancelar; ninguna escritura posterior se confirma.
+
+| Estado | Lectura soporte/auditoría | Escritura negocio | Login | Activación | Tarea técnica |
+|---|---:|---:|---:|---:|---:|
+| `CONFIGURING` | Sí | No | No | No | Sí |
+| `READY_FOR_REVIEW` | Sí | No | No | Sí | Sí |
+| `ACTIVE` + `estado=activa` | Sí | Sí | Sí | Sí/idempotente | Sí |
+| `CANCELLED` | Sí | No | No | No | Sí |
+| cualquier estado con `estado=inactiva` | según autorización | No | No | según transición | Sí |
+
+Las lecturas conservadas existen para soporte, exportación, auditoría y
+recuperación, pero siguen necesitando autorización y aislamiento de tenant y
+sede. Migraciones, restore, limpieza y provisioning usan entradas técnicas
+específicas; no existe un bypass genérico de negocio. Los tests pueden borrar
+sus tenants efímeros en su propia DB, nunca mediante la ruta web.
 
 ## 7. Segundo gimnasio
 

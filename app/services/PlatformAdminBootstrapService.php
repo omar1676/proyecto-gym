@@ -22,10 +22,13 @@ final class PlatformAdminBootstrapService
 
         try {
             $this->db->beginTransaction();
-            $existing = (int) $this->db->query(
-                "SELECT COUNT(*) FROM usuario WHERE rol='superadmin' AND id_empresa IS NULL"
+            $active = (int) $this->db->query(
+                "SELECT COUNT(*) FROM usuario WHERE rol='superadmin' AND id_empresa IS NULL AND activo=1"
             )->fetchColumn();
-            if ($existing !== 0) throw new DomainException('La plataforma ya tiene una identidad superadmin.');
+            if ($active !== 0) throw new DomainException('La plataforma ya tiene una identidad superadmin activa.');
+            $historical = (int) $this->db->query(
+                "SELECT COUNT(*) FROM usuario WHERE rol='superadmin' AND id_empresa IS NULL AND activo=0"
+            )->fetchColumn();
 
             $stmt = $this->db->prepare(
                 "INSERT INTO usuario
@@ -39,9 +42,11 @@ final class PlatformAdminBootstrapService
             ]);
             $userId = (int) $this->db->lastInsertId();
             (new LogModel(null, $this->db))->registrarCambio(
-                $userId, 'PLATFORM_ADMIN_BOOTSTRAPPED', 'Primera identidad nominal de plataforma',
+                $userId, 'PLATFORM_ADMIN_BOOTSTRAPPED',
+                $historical > 0 ? 'Recuperación nominal sin reactivar identidades históricas' : 'Primera identidad nominal de plataforma',
                 $userId, 'usuario', $userId, null, 'active', null, 'exito',
-                'PLATFORM_BOOTSTRAP', [], 'usuario', 'SYSTEM', AuditPolicy::REQUIRED
+                $historical > 0 ? 'PLATFORM_BOOTSTRAP_RECOVERY' : 'PLATFORM_BOOTSTRAP',
+                ['historical_disabled_count' => $historical], 'usuario', 'SYSTEM', AuditPolicy::REQUIRED
             );
             $this->db->commit();
             return ['created' => true, 'user_id' => $userId];

@@ -2,6 +2,8 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../helpers/AppLogger.php';
+require_once __DIR__ . '/../helpers/TenantLifecyclePolicy.php';
+require_once __DIR__ . '/../helpers/SafeException.php';
 require_once __DIR__ . '/MigrationException.php';
 require_once __DIR__ . '/MigrationStorage.php';
 require_once __DIR__ . '/CsvImportReader.php';
@@ -39,9 +41,12 @@ final class MigrationService
         if ($this->companyId <= 0 || $this->userId <= 0) {
             throw new MigrationException('Contexto de importación incompleto.', 'invalid_context');
         }
-        $stmt = $this->db->prepare("SELECT 1 FROM empresa WHERE id_empresa=:e AND estado='activa'");
+        $stmt = $this->db->prepare('SELECT estado,onboarding_state FROM empresa WHERE id_empresa=:e');
         $stmt->execute([':e' => $this->companyId]);
-        if (!$stmt->fetchColumn()) throw new MigrationException('Empresa no autorizada.', 'invalid_context');
+        $company = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$company || !TenantLifecyclePolicy::allows($company, TenantLifecyclePolicy::WRITE)) {
+            throw new MigrationException('Empresa no autorizada.', 'invalid_context');
+        }
         if ($this->siteId !== null) {
             $stmt = $this->db->prepare('SELECT 1 FROM gimnasio WHERE id_gimnasio=:s AND id_empresa=:e AND activo=1');
             $stmt->execute([':s' => $this->siteId, ':e' => $this->companyId]);
@@ -71,6 +76,7 @@ final class MigrationService
 
     public function createFromUpload(string $entity, string $source, string $originalName, array $file, bool $force = false): array
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->companyId);
         $stored = $this->storage->storeUploaded($file);
         return $this->createStored($entity, $source, $originalName, $stored, $force);
     }
@@ -78,6 +84,7 @@ final class MigrationService
     /** Entrada de CLI y tests; una petición web no puede suministrar rutas. */
     public function createFromPath(string $entity, string $source, string $originalName, string $path, bool $force = false): array
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->companyId);
         $stored = $this->storage->storePath($path);
         return $this->createStored($entity, $source, $originalName, $stored, $force);
     }
@@ -148,6 +155,7 @@ final class MigrationService
 
     public function dryRun(string $uuid, array $mapping, array $options = []): array
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->companyId);
         $batch = $this->getBatch($uuid);
         if (!in_array($batch['status'], ['uploaded','dry_run_ready','failed'], true)) {
             throw new MigrationException('El batch ya no admite otra simulación.', 'invalid_batch_state');
@@ -250,7 +258,9 @@ final class MigrationService
             return $this->report($uuid);
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
-            AppLogger::error('migration_dry_run_failed', ['batch'=>$uuid,'reason'=>$e->getMessage(),'company_id'=>$this->companyId]);
+            AppLogger::error('migration_dry_run_failed', array_merge(
+                ['batch'=>$uuid,'company_id'=>$this->companyId], SafeException::context($e, 'MigrationService.dryRun')
+            ));
             throw $e instanceof MigrationException ? $e : new MigrationException('No se pudo completar el dry-run.', 'dry_run_failed');
         }
     }
@@ -425,6 +435,7 @@ final class MigrationService
 
     public function confirm(string $uuid, int $chunkSize = 250, ?callable $beforeRow = null): array
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->companyId);
         $chunkSize = max(1, min(500, $chunkSize));
         $batch = $this->getBatch($uuid);
         if ($batch['entity_type'] === 'membresias') {
@@ -499,10 +510,10 @@ final class MigrationService
             $code = $e instanceof MigrationException ? $e->safeCode() : 'chunk_failed';
             $this->db->prepare('UPDATE migration_batch SET status=:s,failure_code=:f WHERE id_batch=:b')
                 ->execute([':s'=>$state,':f'=>$code,':b'=>$batch['id_batch']]);
-            AppLogger::error('migration_import_failed', [
+            AppLogger::error('migration_import_failed', array_merge([
                 'batch'=>$uuid,'company_id'=>$this->companyId,'site_id'=>$this->siteId,
-                'last_committed_row'=>$current['last_committed_row'],'reason'=>$e->getMessage(),
-            ]);
+                'last_committed_row'=>$current['last_committed_row'],
+            ], SafeException::context($e, 'MigrationService.confirm')));
             throw $e instanceof MigrationException ? $e : new MigrationException('Falló un lote; los lotes anteriores siguen confirmados.', 'chunk_failed');
         }
     }
@@ -623,6 +634,7 @@ final class MigrationService
 
     public function discard(string $uuid): void
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->companyId);
         $batch = $this->getBatch($uuid);
         if (in_array($batch['status'], ['importing','partial','completed','completed_with_warnings'], true)) {
             throw new MigrationException('Ese batch no puede descartarse automáticamente.', 'discard_rejected');

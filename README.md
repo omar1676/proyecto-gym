@@ -1,8 +1,9 @@
 # Gimnera — gestión SaaS multiempresa para gimnasios
 
-Versión actual: **0.13.0-fase22**. Incorpora onboarding transaccional e
-idempotente de empresas, primera sede y dirección, categorías de producto por
-tenant y unicidades humanas por empresa. No conecta DORLET, lectores,
+Versión actual: **0.13.1-fase22.1**. Conserva el onboarding transaccional de
+F22 y añade una política central que bloquea escrituras de negocio cuando un
+tenant está cancelado o inactivo, recuperación nominal segura del operador de
+plataforma y saneamiento de excepciones en logs. No conecta DORLET, lectores,
 controladoras ni biometría.
 
 Panel de gestión para un gimnasio multisede: socios y membresías, venta de productos,

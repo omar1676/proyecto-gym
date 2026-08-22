@@ -6,7 +6,7 @@ require_once __DIR__ . '/_arranque.php';   // base de pruebas, nunca la de traba
 
 $raiz = dirname(__DIR__);
 require_once $raiz . '/app/models/MembresiaModel.php';
-$m = new MembresiaModel();
+$m = new MembresiaModel(1, 1);
 
 $ok = 0; $fallos = 0;
 function comprobar(string $d, $esperado, $real) {

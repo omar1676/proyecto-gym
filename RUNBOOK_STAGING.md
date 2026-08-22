@@ -131,3 +131,17 @@ restauración de DB requiere decisión explícita por posible pérdida desde el
 4. Nunca ejecutar un migrador antiguo ante una migración desconocida. El gate
    `--mode=migrate` debe rechazarla explícitamente.
 5. Registrar releases, esquema, responsable, motivo y resultado.
+
+## 9. Recuperación del operador de plataforma
+
+Solo cuando la consulta operativa demuestre que existen **cero** superadmins
+globales activos, usar `ops/bootstrap_platform_admin.php` con identidad humana
+nominal nueva y contraseña temporal fuerte introducida por entorno. El proceso
+adquiere un lock global: dos ejecuciones simultáneas producen un solo ganador.
+
+Una identidad histórica desactivada se conserva para auditoría, no se reactiva
+ni se reutiliza. Con un operador global activo, cualquier bootstrap se rechaza.
+Después del alta: custodiar la clave fuera del servidor, verificar el evento
+`PLATFORM_ADMIN_BOOTSTRAPPED`, iniciar sesión, cambiar contraseña y retirar las
+variables temporales del proceso. No copiar la clave a terminal compartido,
+logs, tickets o documentación.

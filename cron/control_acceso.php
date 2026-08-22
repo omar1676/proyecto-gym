@@ -4,6 +4,7 @@ require_once __DIR__ . '/../app/config/config.php';
 require_once __DIR__ . '/../app/config/database.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
 require_once __DIR__ . '/../app/helpers/RequestContext.php';
+require_once __DIR__ . '/../app/helpers/SafeException.php';
 require_once __DIR__ . '/../app/services/AccessControlMode.php';
 require_once __DIR__ . '/../app/services/MockAccessControlProvider.php';
 require_once __DIR__ . '/../app/services/AccessControlRepository.php';
@@ -55,7 +56,7 @@ try {
     ], JSON_UNESCAPED_SLASHES) . PHP_EOL;
     exit(0);
 } catch (Throwable $e) {
-    AppLogger::error('access_control_shadow_cron_failed', ['reason'=>$e->getMessage(), 'mode'=>$mode]);
+    AppLogger::error('access_control_shadow_cron_failed', array_merge(['mode'=>$mode], SafeException::context($e, 'cron.control_acceso')));
     fwrite(STDERR, "ERROR procesando la cola shadow.\n");
     exit(1);
 }

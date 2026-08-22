@@ -13,6 +13,7 @@
  */
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/SafeException.php';
 
 class Smtp
 {
@@ -114,7 +115,7 @@ class Smtp
             return true;
 
         } catch (\Throwable $e) {
-            error_log('Smtp: ' . $e->getMessage());
+            SafeException::log('smtp_failed', $e, 'Smtp.enviar');
             if (is_resource($socket)) {
                 @fwrite($socket, "QUIT\r\n");
                 @fclose($socket);

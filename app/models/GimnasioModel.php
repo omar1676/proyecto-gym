@@ -8,6 +8,8 @@
  */
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../helpers/TenantLifecyclePolicy.php';
+require_once __DIR__ . '/../helpers/SafeException.php';
 require_once __DIR__ . '/../helpers/Iban.php';
 
 class GimnasioModel
@@ -45,7 +47,7 @@ class GimnasioModel
                  ORDER BY g.activo DESC, g.nombre ASC"
             )->fetchAll();
         } catch (\PDOException $e) {
-            error_log('GimnasioModel::listar error: ' . $e->getMessage());
+            SafeException::log('site_model_failed', $e, 'GimnasioModel.listar');
             return [];
         }
     }
@@ -59,7 +61,7 @@ class GimnasioModel
                  FROM gimnasio WHERE activo = 1" . $this->filtroEmpresa('') . " ORDER BY nombre ASC"
             )->fetchAll();
         } catch (\PDOException $e) {
-            error_log('GimnasioModel::listarActivas error: ' . $e->getMessage());
+            SafeException::log('site_model_failed', $e, 'GimnasioModel.listarActivas');
             return [];
         }
     }
@@ -93,6 +95,7 @@ class GimnasioModel
      */
     public function guardarCredenciales(int $id, string $email, string $contrasena = ''): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             if ($contrasena !== '') {
                 $stmt = $this->db->prepare(
@@ -110,7 +113,7 @@ class GimnasioModel
             );
             return $stmt->execute([':email' => strtolower(trim($email)), ':id' => $id]);
         } catch (\PDOException $e) {
-            error_log('GimnasioModel::guardarCredenciales error: ' . $e->getMessage());
+            SafeException::log('site_model_failed', $e, 'GimnasioModel.guardarCredenciales');
             return false;
         }
     }
@@ -130,9 +133,10 @@ class GimnasioModel
         if ((int) $gimnasio['activo'] !== 1) {
             return null;
         }
-        $stmtEmpresa = $this->db->prepare("SELECT 1 FROM empresa WHERE id_empresa = :id AND estado = 'activa'");
+        $stmtEmpresa = $this->db->prepare('SELECT estado,onboarding_state FROM empresa WHERE id_empresa = :id');
         $stmtEmpresa->execute([':id' => (int) ($gimnasio['id_empresa'] ?? 0)]);
-        if (!$stmtEmpresa->fetchColumn()) {
+        $empresa = $stmtEmpresa->fetch(PDO::FETCH_ASSOC);
+        if (!$empresa || !TenantLifecyclePolicy::allows($empresa, TenantLifecyclePolicy::LOGIN)) {
             return null;
         }
         if (!password_verify($contrasena, $gimnasio['contrasena_acceso'])) {
@@ -188,6 +192,7 @@ class GimnasioModel
     /** Guarda el logo y los colores de la marca de una sede. */
     public function actualizarMarca(int $id, ?string $logo, string $colorPrimario, string $colorTexto): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         // Solo se aceptan colores en formato #rrggbb: van directos a un atributo
         // style, así que no puede colarse nada más.
         if (!preg_match('/^#[0-9a-fA-F]{6}$/', $colorPrimario)) $colorPrimario = '#4f46e5';
@@ -205,18 +210,19 @@ class GimnasioModel
             );
             return $stmt->execute([':logo' => $logo, ':cp' => $colorPrimario, ':ct' => $colorTexto, ':id' => $id]);
         } catch (\PDOException $e) {
-            error_log('GimnasioModel::actualizarMarca error: ' . $e->getMessage());
+            SafeException::log('site_model_failed', $e, 'GimnasioModel.actualizarMarca');
             return false;
         }
     }
 
     public function quitarLogo(int $id): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             return $this->db->prepare("UPDATE gimnasio SET logo = NULL WHERE id_gimnasio = :id" . $this->filtroEmpresa(''))
                             ->execute([':id' => $id]);
         } catch (\PDOException $e) {
-            error_log('GimnasioModel::quitarLogo error: ' . $e->getMessage());
+            SafeException::log('site_model_failed', $e, 'GimnasioModel.quitarLogo');
             return false;
         }
     }
@@ -241,6 +247,7 @@ class GimnasioModel
 
     public function crear(array $datos): ?int
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             $stmt = $this->db->prepare(
                 "INSERT INTO gimnasio (id_empresa, nombre, slug, razon_social, cif, direccion, telefono, email)
@@ -258,13 +265,14 @@ class GimnasioModel
             ]);
             return (int) $this->db->lastInsertId();
         } catch (\PDOException $e) {
-            error_log('GimnasioModel::crear error: ' . $e->getMessage());
+            SafeException::log('site_model_failed', $e, 'GimnasioModel.crear');
             return null;
         }
     }
 
     public function actualizar(int $id, array $datos): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             $stmt = $this->db->prepare(
                 "UPDATE gimnasio SET
@@ -288,7 +296,7 @@ class GimnasioModel
                 ':id'           => $id,
             ]);
         } catch (\PDOException $e) {
-            error_log('GimnasioModel::actualizar error: ' . $e->getMessage());
+            SafeException::log('site_model_failed', $e, 'GimnasioModel.actualizar');
             return false;
         }
     }
@@ -299,13 +307,14 @@ class GimnasioModel
      */
     public function toggleActivo(int $id): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             $stmt = $this->db->prepare(
                 "UPDATE gimnasio SET activo = NOT activo WHERE id_gimnasio = :id" . $this->filtroEmpresa('')
             );
             return $stmt->execute([':id' => $id]);
         } catch (\PDOException $e) {
-            error_log('GimnasioModel::toggleActivo error: ' . $e->getMessage());
+            SafeException::log('site_model_failed', $e, 'GimnasioModel.toggleActivo');
             return false;
         }
     }
@@ -315,7 +324,7 @@ class GimnasioModel
         try {
             return (int) $this->db->query("SELECT COUNT(*) FROM gimnasio WHERE activo = 1" . $this->filtroEmpresa(''))->fetchColumn();
         } catch (\PDOException $e) {
-            error_log('GimnasioModel::contarActivas error: ' . $e->getMessage());
+            SafeException::log('site_model_failed', $e, 'GimnasioModel.contarActivas');
             return 0;
         }
     }

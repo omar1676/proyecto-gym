@@ -2,6 +2,8 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../helpers/Money.php';
+require_once __DIR__ . '/../helpers/TenantLifecyclePolicy.php';
+require_once __DIR__ . '/../helpers/SafeException.php';
 require_once __DIR__ . '/../services/CashMovementRecorder.php';
 
 /** Caja física por sede y turno. Los importes se calculan siempre en céntimos. */
@@ -25,6 +27,7 @@ final class CashModel
 
     public function abrir($saldoInicial, int $idUsuario, string &$error): ?int
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->empresaId);
         try {
             $saldoCents = Money::cents($saldoInicial);
         } catch (InvalidArgumentException $e) {
@@ -67,7 +70,7 @@ final class CashModel
             return $id;
         } catch (PDOException $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
-            error_log('CashModel::abrir error: ' . $e->getMessage());
+            SafeException::log('cash_model_failed', $e, 'CashModel.abrir');
             $error = $e->getCode() === '23000' ? 'Ya existe una caja abierta en esta sede.' : 'No se pudo abrir la caja.';
             return null;
         }
@@ -92,6 +95,7 @@ final class CashModel
 
     public function movimientoManual(string $tipo, $importe, string $motivo, int $idUsuario, string &$error, ?string $operacionId = null): ?int
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->empresaId);
         if (!in_array($tipo, ['ajuste_entrada', 'ajuste_salida'], true)) {
             $error = 'Tipo de ajuste no válido.';
             return null;
@@ -132,7 +136,7 @@ final class CashModel
             return $id;
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
-            error_log('CashModel::movimientoManual error: ' . $e->getMessage());
+            SafeException::log('cash_model_failed', $e, 'CashModel.movimientoManual');
             $error = 'No se pudo registrar el ajuste de caja.';
             return null;
         }
@@ -140,6 +144,7 @@ final class CashModel
 
     public function cerrar($saldoDeclarado, int $idUsuario, string $observacion, string &$error): ?array
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->empresaId);
         try {
             $declaradoCents = Money::cents($saldoDeclarado);
         } catch (InvalidArgumentException $e) {
@@ -195,7 +200,7 @@ final class CashModel
             ];
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
-            error_log('CashModel::cerrar error: ' . $e->getMessage());
+            SafeException::log('cash_model_failed', $e, 'CashModel.cerrar');
             $error = 'No se pudo cerrar la caja.';
             return null;
         }

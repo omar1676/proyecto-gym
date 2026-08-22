@@ -14,9 +14,9 @@ require_once $raiz . '/app/models/ProductoModel.php';
 require_once $raiz . '/app/models/VentaModel.php';
 require_once $raiz . '/app/models/MembresiaModel.php';
 
-$productos = new ProductoModel();
-$ventas    = new VentaModel();
-$membres   = new MembresiaModel();
+$productos = new ProductoModel(1, 1);
+$ventas    = new VentaModel(1, 1);
+$membres   = new MembresiaModel(1, 1);
 
 $ok = 0; $fallos = 0;
 function comprobar(string $desc, $esperado, $real) {

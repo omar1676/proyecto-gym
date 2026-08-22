@@ -12,7 +12,7 @@ $suites = [
         'tests/Unit/CsvImportReaderTest.php', 'tests/Unit/AccessDecisionTest.php',
         'tests/Unit/MockAccessControlProviderTest.php', 'tests/Unit/BackupStorageTest.php',
         'tests/Unit/F21OperationalSafetyTest.php', 'tests/Unit/TestDatabaseNameTest.php',
-        'tests/Unit/AuditPolicyTest.php',
+        'tests/Unit/AuditPolicyTest.php', 'tests/Unit/LogSanitizationTest.php',
     ],
     'Integration' => [
         'tests/Integration/IntegrityTest.php', 'tests/Integration/IdempotencyTest.php',
@@ -39,6 +39,9 @@ $suites = [
         'tests/Integration/TenantOnboardingConcurrencyTest.php',
         'tests/Integration/AtlasOnboardingTest.php',
         'tests/Integration/TenantProvisioningScaleTest.php',
+        'tests/Integration/TenantLifecycleGuardTest.php',
+        'tests/Integration/TenantLifecycleConcurrencyTest.php',
+        'tests/Integration/PlatformAdminBootstrapConcurrencyTest.php',
     ],
     'Security' => [
         'tests/Security/OutputEncodingTest.php', 'tests/Security/RateLimitTest.php',

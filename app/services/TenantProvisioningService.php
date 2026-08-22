@@ -5,6 +5,7 @@ require_once dirname(__DIR__) . '/helpers/AuditPolicy.php';
 require_once dirname(__DIR__) . '/helpers/InputValidator.php';
 require_once dirname(__DIR__) . '/models/LogModel.php';
 require_once dirname(__DIR__) . '/helpers/MigrationManager.php';
+require_once dirname(__DIR__) . '/helpers/TenantLifecyclePolicy.php';
 
 /** Aprovisionamiento oficial, atómico e idempotente de un tenant. */
 final class TenantProvisioningService
@@ -91,6 +92,7 @@ final class TenantProvisioningService
     {
         if ($companyId <= 0) throw new InvalidArgumentException('Empresa no válida.');
         $this->assertMigrationsCurrent();
+        $tenantLifecycle = TenantLifecyclePolicy::acquirePlatformTransition($this->db, $companyId);
         try {
             $this->db->beginTransaction();
             $stmt = $this->db->prepare('SELECT * FROM empresa WHERE id_empresa=:id LIMIT 1 FOR UPDATE');
@@ -120,6 +122,48 @@ final class TenantProvisioningService
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
             throw $e;
+        }
+    }
+
+    /**
+     * Transición interna de plataforma. No tiene ruta pública en F22.1; sirve
+     * para que cancelación y escrituras usen exactamente el mismo lock.
+     *
+     * @return array{cancelled:bool,already_cancelled:bool,company_id:int}
+     */
+    public function cancel(int $companyId): array
+    {
+        if ($companyId <= 0) throw new InvalidArgumentException('Empresa no válida.');
+        $this->assertMigrationsCurrent();
+        $tenantLifecycle = TenantLifecyclePolicy::acquirePlatformTransition($this->db, $companyId);
+        try {
+            $this->db->beginTransaction();
+            $stmt = $this->db->prepare('SELECT * FROM empresa WHERE id_empresa=:id LIMIT 1 FOR UPDATE');
+            $stmt->execute([':id' => $companyId]);
+            $company = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$company) throw new DomainException('La empresa no existe.');
+            if ($company['onboarding_state'] === 'CANCELLED' && $company['estado'] === 'inactiva') {
+                $this->db->commit();
+                return ['cancelled' => false, 'already_cancelled' => true, 'company_id' => $companyId];
+            }
+            if (!in_array($company['onboarding_state'], ['READY_FOR_REVIEW', 'ACTIVE'], true)) {
+                throw new DomainException('La empresa no se encuentra en un estado cancelable.');
+            }
+            $update = $this->db->prepare(
+                "UPDATE empresa SET estado='inactiva', onboarding_state='CANCELLED', onboarding_updated_at=NOW()
+                  WHERE id_empresa=:id AND onboarding_state=:previous"
+            );
+            $update->execute([':id' => $companyId, ':previous' => $company['onboarding_state']]);
+            if ($update->rowCount() !== 1) throw new RuntimeException('La cancelación perdió su estado previo.');
+            $this->audit(
+                new LogModel($companyId, $this->db),
+                'TENANT_CANCELLED', 'empresa', $companyId, (string) $company['onboarding_state'], 'CANCELLED'
+            );
+            $this->db->commit();
+            return ['cancelled' => true, 'already_cancelled' => false, 'company_id' => $companyId];
+        } catch (Throwable $error) {
+            if ($this->db->inTransaction()) $this->db->rollBack();
+            throw $error;
         }
     }
 

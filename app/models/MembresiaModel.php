@@ -1,6 +1,8 @@
 <?php
 require_once dirname(__DIR__) . '/helpers/Money.php';
 require_once dirname(__DIR__) . '/helpers/Iban.php';
+require_once dirname(__DIR__) . '/helpers/TenantLifecyclePolicy.php';
+require_once dirname(__DIR__) . '/helpers/SafeException.php';
 require_once __DIR__ . '/FinancialModel.php';
 /**
  * MembresiaModel — acceso a las tablas `tipo_membresia` y `socio_membresia`.
@@ -88,6 +90,11 @@ class MembresiaModel
         return $sql;
     }
 
+    private function acquireBusinessWrite(): TenantLifecycleLease
+    {
+        return TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
+    }
+
     /* --- Suplementos (plus sobre la cuota base) --------------------------- */
 
     public function listarSuplementos(): array
@@ -97,7 +104,7 @@ class MembresiaModel
                 "SELECT * FROM suplemento WHERE 1 = 1" . $this->filtroCatalogo() . " ORDER BY nombre ASC"
             )->fetchAll();
         } catch (\Throwable $e) {
-            error_log('MembresiaModel::listarSuplementos error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.listarSuplementos');
             return [];
         }
     }
@@ -109,7 +116,7 @@ class MembresiaModel
                 "SELECT * FROM suplemento WHERE estado = 'activo'" . $this->filtroCatalogo() . " ORDER BY nombre ASC"
             )->fetchAll();
         } catch (\Throwable $e) {
-            error_log('MembresiaModel::listarSuplementosActivos error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.listarSuplementosActivos');
             return [];
         }
     }
@@ -126,6 +133,7 @@ class MembresiaModel
 
     public function crearSuplemento(string $nombre, ?string $descripcion, string $precioMensual, string $estado): bool
     {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
                 "INSERT INTO suplemento (id_empresa, nombre, descripcion, precio_mensual, estado, id_gimnasio)
@@ -140,13 +148,14 @@ class MembresiaModel
                 ':id_gimnasio' => $this->idGimnasio,
             ]);
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::crearSuplemento error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.crearSuplemento');
             return false;
         }
     }
 
     public function actualizarSuplemento(int $idSuplemento, string $nombre, ?string $descripcion, string $precioMensual, string $estado): bool
     {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
                 "UPDATE suplemento SET
@@ -166,13 +175,14 @@ class MembresiaModel
             if (!$ok) return false;
             return $this->buscarSuplementoPorId($idSuplemento) !== null;
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::actualizarSuplemento error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.actualizarSuplemento');
             return false;
         }
     }
 
     public function toggleEstadoSuplemento(int $idSuplemento): bool
     {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
                 "UPDATE suplemento
@@ -182,7 +192,7 @@ class MembresiaModel
             $stmt->execute([':id' => $idSuplemento]);
             return $stmt->rowCount() === 1;
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::toggleEstadoSuplemento error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.toggleEstadoSuplemento');
             return false;
         }
     }
@@ -232,6 +242,7 @@ class MembresiaModel
         string $estado,
         float $iva = 21.0
     ): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
                 "INSERT INTO tipo_membresia (id_empresa, nombre, descripcion, precio, iva, duracion_meses, estado, id_gimnasio)
@@ -248,7 +259,7 @@ class MembresiaModel
                 ':id_gimnasio'    => $this->idGimnasio,
             ]);
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::crearTipo error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.crearTipo');
             return false;
         }
     }
@@ -262,6 +273,7 @@ class MembresiaModel
         string $estado,
         float $iva = 21.0
     ): bool {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             // El filtro de catálogo deja tocar lo propio de la sede y lo común,
             // pero no la cuota exclusiva de otra sede.
@@ -287,13 +299,14 @@ class MembresiaModel
             if (!$ok) return false;
             return $this->buscarTipoPorId($idTipo) !== null;
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::actualizarTipo error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.actualizarTipo');
             return false;
         }
     }
 
     public function toggleEstadoTipo(int $idTipo): bool
     {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
                 "UPDATE tipo_membresia
@@ -303,7 +316,7 @@ class MembresiaModel
             $stmt->execute([':id' => $idTipo]);
             return $stmt->rowCount() === 1;
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::toggleEstadoTipo error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.toggleEstadoTipo');
             return false;
         }
     }
@@ -328,6 +341,7 @@ class MembresiaModel
         ?int $idUsuario = null,
         ?string $ibanNuevo = null
     ): ?int {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         if (!in_array($metodoPago, self::METODOS_VALIDOS, true)) {
             $error = 'Método de pago no válido.';
             return null;
@@ -472,7 +486,7 @@ class MembresiaModel
             return $idContrato;
         } catch (\Throwable $e) {
             if (($esTransaccionPropia ?? false) && $this->db->inTransaction()) $this->db->rollBack();
-            error_log('MembresiaModel::contratar error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.contratar');
             $error = $e instanceof DomainException ? $e->getMessage() : 'No se pudo registrar la membresía. Inténtalo de nuevo.';
             return null;
         }
@@ -494,6 +508,7 @@ class MembresiaModel
         ?string $idempotencyKey = null
     ): ?int
     {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         if (!$this->socioEnAmbito($idSocio)) {
             $error = 'El socio no pertenece al ámbito activo.';
             return null;
@@ -555,7 +570,7 @@ class MembresiaModel
             return $idPrueba;
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
-            error_log('MembresiaModel::iniciarPrueba error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.iniciarPrueba');
             $error = $e instanceof DomainException ? $e->getMessage() : 'No se pudo abrir el acceso de prueba.';
             return null;
         }
@@ -604,7 +619,7 @@ class MembresiaModel
             $stmt->execute();
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::listarParaRenovar error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.listarParaRenovar');
             return [];
         }
     }
@@ -612,6 +627,7 @@ class MembresiaModel
     /** El socio pide que dejen de renovarle la cuota sola. */
     public function desactivarRenovacion(int $idContrato): bool
     {
+        $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
                 "UPDATE {$this->tabla} SET renovar_auto = 0
@@ -620,7 +636,7 @@ class MembresiaModel
             $stmt->execute([':id' => $idContrato]);
             return $stmt->rowCount() > 0;
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::desactivarRenovacion error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.desactivarRenovacion');
             return false;
         }
     }
@@ -664,7 +680,7 @@ class MembresiaModel
             $stmt->execute();
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::listarPruebasPendientes error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.listarPruebasPendientes');
             return [];
         }
     }
@@ -739,7 +755,7 @@ class MembresiaModel
             $stmt->execute($parametros);
             return (int) $stmt->fetchColumn();
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::contarSocios error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.contarSocios');
             return 0;
         }
     }
@@ -813,7 +829,7 @@ class MembresiaModel
             $stmt->execute();
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::listarSocios error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.listarSocios');
             return [];
         }
     }
@@ -860,7 +876,7 @@ class MembresiaModel
             $stmt->execute();
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::listarProximasAVencer error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.listarProximasAVencer');
             return [];
         }
     }
@@ -872,7 +888,7 @@ class MembresiaModel
                 "SELECT COUNT(DISTINCT id_socio) FROM {$this->tabla} WHERE fecha_fin >= CURDATE()" . $this->filtroSede('')
             )->fetchColumn();
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::contarActivas error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.contarActivas');
             return 0;
         }
     }
@@ -891,7 +907,7 @@ class MembresiaModel
                    )"
             )->fetchColumn();
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::contarVencidas error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.contarVencidas');
             return 0;
         }
     }
@@ -913,7 +929,7 @@ class MembresiaModel
                    AND MONTH(c.fecha_estado) = MONTH(CURDATE())" . $this->filtroSede('c')
             )->fetchColumn();
         } catch (\PDOException $e) {
-            error_log('MembresiaModel::sumarIngresosDelMes error: ' . $e->getMessage());
+            SafeException::log('membership_model_failed', $e, 'MembresiaModel.sumarIngresosDelMes');
             return 0.0;
         }
     }

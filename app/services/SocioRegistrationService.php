@@ -4,6 +4,7 @@ require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/models/UserModel.php';
 require_once dirname(__DIR__) . '/models/MembresiaModel.php';
 require_once dirname(__DIR__) . '/models/LogModel.php';
+require_once dirname(__DIR__) . '/helpers/TenantLifecyclePolicy.php';
 
 /** Alta atómica de socio y, opcionalmente, su primera membresía. */
 final class SocioRegistrationService
@@ -33,6 +34,7 @@ final class SocioRegistrationService
         ?string $idempotencyKey,
         string &$error
     ): ?array {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->empresaId);
         try {
             $this->db->beginTransaction();
             $creado = $this->usuarios->crear(

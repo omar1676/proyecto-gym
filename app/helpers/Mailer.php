@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/Smtp.php';
+require_once __DIR__ . '/SafeException.php';
 
 class Mailer
 {
@@ -85,7 +86,7 @@ class Mailer
         try {
             return @mail($para, $asuntoCodificado, $html, $cabeceras, $params);
         } catch (\Throwable $e) {
-            error_log('Mailer::enviar error: ' . $e->getMessage());
+            SafeException::log('mail_delivery_failed', $e, 'Mailer.enviar');
             return false;
         }
     }

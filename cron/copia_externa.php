@@ -5,6 +5,7 @@ require_once __DIR__ . '/../app/helpers/BackupManifest.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
 require_once __DIR__ . '/../app/helpers/Retry.php';
 require_once __DIR__ . '/../app/helpers/RequestContext.php';
+require_once __DIR__ . '/../app/helpers/SafeException.php';
 
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit(1); }
 RequestContext::bootstrap('CRON');
@@ -52,8 +53,8 @@ try {
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
     exit(0);
 } catch (Throwable $e) {
-    AppLogger::error('backup_external_scheduled_failed', ['reason' => $e->getMessage()]);
-    fwrite(STDERR, 'BACKUP EXTERNO PROGRAMADO DETENIDO: ' . $e->getMessage() . PHP_EOL);
+    SafeException::log('backup_external_scheduled_failed', $e, 'cron.copia_externa');
+    fwrite(STDERR, "BACKUP EXTERNO PROGRAMADO DETENIDO. Consulta el correlation ID del log.\n");
     exit(1);
 }
 

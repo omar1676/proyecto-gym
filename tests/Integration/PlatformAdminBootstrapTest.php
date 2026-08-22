@@ -2,17 +2,20 @@
 
 require_once dirname(__DIR__) . '/bootstrap.php';
 require_once dirname(__DIR__, 2) . '/app/services/PlatformAdminBootstrapService.php';
+require_once dirname(__DIR__, 2) . '/app/helpers/Sesion.php';
 
 $db = Database::getInstance()->getConnection();
 $original = $db->query(
-    "SELECT id_usuario,id_empresa,rol FROM usuario WHERE rol='superadmin' AND id_empresa IS NULL ORDER BY id_usuario LIMIT 1"
+    "SELECT id_usuario,id_empresa,rol,activo,sesiones_desde FROM usuario WHERE rol='superadmin' AND id_empresa IS NULL AND activo=1 ORDER BY id_usuario LIMIT 1"
 )->fetch(PDO::FETCH_ASSOC);
 $created = 0;
 
 try {
     if (!$original) throw new RuntimeException('El fixture no contiene superadmin reversible.');
-    $db->prepare("UPDATE usuario SET rol='direccion',id_empresa=1 WHERE id_usuario=:id")
+    $db->prepare("UPDATE usuario SET activo=0,sesiones_desde=NOW() WHERE id_usuario=:id")
         ->execute([':id' => (int) $original['id_usuario']]);
+    check('histórico global desactivado no conserva capacidad operativa',
+        !Sesion::usuarioPuedeContinuar($db, (int) $original['id_usuario'], time() - 10));
     $service = new PlatformAdminBootstrapService($db);
     $weakRejected = false;
     try {
@@ -34,6 +37,9 @@ try {
     check('identidad queda fuera de cualquier tenant y con hash verificable', is_array($row)
         && $row['id_empresa'] === null && $row['rol'] === 'superadmin'
         && !hash_equals($plain, (string) $row['contrasena']) && password_verify($plain, (string) $row['contrasena']));
+    check('recuperación no reactiva ni reutiliza la identidad histórica',
+        (int) $db->query('SELECT activo FROM usuario WHERE id_usuario=' . (int) $original['id_usuario'])->fetchColumn() === 0
+        && $created !== (int) $original['id_usuario']);
     $audit = $db->query("SELECT * FROM log_actividad WHERE id_usuario={$created} AND accion='PLATFORM_ADMIN_BOOTSTRAPPED'")
         ->fetch(PDO::FETCH_ASSOC);
     check('bootstrap queda auditado sin contraseña', is_array($audit)
@@ -46,7 +52,13 @@ try {
             'username'=>'platform.other','password'=>'F22-Other-Temporary-99!',
         ]);
     } catch (DomainException) { $secondRejected = true; }
-    check('bootstrap de un solo uso rechaza una segunda identidad', $secondRejected);
+    check('un superadmin activo rechaza un segundo bootstrap', $secondRejected);
+    $sessionStarted = time();
+    check('operador nominal activo puede iniciar continuidad de sesión', Sesion::usuarioPuedeContinuar($db, $created, $sessionStarted));
+    $db->prepare('UPDATE usuario SET activo=0,sesiones_desde=DATE_ADD(NOW(), INTERVAL 1 SECOND) WHERE id_usuario=:id')
+        ->execute([':id'=>$created]);
+    check('offboarding invalida inmediatamente la sesión del operador nominal',
+        !Sesion::usuarioPuedeContinuar($db, $created, $sessionStarted));
 } finally {
     try {
         if ($created > 0) {
@@ -56,8 +68,11 @@ try {
         }
     } finally {
         if ($original) {
-            $db->prepare("UPDATE usuario SET rol='superadmin',id_empresa=NULL WHERE id_usuario=:id")
-                ->execute([':id'=>(int)$original['id_usuario']]);
+            $db->prepare("UPDATE usuario SET rol=:rol,id_empresa=:company,activo=:active,sesiones_desde=:sessions WHERE id_usuario=:id")
+                ->execute([
+                    ':rol'=>$original['rol'], ':company'=>$original['id_empresa'], ':active'=>$original['activo'],
+                    ':sessions'=>$original['sesiones_desde'], ':id'=>(int)$original['id_usuario'],
+                ]);
         }
     }
 }

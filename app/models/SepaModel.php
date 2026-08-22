@@ -1,5 +1,7 @@
 <?php
 require_once dirname(__DIR__) . '/helpers/Money.php';
+require_once dirname(__DIR__) . '/helpers/TenantLifecyclePolicy.php';
+require_once dirname(__DIR__) . '/helpers/SafeException.php';
 require_once __DIR__ . '/FinancialModel.php';
 /**
  * SepaModel — mandatos de domiciliación y remesas de adeudos.
@@ -93,6 +95,7 @@ class SepaModel
 
     public function guardarAcreedor(int $idGimnasio, array $datos): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             $stmt = $this->db->prepare(
                 "UPDATE gimnasio SET
@@ -116,7 +119,7 @@ class SepaModel
             $verificar->execute([':id' => $idGimnasio]);
             return (bool) $verificar->fetchColumn();
         } catch (\Throwable $e) {
-            error_log('SepaModel::guardarAcreedor error: ' . $e->getMessage());
+            SafeException::log('sepa_model_failed', $e, 'SepaModel.guardarAcreedor');
             return false;
         }
     }
@@ -145,6 +148,7 @@ class SepaModel
         string $tipo = 'recurrente',
         ?string $idempotencyKey = null
     ): ?int {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         $iban = Iban::normalizar($iban);
         if (!Iban::esValido($iban)) {
             $error = 'El IBAN del mandato no es válido.';
@@ -230,7 +234,7 @@ class SepaModel
             return $idMandato;
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
-            error_log('SepaModel::crearMandato error: ' . $e->getMessage());
+            SafeException::log('sepa_model_failed', $e, 'SepaModel.crearMandato');
             $error = $e instanceof DomainException ? $e->getMessage() : 'No se pudo registrar el mandato.';
             return null;
         }
@@ -250,6 +254,7 @@ class SepaModel
 
     public function revocarMandato(int $idMandato): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             $stmt = $this->db->prepare(
                 "UPDATE mandato_sepa SET estado = 'revocado' WHERE id_mandato = :id" . $this->filtroSede()
@@ -257,7 +262,7 @@ class SepaModel
             $stmt->execute([':id' => $idMandato]);
             return $stmt->rowCount() === 1;
         } catch (\Throwable $e) {
-            error_log('SepaModel::revocarMandato error: ' . $e->getMessage());
+            SafeException::log('sepa_model_failed', $e, 'SepaModel.revocarMandato');
             return false;
         }
     }
@@ -275,7 +280,7 @@ class SepaModel
             $stmt->execute();
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
-            error_log('SepaModel::listarMandatos error: ' . $e->getMessage());
+            SafeException::log('sepa_model_failed', $e, 'SepaModel.listarMandatos');
             return [];
         }
     }
@@ -311,7 +316,7 @@ class SepaModel
             $stmt->execute();
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
-            error_log('SepaModel::listarDomiciliablesPendientes error: ' . $e->getMessage());
+            SafeException::log('sepa_model_failed', $e, 'SepaModel.listarDomiciliablesPendientes');
             return [];
         }
     }
@@ -332,6 +337,7 @@ class SepaModel
         string &$error,
         ?string $idempotencyKey = null
     ): ?int {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         if ($idempotencyKey !== null) {
             $stmt = $this->db->prepare('SELECT id_remesa FROM remesa WHERE id_gimnasio = :sede AND idempotency_key = :clave LIMIT 1');
             $stmt->execute([':sede' => $this->idGimnasio, ':clave' => $idempotencyKey]);
@@ -485,7 +491,7 @@ class SepaModel
                     // Se conserva el fallo original y no se muestra SQL.
                 }
             }
-            error_log('SepaModel::crearRemesa error: ' . $e->getMessage());
+            SafeException::log('sepa_model_failed', $e, 'SepaModel.crearRemesa');
             $error = 'No se pudo crear la remesa.';
             return null;
         }
@@ -506,7 +512,7 @@ class SepaModel
             $stmt->execute();
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
-            error_log('SepaModel::listarRemesas error: ' . $e->getMessage());
+            SafeException::log('sepa_model_failed', $e, 'SepaModel.listarRemesas');
             return [];
         }
     }
@@ -538,6 +544,7 @@ class SepaModel
      */
     public function marcarEnviada(int $idRemesa): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             $this->db->beginTransaction();
 
@@ -561,13 +568,14 @@ class SepaModel
             return true;
         } catch (\PDOException $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
-            error_log('SepaModel::marcarEnviada error: ' . $e->getMessage());
+            SafeException::log('sepa_model_failed', $e, 'SepaModel.marcarEnviada');
             return false;
         }
     }
 
     public function marcarCobrada(int $idRemesa, ?int $idUsuario = null): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             $this->db->beginTransaction();
             $stmtRemesa = $this->db->prepare(
@@ -591,7 +599,7 @@ class SepaModel
             return true;
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
-            error_log('SepaModel::marcarCobrada error: ' . $e->getMessage());
+            SafeException::log('sepa_model_failed', $e, 'SepaModel.marcarCobrada');
             return false;
         }
     }
@@ -601,6 +609,7 @@ class SepaModel
     /** Un recibo devuelto vuelve a quedar pendiente de cobro para la próxima remesa. */
     public function marcarDevuelto(int $idRecibo, string $motivo, ?int $idUsuario = null): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         try {
             $this->db->beginTransaction();
             // El recibo no lleva sede: la hereda de su remesa, y por ahí se
@@ -628,7 +637,7 @@ class SepaModel
             return true;
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
-            error_log('SepaModel::marcarDevuelto error: ' . $e->getMessage());
+            SafeException::log('sepa_model_failed', $e, 'SepaModel.marcarDevuelto');
             return false;
         }
     }
@@ -646,7 +655,7 @@ class SepaModel
             $stmt->execute();
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
-            error_log('SepaModel::listarDevueltos error: ' . $e->getMessage());
+            SafeException::log('sepa_model_failed', $e, 'SepaModel.listarDevueltos');
             return [];
         }
     }

@@ -111,7 +111,7 @@ final class MigrationManager
                     $applied[] = $name;
                 } catch (Throwable $e) {
                     throw new RuntimeException(
-                        'La migración ' . $name . ' falló y no fue registrada: ' . $e->getMessage(),
+                        'La migración ' . $name . ' falló y no fue registrada.',
                         0,
                         $e
                     );

@@ -1,5 +1,7 @@
 <?php
 require_once dirname(__DIR__) . '/helpers/Money.php';
+require_once dirname(__DIR__) . '/helpers/TenantLifecyclePolicy.php';
+require_once dirname(__DIR__) . '/helpers/SafeException.php';
 require_once dirname(__DIR__) . '/services/CashMovementRecorder.php';
 /**
  * VentaModel — acceso a las tablas `venta` y `venta_linea`.
@@ -94,6 +96,7 @@ class VentaModel
         string &$error,
         ?string $idempotencyKey = null
     ): ?int {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         if (!in_array($metodoPago, self::METODOS_VALIDOS, true)) {
             $error = 'Método de pago no válido.';
             return null;
@@ -284,7 +287,7 @@ class VentaModel
 
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
-            error_log('VentaModel::registrar error: ' . $e->getMessage());
+            SafeException::log('sale_model_failed', $e, 'VentaModel.registrar');
             $error = 'No se pudo registrar la venta. Inténtalo de nuevo.';
             return null;
         }
@@ -330,7 +333,7 @@ class VentaModel
             $stmt->execute([':desde' => $desde, ':hasta' => $hasta]);
             return $stmt->fetchAll();
         } catch (\Throwable $e) {
-            error_log('VentaModel::listarPorRango error: ' . $e->getMessage());
+            SafeException::log('sale_model_failed', $e, 'VentaModel.listarPorRango');
             return [];
         }
     }
@@ -348,7 +351,7 @@ class VentaModel
                 "SELECT COALESCE(SUM(total), 0) FROM {$this->tabla} WHERE DATE(fecha) = CURDATE()" . $this->filtroSede('') . $this->soloActivas('')
             )->fetchColumn();
         } catch (\PDOException $e) {
-            error_log('VentaModel::sumarDelDia error: ' . $e->getMessage());
+            SafeException::log('sale_model_failed', $e, 'VentaModel.sumarDelDia');
             return 0.0;
         }
     }
@@ -361,7 +364,7 @@ class VentaModel
                  WHERE YEAR(fecha) = YEAR(CURDATE()) AND MONTH(fecha) = MONTH(CURDATE())" . $this->filtroSede('') . $this->soloActivas('')
             )->fetchColumn();
         } catch (\PDOException $e) {
-            error_log('VentaModel::sumarDelMes error: ' . $e->getMessage());
+            SafeException::log('sale_model_failed', $e, 'VentaModel.sumarDelMes');
             return 0.0;
         }
     }
@@ -373,7 +376,7 @@ class VentaModel
                 "SELECT COUNT(*) FROM {$this->tabla} WHERE DATE(fecha) = CURDATE()" . $this->filtroSede('') . $this->soloActivas('')
             )->fetchColumn();
         } catch (\PDOException $e) {
-            error_log('VentaModel::contarDelDia error: ' . $e->getMessage());
+            SafeException::log('sale_model_failed', $e, 'VentaModel.contarDelDia');
             return 0;
         }
     }
@@ -392,7 +395,7 @@ class VentaModel
             $stmt->execute([':desde' => $desde, ':hasta' => $hasta]);
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
-            error_log('VentaModel::sumarPorMetodoPago error: ' . $e->getMessage());
+            SafeException::log('sale_model_failed', $e, 'VentaModel.sumarPorMetodoPago');
             return [];
         }
     }
@@ -418,7 +421,7 @@ class VentaModel
             $stmt->execute();
             return $stmt->fetchAll();
         } catch (\PDOException $e) {
-            error_log('VentaModel::topProductos error: ' . $e->getMessage());
+            SafeException::log('sale_model_failed', $e, 'VentaModel.topProductos');
             return [];
         }
     }
@@ -435,6 +438,7 @@ class VentaModel
      */
     public function anular(int $idVenta, ?int $idUsuario = null, string $motivo = ''): bool
     {
+        $tenantLifecycle = TenantLifecyclePolicy::acquireBusinessWrite($this->db, $this->idEmpresa);
         $venta = $this->buscarPorId($idVenta);
         if ($venta === null || ($venta['estado'] ?? 'activa') !== 'activa') {
             return false;
@@ -496,7 +500,7 @@ class VentaModel
             return false;
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
-            error_log('VentaModel::anular error: ' . $e->getMessage());
+            SafeException::log('sale_model_failed', $e, 'VentaModel.anular');
             return false;
         }
     }

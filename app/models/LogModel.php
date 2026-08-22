@@ -17,6 +17,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../helpers/RequestContext.php';
 require_once __DIR__ . '/../helpers/AuditPolicy.php';
 require_once __DIR__ . '/../helpers/AppLogger.php';
+require_once __DIR__ . '/../helpers/SafeException.php';
 
 class LogModel {
     private $db;
@@ -207,7 +208,7 @@ class LogModel {
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (\PDOException $e) {
-            error_log('LogModel::listar error: ' . $e->getMessage());
+            SafeException::log('audit_model_failed', $e, 'LogModel.listar');
             return [];
         }
     }
@@ -240,7 +241,7 @@ class LogModel {
             $stmt->execute($params);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (\PDOException $e) {
-            error_log('LogModel::listarAutores error: ' . $e->getMessage());
+            SafeException::log('audit_model_failed', $e, 'LogModel.listarAutores');
             return [];
         }
     }

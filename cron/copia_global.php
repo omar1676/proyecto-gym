@@ -4,6 +4,7 @@ require_once __DIR__ . '/../app/helpers/BackupStorage.php';
 require_once __DIR__ . '/../app/helpers/BackupManifest.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
 require_once __DIR__ . '/../app/helpers/RequestContext.php';
+require_once __DIR__ . '/../app/helpers/SafeException.php';
 
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit(1); }
 RequestContext::bootstrap('CRON');
@@ -59,8 +60,8 @@ try {
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
     exit(0);
 } catch (Throwable $e) {
-    AppLogger::error('backup_set_failed', ['reason' => $e->getMessage()]);
-    fwrite(STDERR, 'ERROR: no se pudo completar el backup global: ' . $e->getMessage() . PHP_EOL);
+    SafeException::log('backup_set_failed', $e, 'cron.copia_global');
+    fwrite(STDERR, "ERROR: no se pudo completar el backup global. Consulta el correlation ID del log.\n");
     exit(1);
 }
 
