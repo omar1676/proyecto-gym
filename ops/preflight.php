@@ -15,9 +15,19 @@ $check('base staging identificable', APP_ENV !== 'staging' || (stripos(DB_NAME, 
 $check('acceso físico deshabilitado en staging', APP_ENV !== 'staging' || ACCESS_CONTROL_MODE === 'disabled', ACCESS_CONTROL_MODE);
 $check('.env no versionado', trim((string) shell_exec('git -C ' . escapeshellarg($root) . ' ls-files .env')) === '');
 $check('document root public', realpath($root . '/public') !== false);
+$externalMarkerOk = false;
+$externalMarker = rtrim(BACKUP_EXTERNAL_VERIFY_DIR, '/\\') . '/external_backup_success.json';
+if (BACKUP_EXTERNAL_VERIFY_DIR !== '' && is_file($externalMarker)) {
+    $markerData = json_decode((string) file_get_contents($externalMarker), true);
+    $verifiedAt = strtotime((string) ($markerData['verified_at_utc'] ?? ''));
+    $externalMarkerOk = is_array($markerData)
+        && ($markerData['encrypted'] ?? false) === true
+        && $verifiedAt !== false
+        && $verifiedAt >= time() - 36 * 3600;
+}
 $externalConfigured = (COPIAS_EXTERNAS_DIR !== '' && is_dir(COPIAS_EXTERNAS_DIR))
     || (BACKUP_EXTERNAL_ENABLED && BACKUP_EXTERNAL_ENCRYPTED && BACKUP_EXTERNAL_REMOTE !== ''
-        && BACKUP_EXTERNAL_CONFIG !== '' && is_file(BACKUP_EXTERNAL_CONFIG));
+        && ((BACKUP_EXTERNAL_CONFIG !== '' && is_file(BACKUP_EXTERNAL_CONFIG)) || $externalMarkerOk));
 $check('copia externa configurada', $externalConfigured, $externalConfigured ? 'configurada' : 'PENDIENTE');
 $check('sin backup local de secretos en release', !is_file($root . '/.env.produccion.bak'));
 $check('sin repositorio de respaldo en release', !is_dir($root . '/.git.bak'));
