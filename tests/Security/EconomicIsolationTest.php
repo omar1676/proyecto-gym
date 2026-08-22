@@ -7,7 +7,7 @@ $db = Database::getInstance()->getConnection();
 $db->exec("DELETE FROM usuario WHERE nombre_usuario LIKE 'f9_iso_%'");
 $db->exec("DELETE FROM gimnasio WHERE nombre LIKE 'F9 ISO %'");
 $db->exec("DELETE FROM empresa WHERE nombre LIKE 'F9 ISO %'");
-$db->exec("INSERT INTO empresa (nombre,nombre_comercial) VALUES ('F9 ISO Empresa B','F9 B')");
+$db->exec("INSERT INTO empresa (nombre,nombre_comercial,slug) VALUES ('F9 ISO Empresa B','F9 B','f9-iso-b')");
 $empresaB = (int)$db->lastInsertId();
 $db->exec("INSERT INTO gimnasio (id_empresa,nombre) VALUES ($empresaB,'F9 ISO Sede B')");
 $sedeB = (int)$db->lastInsertId();

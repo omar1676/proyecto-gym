@@ -27,6 +27,7 @@ class Menu
         'reportes'   => 'M4 19h16M7 16V9m5 7V5m5 11v-4',
         'log'        => 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 0 2-2h2a2 2 0 0 0 2 2m-6 9l2 2 4-4',
         'migraciones'=> 'M12 3v12m0 0-4-4m4 4 4-4M5 19h14',
+        'empresas'   => 'M3 21h18M5 21V7l7-4 7 4v14M9 10h.01M15 10h.01M9 14h.01M15 14h.01',
         'salir'      => 'M10 17 15 12 10 7M15 12H3m8-9h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6',
     ];
 
@@ -47,9 +48,12 @@ class Menu
         $reportes   = ['admin_reportes',   'reportes',   'Reportes',       'reportes'];
         $historial  = ['admin_log',        'log',        'Historial',      'log'];
         $migraciones= ['admin_importaciones','migraciones','Importaciones','migraciones'];
+        $empresas    = ['admin_empresas','empresas','Empresas','empresas'];
 
         switch ($rol) {
             case 'superadmin':
+                return [$empresas, $inicio, $ventas, $caja, $productos, $socios, $membresias, $remesas,
+                        ['admin_sedes', 'sedes', 'Sedes', 'sedes'], $personal, $reportes, $historial, $migraciones];
             case 'direccion':
                 return [$inicio, $ventas, $caja, $productos, $socios, $membresias, $remesas,
                         ['admin_sedes', 'sedes', 'Sedes', 'sedes'], $personal, $reportes, $historial, $migraciones];

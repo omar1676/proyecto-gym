@@ -286,6 +286,22 @@ class AdminController
             } else {
                 $accion = $_POST['accion'] ?? '';
 
+                if ($accion === 'crear_categoria') {
+                    $nombreCategoria = InputValidator::text($_POST['nombre_categoria'] ?? '', 100);
+                    if ($nombreCategoria === null) {
+                        $this->irAConError('admin_productos', 'El nombre de categoría no es válido.');
+                    }
+                    $idCategoria = $this->productoModel->crearCategoria($nombreCategoria);
+                    if ($idCategoria === null) {
+                        $this->irAConError('admin_productos', 'La categoría ya existe o no pudo guardarse.');
+                    }
+                    $this->registrarLog(
+                        'Categoría de producto', 'Alta de categoría: ' . $nombreCategoria,
+                        'exito', 'categoria_producto', $idCategoria
+                    );
+                    $this->irA('admin_productos', ['ok_categoria' => 1]);
+                }
+
                 if ($accion === 'toggle_estado_producto') {
                     $idProducto = (int) ($_POST['id_producto'] ?? 0);
                     if ($idProducto > 0 && $this->productoModel->toggleEstado($idProducto)) {
@@ -366,6 +382,7 @@ class AdminController
         if (isset($_GET['ok']))        $mensajeExito = 'Producto creado correctamente.';
         if (isset($_GET['ok_editar'])) $mensajeExito = 'Producto actualizado correctamente.';
         if (isset($_GET['ok_stock']))  $mensajeExito = 'Stock actualizado correctamente.';
+        if (isset($_GET['ok_categoria'])) $mensajeExito = 'Categoría creada correctamente.';
         if (isset($_GET['ok_imagen'])) $mensajeExito = 'Imagen del producto actualizada correctamente.';
         if (isset($_GET['err_imagen'])) $errorProducto = $_GET['err_imagen'];
 
@@ -1098,8 +1115,8 @@ class AdminController
                         $errorSede = 'El email de acceso del gimnasio no es válido.';
                     } elseif ($emailAcceso !== '' && $gimnasioModel->emailAccesoExiste($emailAcceso, $idSede)) {
                         $errorSede = 'Ese email de acceso ya lo usa otro gimnasio.';
-                    } elseif ($claveAcceso !== '' && strlen($claveAcceso) < 6) {
-                        $errorSede = 'La contraseña del gimnasio debe tener al menos 6 caracteres.';
+                    } elseif ($claveAcceso !== '' && strlen($claveAcceso) < 12) {
+                        $errorSede = 'La contraseña del gimnasio debe tener al menos 12 caracteres.';
                     } else {
                         if ($idSede > 0) {
                             $gimnasioModel->actualizar($idSede, $datos);
@@ -1880,7 +1897,7 @@ class AdminController
     /**
      * Registra una acción hecha SOBRE una persona, guardando el valor anterior
      * y el nuevo. Es lo que permite leer después "Dani cambió el vencimiento de
-     * Omar del 30/08 al 30/09" sin depender de cómo se redactó el detalle.
+     * un socio del 30/08 al 30/09" sin depender de cómo se redactó el detalle.
      */
     private function registrarLogSobre(
         string $accion,

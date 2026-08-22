@@ -11,8 +11,8 @@ try {
     $idSedeA = (int) $sedeA['id_gimnasio'];
 
     $insertEmpresa = $db->prepare(
-        "INSERT INTO empresa (nombre, nombre_comercial, email, telefono, estado)
-         VALUES ('FASE7 Empresa B', 'FASE7 Empresa B', 'fase7.b@test.invalid', '600000001', 'activa')"
+        "INSERT INTO empresa (nombre, nombre_comercial, slug, email, telefono, estado)
+         VALUES ('FASE7 Empresa B', 'FASE7 Empresa B', 'fase7-empresa-b', 'fase7.b@test.invalid', '600000001', 'activa')"
     );
     $insertEmpresa->execute();
     $idEmpresaB = (int) $db->lastInsertId();

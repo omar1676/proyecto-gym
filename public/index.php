@@ -15,6 +15,7 @@ ob_start();
 require_once __DIR__ . '/../app/controllers/AuthController.php';
 require_once __DIR__ . '/../app/controllers/AdminController.php';
 require_once __DIR__ . '/../app/controllers/MediaController.php';
+require_once __DIR__ . '/../app/controllers/PlatformController.php';
 require_once __DIR__ . '/../app/helpers/SecurityHeaders.php';
 require_once __DIR__ . '/../app/helpers/ErrorHandler.php';
 require_once __DIR__ . '/../app/helpers/RequestContext.php';
@@ -170,6 +171,11 @@ $rutas = [
     'admin_empleado_crear'  => ['admin', 'crearEmpleado'],
     'admin_empleado_editar' => ['admin', 'editarEmpleado'],
     'admin_empleado_toggle' => ['admin', 'toggleEmpleado'],
+
+    /* Plataforma SaaS (solo superadmin) */
+    'admin_empresas'        => ['platform', 'list'],
+    'admin_empresa_crear'   => ['platform', 'create'],
+    'admin_empresa_activar' => ['platform', 'activate'],
 ];
 
 $action = $_GET['action'] ?? 'login';
@@ -183,7 +189,10 @@ if (!isset($rutas[$action])) {
 
 // Los controladores se crean al usarlos: cada constructor arranca la sesión y
 // abre la conexión, y no hace falta hacerlo dos veces en cada petición.
-$ctrl = $controlador === 'auth'
-    ? new AuthController()
-    : ($controlador === 'media' ? new MediaController() : new AdminController());
+$ctrl = match ($controlador) {
+    'auth' => new AuthController(),
+    'media' => new MediaController(),
+    'platform' => new PlatformController(),
+    default => new AdminController(),
+};
 $ctrl->$metodo();

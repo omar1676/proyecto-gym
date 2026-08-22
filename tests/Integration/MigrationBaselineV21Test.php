@@ -10,15 +10,15 @@ try {
     $manager->baselineExisting();
     $afterBaseline = $manager->status();
     check('baseline v21 solo registra hasta v22', $afterBaseline['pending'] === [
-        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql', 'migracion_v28.sql',
+        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql', 'migracion_v28.sql', 'migracion_v29.sql',
     ]);
     check('baseline v21 no inventa estructuras v24', !SchemaMigrationTestFactory::tableExists($db, 'migration_batch'));
     check('baseline v21 no inventa estructuras v25', !SchemaMigrationTestFactory::tableExists($db, 'obligacion_pago'));
     check('baseline v21 no inventa estructuras v26', !SchemaMigrationTestFactory::tableExists($db, 'access_sync_job'));
 
     $applied = $manager->migratePending();
-    check('v23-v28 se ejecutan realmente y en orden', $applied === [
-        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql', 'migracion_v28.sql',
+    check('v23-v29 se ejecutan realmente y en orden', $applied === [
+        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql', 'migracion_v28.sql', 'migracion_v29.sql',
     ]);
     foreach ([
         'migration_batch', 'obligacion_pago', 'cobro', 'access_identity_map',
@@ -29,6 +29,7 @@ try {
     check('v27 crea unicidad de mandato activo', SchemaMigrationTestFactory::indexExists($db, 'mandato_sepa', 'uq_mandato_socio_activo'));
     check('v27 crea claim único de remesa', SchemaMigrationTestFactory::indexExists($db, 'remesa_recibo', 'uq_recibo_membresia_en_cobro'));
     check('v28 crea correlación de auditoría', SchemaMigrationTestFactory::indexExists($db, 'log_actividad', 'idx_log_correlation'));
+    check('v29 crea categorías tenant-aware', SchemaMigrationTestFactory::indexExists($db, 'categoria_producto', 'uq_categoria_empresa_nombre'));
     $status = $manager->status();
     check('legacy v21 termina sin migraciones pendientes', $status['pending'] === []);
     check('legacy v21 termina sin checksum mismatch', $status['checksum_mismatch'] === []);

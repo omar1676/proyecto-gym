@@ -2,15 +2,16 @@
 
 ## Identidad
 
-- Versión declarada por la aplicación: `0.12.1-fase21.1`.
-- Migración más reciente: `migracion_v28.sql`.
+- Versión declarada por la aplicación: `0.13.0-fase22`.
+- Migración más reciente: `migracion_v29.sql`.
 - Último tag histórico de release anotado: `v0.9.0-fase10`.
 - El commit exacto del tag se obtiene con
   `git rev-parse v0.9.0-fase10^{commit}`. Fases 11–12 añaden preparación y una
   corrección neutral de mensajes; no se ha creado un tag nuevo.
 - Fecha de saneamiento: 22/08/2026 (Europe/Madrid).
 
-F21.1 no añade funciones de negocio. Cada artefacto se genera desde un commit
+F22 añade el mecanismo de alta SaaS y aislamiento de catálogos requerido para
+incorporar un segundo cliente sin código/SQL específico. Cada artefacto se genera desde un commit
 limpio mediante `php ops/build_release.php --output-dir=<directorio>` y se
 acompaña de un manifiesto determinista de hashes por archivo.
 
@@ -54,7 +55,7 @@ reales dentro de la release.
 pero se excluye de la release productiva. La instalación productiva debe usar
 el procedimiento de `DESPLIEGUE.md` y `ops/migrate.php`.
 
-## Evidencia local y contrato de F21.1
+## Evidencia local y contrato de F22
 
 - La evidencia de fases anteriores es histórica y no se reutiliza para declarar
   F21.1 aprobada.
@@ -67,8 +68,9 @@ el procedimiento de `DESPLIEGUE.md` y `ops/migrate.php`.
   F21.1; no se conserva aquí una cifra que cambie al añadir un gate.
 - HTTP, smoke, PHP 8.3 y MariaDB 10.11 se vuelven a ejecutar contra la release
   inmutable antes de activarla; su resultado no se anticipa en este archivo.
-- Migraciones: objetivo `pending=[]`, `checksum_mismatch=[]`, última v28.
-- Segundo gimnasio sintético: 16 comprobaciones, 0 fallos; fixture eliminada.
+- Migraciones: objetivo `pending=[]`, `checksum_mismatch=[]`, `structural_mismatch=[]`, última v29.
+- El total real de suite, Atlas y provisioning de 100 tenants se registra tras
+  ejecutar los gates finales; no se anticipa una cifra en este manifiesto.
 
 El gate P0 se ejecuta con `php tests/run.php --p0-gate`; el contrato del runner
 es `exit 0 = PASS real`. `--inject-failure` debe provocar una salida distinta de

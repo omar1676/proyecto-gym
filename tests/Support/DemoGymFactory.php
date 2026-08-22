@@ -6,14 +6,14 @@ require_once dirname(__DIR__, 2) . '/app/models/MembresiaModel.php';
 require_once dirname(__DIR__, 2) . '/app/models/ProductoModel.php';
 require_once dirname(__DIR__, 2) . '/app/models/CashModel.php';
 require_once dirname(__DIR__, 2) . '/app/models/VentaModel.php';
+require_once dirname(__DIR__, 2) . '/app/services/TenantProvisioningService.php';
 
 /**
  * Fixture efímera para demostrar que un segundo cliente puede operar sin
  * reutilizar ids, nombres ni datos de Cleto. Solo se carga con APP_ENV=test.
  *
- * La empresa y su primer usuario de dirección se insertan aquí porque la
- * aplicación todavía no tiene un servicio de aprovisionamiento de tenants.
- * El resto se crea a través de los modelos productivos existentes.
+ * La empresa, primera sede y dirección se crean mediante el mismo servicio
+ * productivo del onboarding. No contiene SQL de alta específico del cliente.
  */
 final class DemoGymFactory
 {
@@ -40,6 +40,7 @@ final class DemoGymFactory
                 . "WHERE g.id_empresa = {$empresaId}"
             );
             $db->exec("DELETE FROM tipo_membresia WHERE id_empresa = {$empresaId}");
+            $db->exec("DELETE FROM categoria_producto WHERE id_empresa = {$empresaId}");
             $db->exec("DELETE FROM log_actividad WHERE id_empresa = {$empresaId}");
             $db->exec("DELETE FROM usuario WHERE id_empresa = {$empresaId}");
             $db->exec("DELETE FROM gimnasio WHERE id_empresa = {$empresaId}");
@@ -54,28 +55,29 @@ final class DemoGymFactory
         }
         self::cleanup($db);
 
-        $stmtEmpresa = $db->prepare(
-            "INSERT INTO empresa (nombre, nombre_comercial, email, telefono, estado, configuracion)\n"
-            . "VALUES (:nombre, :comercial, :email, :telefono, 'activa', :configuracion)"
-        );
-        $stmtEmpresa->execute([
-            ':nombre' => self::COMPANY_NAME,
-            ':comercial' => 'Gimnasio Demo Norte',
-            ':email' => 'direccion.demo.norte@example.invalid',
-            ':telefono' => '600000120',
-            ':configuracion' => json_encode(['fixture' => 'fase12'], JSON_THROW_ON_ERROR),
+        $actor = (int) $db->query("SELECT id_usuario FROM usuario WHERE rol='superadmin' AND activo=1 ORDER BY id_usuario LIMIT 1")->fetchColumn();
+        $provisioning = new TenantProvisioningService($db, $actor);
+        $created = $provisioning->provision([
+            'idempotency_key' => 'f1200000-0000-4000-8000-000000000012',
+            'company_name' => self::COMPANY_NAME,
+            'commercial_name' => 'Gimnasio Demo Norte',
+            'company_email' => 'direccion.demo.norte@example.invalid',
+            'phone' => '600000120',
+            'site_name' => 'Demo Norte Centro',
+            'site_access_email' => 'acceso.demo.norte@example.invalid',
+            'owner_name' => 'Dirección',
+            'owner_surname' => 'Demo Norte',
+            'owner_email' => 'dir.demo.norte@example.invalid',
+            'owner_username' => 'f12_demo_norte_dir',
+            'categories' => ['Bebidas Demo Norte'],
+            'membership_types' => [],
         ]);
-        $empresaId = (int) $db->lastInsertId();
+        $empresaId = (int) $created['company_id'];
+        $sedeCentro = (int) $created['site_id'];
+        $direccionId = (int) $created['owner_id'];
+        $provisioning->activate($empresaId);
 
         $gimnasios = new GimnasioModel($empresaId);
-        $sedeCentro = $gimnasios->crear([
-            'nombre' => 'Demo Norte Centro',
-            'razon_social' => 'Gimnasio Demo Norte SL',
-            'cif' => 'B12000001',
-            'direccion' => 'Calle Sintética 1',
-            'telefono' => '600000121',
-            'email' => 'centro.demo.norte@example.invalid',
-        ]);
         $sedeRio = $gimnasios->crear([
             'nombre' => 'Demo Norte Río',
             'razon_social' => 'Gimnasio Demo Norte SL',
@@ -84,21 +86,9 @@ final class DemoGymFactory
             'telefono' => '600000122',
             'email' => 'rio.demo.norte@example.invalid',
         ]);
-        if (!$sedeCentro || !$sedeRio) {
+        if (!$sedeRio) {
             throw new RuntimeException('No se pudieron crear las dos sedes sintéticas.');
         }
-
-        $stmtDireccion = $db->prepare(
-            "INSERT INTO usuario\n"
-            . "(id_empresa, id_gimnasio, nombre, apellidos, dni, telefono, email, nombre_usuario, contrasena, rol, activo)\n"
-            . "VALUES (:empresa, NULL, 'Dirección', 'Demo Norte', 'F12DIR0001', '600000123',\n"
-            . "'dir.demo.norte@example.invalid', 'f12_demo_norte_dir', :clave, 'direccion', 1)"
-        );
-        $stmtDireccion->execute([
-            ':empresa' => $empresaId,
-            ':clave' => password_hash('synthetic-only', PASSWORD_BCRYPT, ['cost' => 4]),
-        ]);
-        $direccionId = (int) $db->lastInsertId();
 
         $usuarios = new UserModel($sedeCentro, $empresaId);
         $recepcionId = $usuarios->crearEmpleado(
@@ -167,7 +157,7 @@ final class DemoGymFactory
             'producto' => $productoId,
             'sesion_caja' => (int) $sesionCajaId,
             'venta' => (int) $ventaId,
-            'aprovisionamiento_sql' => ['empresa', 'direccion'],
+            'aprovisionamiento_sql' => [],
         ];
     }
 }

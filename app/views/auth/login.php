@@ -8,7 +8,7 @@
  * nombre sobre el color principal.
  *
  * El logo va siempre sobre una placa blanca. Un logo puede ser negro sobre
- * transparente (el de Cleto Reyes lo es) y desaparecería sobre un fondo
+ * transparente (muchas marcas lo usan) y desaparecería sobre un fondo
  * oscuro; sobre blanco se ve cualquiera.
  *
  * Los colores se interpolan en atributos `style` porque son datos, no clases:

@@ -52,7 +52,7 @@ $stmt->execute([3,$empresa,1,'Omar','Socio','TEST-OMAR','omar@test.invalid','oma
 $stmt->execute([4,$empresa,1,'Pedro','Recepción','TEST-PEDRO','pedro@test.invalid','pedro',$hash1234,'recepcion']);
 $stmt->execute([5,$empresa,4,'Nora','Recepción','TEST-NORA','nora@test.invalid','nora',$hashAdmin,'recepcion']);
 $stmt->execute([6,null,null,'Plataforma','Interna','TEST-PLAT','empresa@test.invalid','empresa',$hashAdmin,'superadmin']);
-$db->exec("INSERT INTO categoria_producto (id_categoria,nombre_categoria) VALUES (1,'Bebidas'),(2,'Nutrición')");
+$db->exec("INSERT INTO categoria_producto (id_categoria,id_empresa,nombre_categoria) VALUES (1,{$empresa},'Bebidas'),(2,{$empresa},'Nutrición')");
 $db->exec("INSERT INTO producto (id_producto,nombre,precio,stock,stock_minimo,estado,id_categoria,id_gimnasio) VALUES (1,'Agua','1.00',50,5,'activo',1,1),(2,'Bebida isotónica','2.50',20,5,'activo',1,1),(3,'Proteína','24.90',8,2,'activo',2,1),(4,'Barrita energética','2.00',4,2,'activo',2,1)");
 $db->exec("INSERT INTO tipo_membresia (id_tipo_membresia,id_empresa,id_gimnasio,nombre,precio,duracion_meses,estado) VALUES (1,{$empresa},NULL,'Mensual','40.00',1,'activo'),(2,{$empresa},NULL,'Trimestral','95.00',3,'activo')");
 $db->exec("INSERT INTO suplemento (id_suplemento,id_empresa,id_gimnasio,nombre,precio_mensual,estado) VALUES (1,{$empresa},NULL,'Artes marciales','25.00','activo')");

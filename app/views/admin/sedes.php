@@ -219,7 +219,7 @@ require __DIR__ . '/../_header_admin.php';
                         <label class="block text-[11px] font-bold uppercase tracking-widest text-neutral-500 mb-1">
                             Contraseña del gimnasio
                         </label>
-                        <input type="password" name="contrasena_acceso" id="sede-clave-acceso" minlength="6"
+                        <input type="password" name="contrasena_acceso" id="sede-clave-acceso" minlength="12"
                             autocomplete="new-password"
                             class="w-full rounded-xl border border-[#e4e4e7] bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
                         <p id="sede-aviso-clave" class="mt-1 text-[11px] text-neutral-500"></p>
@@ -427,7 +427,7 @@ function coloresDesdeLogo() {
  * Entre los grupos manda el color sobre el gris: si hay tinta de color en una
  * proporción apreciable gana el color más presente, aunque un relleno neutro
  * ocupe más superficie, porque es el color el que identifica a la marca. Si el
- * logo es monocromo —el de Cleto Reyes lo es— no hay nada cromático y gana su
+ * logo es monocromo no hay nada cromático y gana su
  * tinta negra, que es justo lo que se quiere.
  */
 function colorDominante(img) {

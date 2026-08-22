@@ -329,6 +329,67 @@ pedir("$base?action=autenticar", ['usuario' => 'empresa', 'contrasena' => 'admin
 $r = pedir("$base?action=admin_importaciones", null, $ckDireccion);
 comprobar('dirección puede abrir importaciones', $r['estado'] === 200);
 
+echo "\n== ONBOARDING DE PLATAFORMA ==\n";
+$r = pedir("$base?action=admin_empresas", null, $ckAdmin);
+comprobar('admin de sede no puede abrir onboarding', $r['estado'] === 403, "-> HTTP {$r['estado']}");
+$r = pedir("$base?action=admin_empresas", null, $ckRecepcion);
+comprobar('recepción no puede abrir onboarding', $r['estado'] === 403, "-> HTTP {$r['estado']}");
+
+$ckPlatform = entrarGimnasio(CLETO_EMAIL, CLETO_CLAVE);
+pedir("$base?action=autenticar", ['usuario' => 'empresa', 'contrasena' => 'admin123'], $ckPlatform);
+$platformPage = pedir("$base?action=admin_empresas", null, $ckPlatform);
+comprobar('superadmin abre el área mínima de empresas', $platformPage['estado'] === 200
+    && strpos($platformPage['cuerpo'], 'Nuevo gimnasio') !== false);
+comprobar('pantalla de credenciales potenciales no se cachea', stripos($platformPage['cuerpo'], 'Cache-Control: no-store, private') !== false);
+
+$dbF22 = Database::getInstance()->getConnection();
+$companyF22 = 'TEST F22 HTTP ' . bin2hex(random_bytes(4));
+$postF22 = [
+    'onboarding_request_id' => preg_match('/name="onboarding_request_id" value="([a-f0-9-]{36})"/', $platformPage['cuerpo'], $requestMatch)
+        ? $requestMatch[1]
+        : '',
+    'company_name' => $companyF22,
+    'commercial_name' => 'Atlas HTTP Test',
+    'company_email' => 'atlas.http@test.invalid',
+    'phone' => '600123456',
+    'site_name' => 'Atlas HTTP Centro',
+    'site_access_email' => 'atlas.http.access.' . bin2hex(random_bytes(3)) . '@test.invalid',
+    'owner_name' => 'Alicia',
+    'owner_surname' => 'HTTP Test',
+    'owner_email' => 'atlas.http.owner@test.invalid',
+    'owner_username' => 'atlas.http.owner',
+    'primary_color' => '#234567',
+    'text_color' => '#ffffff',
+    'timezone' => 'Europe/Madrid',
+    'categories' => "Bebidas\nMaterial",
+];
+$withoutCsrf = $postF22;
+$withoutCsrf['_csrf'] = '';
+$r = pedir("$base?action=admin_empresa_crear", $withoutCsrf, $ckPlatform);
+comprobar('crear tenant sin CSRF se rechaza', $r['estado'] === 403
+    && (int) $dbF22->query('SELECT COUNT(*) FROM empresa WHERE nombre=' . $dbF22->quote($companyF22))->fetchColumn() === 0);
+
+$csrfPlatform = testigoPanel($ckPlatform);
+$postF22['_csrf'] = $csrfPlatform;
+$r = pedir("$base?action=admin_empresa_crear", $postF22, $ckPlatform);
+$companyF22Id = (int) $dbF22->query('SELECT id_empresa FROM empresa WHERE nombre=' . $dbF22->quote($companyF22))->fetchColumn();
+comprobar('superadmin crea tenant por HTTP sin SQL cliente', $r['estado'] === 200
+    && strpos($r['cuerpo'], 'Credenciales temporales') !== false && $companyF22Id > 0);
+comprobar('alta HTTP queda inactiva y lista para revisión', (string) $dbF22->query("SELECT CONCAT(estado,':',onboarding_state) FROM empresa WHERE id_empresa={$companyF22Id}")->fetchColumn() === 'inactiva:READY_FOR_REVIEW');
+pedir("$base?action=admin_empresa_crear", $postF22, $ckPlatform);
+comprobar('doble POST HTTP reutiliza idempotencia sin duplicar tenant',
+    (int) $dbF22->query('SELECT COUNT(*) FROM empresa WHERE nombre=' . $dbF22->quote($companyF22))->fetchColumn() === 1);
+
+$activationPage = pedir("$base?action=admin_empresas", null, $ckPlatform);
+$csrfActivation = preg_match('/name="_csrf" value="([a-f0-9]{64})"/', $activationPage['cuerpo'], $matchActivation) ? $matchActivation[1] : '';
+$r = pedir("$base?action=admin_empresa_activar", ['company_id' => $companyF22Id, '_csrf' => $csrfActivation], $ckPlatform);
+comprobar('activación HTTP confirma el tenant preparado', strpos($r['destino'], 'admin_empresas') !== false
+    && (string) $dbF22->query("SELECT CONCAT(estado,':',onboarding_state) FROM empresa WHERE id_empresa={$companyF22Id}")->fetchColumn() === 'activa:ACTIVE');
+comprobar('alta HTTP deja auditoría completa', (int) $dbF22->query("SELECT COUNT(*) FROM log_actividad WHERE id_empresa={$companyF22Id} AND accion IN ('TENANT_CREATED','SEDE_CREATED','OWNER_CREATED','ONBOARDING_COMPLETED','ONBOARDING_ACTIVATED') AND resultado='exito'")->fetchColumn() === 5);
+
+$siteAudit = $dbF22->query("SELECT actor_type,entidad FROM log_actividad WHERE accion='LOGIN_GIMNASIO' AND resultado='exito' ORDER BY id DESC LIMIT 1")->fetch();
+comprobar('credencial de nivel gimnasio se audita como sede técnica', ($siteAudit['actor_type'] ?? '') === 'sede' && ($siteAudit['entidad'] ?? '') === 'gimnasio');
+
 $r = pedir("$base?action=logout", ['_csrf' => testigoPanel($ckAdmin)], $ckAdmin);
 $r = pedir("$base?action=admin", null, $ckAdmin);
 comprobar('tras logout no se puede reutilizar el panel', strpos($r['destino'], 'action=login') !== false);

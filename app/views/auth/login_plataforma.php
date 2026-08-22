@@ -3,14 +3,14 @@
  * Paso 1 del acceso: identificación del GIMNASIO.
  *
  * Aquí manda NUESTRA marca. Se pide el email y la contraseña del gimnasio
- * (p. ej. cleto.reyes.villaviciosa@gmail.com); solo después se muestran los
+ * (p. ej. acceso.sede@cliente.example); solo después se muestran los
  * empleados de esa sede.
  *
  * A propósito no se lista ningún gimnasio: desde fuera no debe poder saberse
  * cuáles existen.
  *
  * El logo sale de APP_LOGO (.env) y se pinta sobre una placa blanca: el de
- * Cleto Reyes es negro sobre transparente y desaparecería sobre este fondo
+ * un logo negro sobre transparente desaparecería sobre este fondo
  * oscuro. Sin APP_LOGO se mantiene el icono genérico.
  */
 

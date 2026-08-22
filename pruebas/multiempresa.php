@@ -34,9 +34,9 @@ $db->exec("DELETE FROM usuario WHERE nombre_usuario LIKE 'test_tenant_%'");
 $db->exec("DELETE FROM gimnasio WHERE nombre LIKE 'TEST TENANT %'");
 $db->exec("DELETE FROM empresa WHERE nombre LIKE 'TEST TENANT %'");
 
-$db->exec("INSERT INTO empresa (nombre, nombre_comercial) VALUES ('TEST TENANT Empresa A','Empresa A')");
+$db->exec("INSERT INTO empresa (nombre, nombre_comercial, slug) VALUES ('TEST TENANT Empresa A','Empresa A','test-tenant-a')");
 $empresaA = (int) $db->lastInsertId();
-$db->exec("INSERT INTO empresa (nombre, nombre_comercial) VALUES ('TEST TENANT Empresa B','Empresa B')");
+$db->exec("INSERT INTO empresa (nombre, nombre_comercial, slug) VALUES ('TEST TENANT Empresa B','Empresa B','test-tenant-b')");
 $empresaB = (int) $db->lastInsertId();
 $db->exec("INSERT INTO gimnasio (id_empresa,nombre) VALUES ($empresaA,'TEST TENANT Sede A1')");
 $sedeA = (int) $db->lastInsertId();

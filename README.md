@@ -1,6 +1,9 @@
-# Proyecto Gym — Centro Deportivo Cleto Reyes
+# Gimnera — gestión SaaS multiempresa para gimnasios
 
-Versión actual: **0.12.1-fase21.1**. Es una corrección operativa: fallos de base propagados, health/CLI fiables, reset de contraseña atómico, suite HTTP integrada, restore con integridad separada de actualidad y POST+CSRF para exportaciones sensibles. No conecta DORLET, lectores, controladoras ni biometría.
+Versión actual: **0.13.0-fase22**. Incorpora onboarding transaccional e
+idempotente de empresas, primera sede y dirección, categorías de producto por
+tenant y unicidades humanas por empresa. No conecta DORLET, lectores,
+controladoras ni biometría.
 
 Panel de gestión para un gimnasio multisede: socios y membresías, venta de productos,
 empleados, remesas SEPA y control de acceso desde el panel.
@@ -10,7 +13,7 @@ con PDO y vistas PHP con Tailwind.
 
 ## Puesta en marcha
 
-Requiere PHP 8.1+ con PDO MySQL. La regresión F21 se ejecuta localmente con PHP
+Requiere PHP 8.1+ con PDO MySQL. La regresión se ejecuta localmente con PHP
 8.2.12/MariaDB 10.4 y se repite en staging con PHP 8.3/MariaDB 10.11 antes de
 activar una release.
 

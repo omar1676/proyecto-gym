@@ -53,13 +53,14 @@ try {
 
     $empresaIds = [$empresaInicial];
     $insertEmpresa = $db->prepare(
-        "INSERT INTO empresa (nombre, nombre_comercial, email, telefono, estado)
-         VALUES (:nombre, :comercial, :email, :telefono, 'activa')"
+        "INSERT INTO empresa (nombre, nombre_comercial, slug, email, telefono, estado)
+         VALUES (:nombre, :comercial, :slug, :email, :telefono, 'activa')"
     );
     for ($n = 2; $n <= $objetivos['empresas']; $n++) {
         $insertEmpresa->execute([
             ':nombre'    => 'PILOTO Empresa ' . $n,
             ':comercial' => 'Gimnasio Sintético ' . $n,
+            ':slug'      => 'piloto-empresa-' . $n,
             ':email'     => 'empresa' . $n . '@test.invalid',
             ':telefono'  => '9100000' . sprintf('%02d', $n),
         ]);

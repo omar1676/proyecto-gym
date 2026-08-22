@@ -85,8 +85,12 @@ class AuthController {
         // así que se queda con el logo de la instalación.
         $_SESSION['gimnasio_logo']       = '';
 
-        if (!empty($_SESSION['gimnasio_id'])) {
-            $sede = $this->gimnasioModel->buscarPorId((int) $_SESSION['gimnasio_id']);
+        // La sede usada en el primer nivel aporta marca, pero no autoridad.
+        // Dirección conserva ámbito global de su empresa aunque vea la marca
+        // del acceso por el que entró.
+        $sedeMarca = (int) ($_SESSION['gimnasio_id'] ?? $_SESSION['gimnasio_auth_id'] ?? 0);
+        if ($sedeMarca > 0) {
+            $sede = $this->gimnasioModel->buscarPorId($sedeMarca);
             $_SESSION['gimnasio_nombre'] = $sede['nombre'] ?? '';
             $_SESSION['gimnasio_logo']   = $sede['logo'] ?? '';
         }
@@ -133,6 +137,7 @@ class AuthController {
         $company = (int) ($user['id_empresa'] ?? $gym['id_empresa'] ?? 0) ?: null;
         $site = (int) ($user['id_gimnasio'] ?? $gym['id_gimnasio'] ?? 0) ?: null;
         $targetUser = $user ? (int) ($user['id_usuario'] ?? 0) ?: null : null;
+        $siteCredential = $action === 'LOGIN_GIMNASIO';
         $authenticatedActor = $targetUser !== null
             && $result === 'exito'
             && in_array($action, [
@@ -143,15 +148,15 @@ class AuthController {
             $action,
             'Evento de autenticación',
             $targetUser,
-            'usuario',
-            $targetUser,
+            $siteCredential ? 'gimnasio' : 'usuario',
+            $siteCredential ? ((int) ($gym['id_gimnasio'] ?? 0) ?: null) : $targetUser,
             null,
             null,
             $site,
             $result,
             $reason,
             [],
-            $authenticatedActor ? 'usuario' : 'anonymous',
+            $authenticatedActor ? 'usuario' : (($siteCredential && $result === 'exito') ? 'sede' : 'anonymous'),
             'WEB'
         );
     }
@@ -355,7 +360,12 @@ class AuthController {
             $fallar('Introduce usuario y contraseña.', 'INVALID_INPUT');
         }
 
-        $user = $this->userModel->buscarPorUsuario($usuario);
+        // El gimnasio identificado fija la empresa antes de resolver el
+        // username. Solo si no existe una cuenta de ese tenant se considera
+        // la cuenta interna de plataforma.
+        $scopedUsers = new UserModel(null, (int) $gimnasio['id_empresa']);
+        $user = $scopedUsers->buscarPorUsuario($usuario)
+            ?: $this->userModel->buscarSuperadminPorUsuario($usuario);
         $authUser = $user ?: null;
 
         if (!$user || !password_verify($contrasena, $user['contrasena'])) {
@@ -492,7 +502,8 @@ class AuthController {
 
         $gimnasio = $this->gimnasioDeSesion();
         $user = $gimnasio
-            ? (new UserModel(null, (int) $gimnasio['id_empresa']))->buscarPorCorreo($correo)
+            ? ((new UserModel(null, (int) $gimnasio['id_empresa']))->buscarPorCorreo($correo)
+                ?: $this->userModel->buscarSuperadminPorCorreo($correo))
             : null;
         // Solo se envía enlace al personal: un socio no tiene dónde entrar.
         if ($user && (int) ($user['activo'] ?? 0) === 1 && in_array($user['rol'] ?? '', self::ROLES_PANEL, true)) {
@@ -642,7 +653,9 @@ class AuthController {
         }
         if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
             $errores[] = 'Correo electrónico no válido.';
-        } elseif ($this->userModel->correoExisteOtroUsuario($correo, $idUsuario)) {
+        } elseif (($usuario['id_empresa'] ?? null) === null
+            ? $this->userModel->correoExisteOtroUsuarioPlataforma($correo, $idUsuario)
+            : (new UserModel(null, (int) $usuario['id_empresa']))->correoExisteOtroUsuario($correo, $idUsuario)) {
             $errores[] = 'Ese correo ya está registrado en otra cuenta.';
         }
         if ($nueva !== '' || $confirmar !== '') {
@@ -658,7 +671,10 @@ class AuthController {
             $this->redirigir('perfil');
         }
 
-        $this->userModel->actualizarPerfil($idUsuario, $nombre, $apellidos, $telefono, $correo);
+        if (!$this->userModel->actualizarPerfil($idUsuario, $nombre, $apellidos, $telefono, $correo)) {
+            $this->setFlash('errores', ['No se pudo actualizar el perfil. Inténtalo de nuevo.']);
+            $this->redirigir('perfil');
+        }
 
         $mensaje = 'Perfil actualizado correctamente.';
 

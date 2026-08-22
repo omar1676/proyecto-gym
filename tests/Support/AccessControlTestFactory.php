@@ -20,8 +20,8 @@ final class AccessControlTestFactory
     public static function createTenant(PDO $db, string $code): array
     {
         $safe = strtolower(preg_replace('/[^a-z0-9]/i', '', $code));
-        $stmt = $db->prepare('INSERT INTO empresa (nombre,nombre_comercial,estado) VALUES (?,?,\'activa\')');
-        $stmt->execute(['TEST ACCESS ' . strtoupper($safe), 'Test Access ' . strtoupper($safe)]);
+        $stmt = $db->prepare('INSERT INTO empresa (nombre,nombre_comercial,slug,estado) VALUES (?,?,?,\'activa\')');
+        $stmt->execute(['TEST ACCESS ' . strtoupper($safe), 'Test Access ' . strtoupper($safe), 'test-access-' . $safe]);
         $empresa = (int) $db->lastInsertId();
         $sede = self::createSite($db, $empresa, $safe . '1');
         $actor = self::createUser($db, $empresa, null, 'direccion', $safe . '_dir');

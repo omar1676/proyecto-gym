@@ -50,7 +50,13 @@ final class MigrationService
         $stmt = $this->db->prepare("SELECT rol,id_empresa FROM usuario WHERE id_usuario=:u AND activo=1");
         $stmt->execute([':u' => $this->userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$user || ($user['rol'] !== 'superadmin' && (int) $user['id_empresa'] !== $this->companyId)) {
+        $isPlatform = $user
+            && $user['rol'] === 'superadmin'
+            && ($user['id_empresa'] ?? null) === null;
+        $isTenantDirection = $user
+            && $user['rol'] === 'direccion'
+            && (int) $user['id_empresa'] === $this->companyId;
+        if (!$isPlatform && !$isTenantDirection) {
             throw new MigrationException('Usuario fuera del tenant.', 'invalid_context');
         }
     }
@@ -358,8 +364,11 @@ final class MigrationService
         }
         $issues = [];
         if ($data['categoria']) {
-            $stmt = $this->db->prepare('SELECT id_categoria FROM categoria_producto WHERE nombre_categoria=:n LIMIT 2');
-            $stmt->execute([':n'=>$data['categoria']]);
+            $stmt = $this->db->prepare(
+                'SELECT id_categoria FROM categoria_producto
+                  WHERE id_empresa=:e AND nombre_categoria=:n LIMIT 2'
+            );
+            $stmt->execute([':e'=>$this->companyId, ':n'=>$data['categoria']]);
             $categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
             if (count($categories) === 1) $data['id_categoria'] = (int)$categories[0];
             else {

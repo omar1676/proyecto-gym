@@ -38,6 +38,19 @@ require __DIR__ . '/../_header_admin.php';
             </div>
             <?php endif; ?>
 
+            <form method="POST" action="<?= APP_URL ?>/index.php?action=admin_productos"
+                  class="mt-6 flex flex-wrap items-end gap-3 rounded-[18px] border border-[#e4e4e7] bg-white p-4 shadow-sm">
+                <?= Csrf::field() ?>
+                <input type="hidden" name="accion" value="crear_categoria">
+                <div class="min-w-[220px] flex-1">
+                    <label for="nueva-categoria" class="mb-1 block text-xs font-extrabold uppercase tracking-widest text-neutral-500">Nueva categoría</label>
+                    <input id="nueva-categoria" name="nombre_categoria" maxlength="100" required
+                           class="w-full rounded-xl border border-[#e4e4e7] bg-white px-4 py-2.5 text-sm"
+                           placeholder="Ej. Bebidas">
+                </div>
+                <button type="submit" class="rounded-full bg-[#4f46e5] px-5 py-2.5 text-sm font-bold text-white">Crear categoría</button>
+            </form>
+
             <!-- Tarjetas de estadísticas -->
             <div class="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <article class="rounded-[20px] border border-[#e4e4e7] bg-white px-6 py-5 shadow-sm">

@@ -69,6 +69,7 @@ class ProductoModel
         ?int $idCategoria,
         float $iva = 21.0
     ): bool {
+        if ($idCategoria !== null && !$this->categoriaEnAmbito($idCategoria)) return false;
         try {
             $stmt = $this->db->prepare(
                 "INSERT INTO {$this->tabla}
@@ -103,6 +104,7 @@ class ProductoModel
         ?int $idCategoria,
         float $iva = 21.0
     ): bool {
+        if ($idCategoria !== null && !$this->categoriaEnAmbito($idCategoria)) return false;
         try {
             $stmt = $this->db->prepare(
                 "UPDATE {$this->tabla} SET
@@ -200,11 +202,37 @@ class ProductoModel
 
     public function listarCategorias(): array
     {
-        return $this->db->query(
-            "SELECT id_categoria, nombre_categoria
-             FROM categoria_producto
-             ORDER BY nombre_categoria ASC"
-        )->fetchAll();
+        if ($this->idEmpresa === null) return [];
+        $stmt = $this->db->prepare(
+            'SELECT id_categoria,nombre_categoria FROM categoria_producto WHERE id_empresa=:empresa ORDER BY nombre_categoria ASC'
+        );
+        $stmt->execute([':empresa' => $this->idEmpresa]);
+        return $stmt->fetchAll();
+    }
+
+    public function crearCategoria(string $nombre): ?int
+    {
+        $nombre = trim($nombre);
+        if ($this->idEmpresa === null || $nombre === '' || mb_strlen($nombre) > 100) return null;
+        try {
+            $stmt = $this->db->prepare(
+                'INSERT INTO categoria_producto (id_empresa,nombre_categoria) VALUES (:empresa,:nombre)'
+            );
+            $stmt->execute([':empresa' => $this->idEmpresa, ':nombre' => $nombre]);
+            return (int) $this->db->lastInsertId();
+        } catch (PDOException $e) {
+            return null;
+        }
+    }
+
+    private function categoriaEnAmbito(int $idCategoria): bool
+    {
+        if ($this->idEmpresa === null || $idCategoria <= 0) return false;
+        $stmt = $this->db->prepare(
+            'SELECT 1 FROM categoria_producto WHERE id_categoria=:id AND id_empresa=:empresa LIMIT 1'
+        );
+        $stmt->execute([':id' => $idCategoria, ':empresa' => $this->idEmpresa]);
+        return (bool) $stmt->fetchColumn();
     }
 
     public function contarTodos(): int

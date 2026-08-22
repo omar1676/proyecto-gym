@@ -270,6 +270,23 @@ final class MigrationManager
                 'index:log_actividad.idx_log_correlation' => $this->hasIndex('log_actividad', 'idx_log_correlation'),
                 'index:log_actividad.idx_log_empresa_origen_fecha' => $this->hasIndex('log_actividad', 'idx_log_empresa_origen_fecha'),
             ],
+            'migracion_v29.sql' => [
+                'column:empresa.slug' => $this->hasColumn('empresa', 'slug'),
+                'column:empresa.onboarding_key' => $this->hasColumn('empresa', 'onboarding_key'),
+                'column:empresa.onboarding_state' => $this->hasColumn('empresa', 'onboarding_state'),
+                'column:empresa.onboarding_updated_at' => $this->hasColumn('empresa', 'onboarding_updated_at'),
+                'column:usuario.identidad_empresa_scope' => $this->hasColumn('usuario', 'identidad_empresa_scope'),
+                'column:categoria_producto.id_empresa' => $this->hasColumn('categoria_producto', 'id_empresa'),
+                'index:empresa.uq_empresa_slug' => $this->hasIndex('empresa', 'uq_empresa_slug'),
+                'index:empresa.uq_empresa_onboarding_key' => $this->hasIndex('empresa', 'uq_empresa_onboarding_key'),
+                'index:empresa.idx_empresa_onboarding_state' => $this->hasIndex('empresa', 'idx_empresa_onboarding_state'),
+                'index:usuario.uq_usuario_empresa_dni' => $this->hasIndex('usuario', 'uq_usuario_empresa_dni'),
+                'index:usuario.uq_usuario_empresa_email' => $this->hasIndex('usuario', 'uq_usuario_empresa_email'),
+                'index:usuario.uq_usuario_empresa_username' => $this->hasIndex('usuario', 'uq_usuario_empresa_username'),
+                'index:gimnasio.uq_gimnasio_empresa_nombre' => $this->hasIndex('gimnasio', 'uq_gimnasio_empresa_nombre'),
+                'index:categoria_producto.uq_categoria_empresa_nombre' => $this->hasIndex('categoria_producto', 'uq_categoria_empresa_nombre'),
+                'fk:categoria_producto.fk_categoria_empresa' => $this->hasForeignKey('categoria_producto', 'fk_categoria_empresa'),
+            ],
             default => [],
         };
     }
@@ -349,6 +366,16 @@ final class MigrationManager
             . 'WHERE table_schema=DATABASE() AND table_name=:table AND index_name=:index'
         );
         $stmt->execute([':table' => $table, ':index' => $index]);
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    private function hasForeignKey(string $table, string $constraint): bool
+    {
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) FROM information_schema.referential_constraints '
+            . 'WHERE constraint_schema=DATABASE() AND table_name=:table AND constraint_name=:constraint'
+        );
+        $stmt->execute([':table' => $table, ':constraint' => $constraint]);
         return (int) $stmt->fetchColumn() > 0;
     }
 

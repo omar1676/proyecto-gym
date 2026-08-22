@@ -10,7 +10,8 @@ $rolMenu      = $_SESSION['usuario_rol'] ?? '';
 $nombreSesion = htmlspecialchars($_SESSION['usuario_nombre_real'] ?? $_SESSION['usuario_nombre'] ?? '', ENT_QUOTES, 'UTF-8');
 // Todo el personal usa la misma pantalla de perfil.
 $perfilUrl = APP_URL . '/index.php?action=perfil';
-$nombreGimnasio = defined('APP_NOMBRE') ? APP_NOMBRE : 'Gimnasio';
+$nombreGimnasio = trim((string) ($_SESSION['gimnasio_nombre'] ?? ''));
+if ($nombreGimnasio === '') $nombreGimnasio = defined('APP_NOMBRE') ? APP_NOMBRE : 'Gimnasio';
 
 // Logo de la cabecera: primero el de la sede en la que se ha entrado y, si no
 // tiene, el de la instalación (APP_LOGO). Los logos de cliente suelen ser negros

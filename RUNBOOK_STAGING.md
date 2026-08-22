@@ -56,7 +56,7 @@ php ops/migrate.php --confirm-staging
 php ops/status.php
 ```
 
-Exigir v28, `pending=[]`, `checksum_mismatch=[]` y compatibilidad declarada en
+Exigir v29, `pending=[]`, `checksum_mismatch=[]`, `structural_mismatch=[]` y compatibilidad declarada en
 `SCHEMA_COMPATIBILITY.json`.
 
 ## 6. Backup, cron y alertas

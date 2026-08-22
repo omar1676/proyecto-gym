@@ -44,6 +44,12 @@ final class TenantContext
         $rol = (string) $u['rol'];
         $empresaUsuario = (int) ($u['id_empresa'] ?? 0);
         $empresaSede = (int) ($u['empresa_sede'] ?? 0);
+        // SUPERADMIN es una identidad interna de plataforma. Un registro con
+        // ese texto de rol ligado a un tenant es inconsistente y no recibe
+        // contexto autorizado, aunque una ruta futura lo creara por error.
+        if ($rol === 'superadmin' && $empresaUsuario > 0) {
+            return new self($db, 0, '', null, null);
+        }
         $empresa = $empresaUsuario ?: $empresaSede;
         if (in_array($rol, ['admin', 'recepcion', 'socio'], true)
             && ($empresaUsuario <= 0 || $empresaSede <= 0 || $empresaUsuario !== $empresaSede)) {

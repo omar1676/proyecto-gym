@@ -7,8 +7,8 @@ final class MigrationTestFactory
     public static function tenant(PDO $db, string $suffix): array
     {
         $suffix = preg_replace('/[^a-z0-9]/i', '', $suffix) ?: bin2hex(random_bytes(3));
-        $stmt = $db->prepare("INSERT INTO empresa (nombre,nombre_comercial,email,estado) VALUES (:n,:c,:e,'activa')");
-        $stmt->execute([':n'=>'Empresa Migración '.$suffix,':c'=>'Migración '.$suffix,':e'=>'empresa.'.$suffix.'@example.invalid']);
+        $stmt = $db->prepare("INSERT INTO empresa (nombre,nombre_comercial,slug,email,estado) VALUES (:n,:c,:s,:e,'activa')");
+        $stmt->execute([':n'=>'Empresa Migración '.$suffix,':c'=>'Migración '.$suffix,':s'=>'migration-'.strtolower($suffix),':e'=>'empresa.'.$suffix.'@example.invalid']);
         $company = (int)$db->lastInsertId();
         $stmt = $db->prepare("INSERT INTO gimnasio (id_empresa,nombre,slug,email_acceso,activo) VALUES (:e,:n,:s,:m,1)");
         $stmt->execute([':e'=>$company,':n'=>'Sede '.$suffix,':s'=>'mig-'.strtolower($suffix),':m'=>'sede.'.$suffix.'@example.invalid']);
@@ -47,6 +47,7 @@ final class MigrationTestFactory
         $db->prepare('DELETE FROM log_actividad WHERE id_empresa=:e')->execute([':e'=>$tenant['company']]);
         $db->prepare('DELETE FROM producto WHERE id_gimnasio=:s')->execute([':s'=>$tenant['site']]);
         $db->prepare('DELETE FROM tipo_membresia WHERE id_empresa=:e')->execute([':e'=>$tenant['company']]);
+        $db->prepare('DELETE FROM categoria_producto WHERE id_empresa=:e')->execute([':e'=>$tenant['company']]);
         $db->prepare('DELETE FROM usuario WHERE id_empresa=:e')->execute([':e'=>$tenant['company']]);
         $db->prepare('DELETE FROM gimnasio WHERE id_empresa=:e')->execute([':e'=>$tenant['company']]);
         $db->prepare('DELETE FROM empresa WHERE id_empresa=:e')->execute([':e'=>$tenant['company']]);

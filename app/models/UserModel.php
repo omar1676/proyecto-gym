@@ -26,8 +26,9 @@ class UserModel {
      * $idGimnasio limita los listados y altas a una sede (null = todas, solo
      * para el rol empresa).
      *
-     * Ojo: buscarPorUsuario() y buscarPorCorreo() NO filtran a propósito —
-     * las usa el login, cuando todavía no se sabe de qué gimnasio es nadie.
+     * El primer nivel de login ya identifica la empresa de la sede. Por eso
+     * usuario y correo se filtran también en el segundo nivel: dos clientes
+     * pueden tener una persona con el mismo identificador sin mezclarse.
      */
     public function __construct(?int $idGimnasio = null, ?int $idEmpresa = null) {
         $this->db = Database::getInstance()->getConnection();
@@ -44,6 +45,19 @@ class UserModel {
         $prefijo = $alias === '' ? '' : $alias . '.';
         if ($this->idGimnasio !== null) return ' AND ' . $prefijo . 'id_gimnasio = ' . (int) $this->idGimnasio;
         if ($this->idEmpresa !== null) return ' AND ' . $prefijo . 'id_empresa = ' . (int) $this->idEmpresa;
+        return '';
+    }
+
+    /**
+     * Las identidades humanas son únicas por empresa, no por sede. Un modelo
+     * limitado a una sede conserva ese límite para leer recursos, pero debe
+     * comprobar duplicados contra todas las sedes de su empresa.
+     */
+    private function filtroIdentidadEmpresa(string $alias = ''): string {
+        $prefijo = $alias === '' ? '' : $alias . '.';
+        if ($this->idEmpresa !== null) {
+            return ' AND ' . $prefijo . 'id_empresa = ' . (int) $this->idEmpresa;
+        }
         return '';
     }
 
@@ -90,9 +104,31 @@ class UserModel {
     }
 
     public function buscarPorUsuario(string $usuario) {
-        $stmt = $this->db->prepare('SELECT * FROM usuario WHERE nombre_usuario = :nombre_usuario LIMIT 1');
+        $stmt = $this->db->prepare(
+            'SELECT * FROM usuario WHERE nombre_usuario = :nombre_usuario' . $this->filtroSede() . ' LIMIT 1'
+        );
         $stmt->execute([':nombre_usuario' => $usuario]);
         return $stmt->fetch();
+    }
+
+    /** Cuenta interna global; solo se usa como fallback explícito del login. */
+    public function buscarSuperadminPorUsuario(string $usuario): ?array {
+        $stmt = $this->db->prepare(
+            "SELECT * FROM usuario WHERE nombre_usuario=:usuario AND rol='superadmin' AND id_empresa IS NULL LIMIT 1"
+        );
+        $stmt->execute([':usuario' => $usuario]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    /** Cuenta interna global por correo; solo para recuperación de acceso. */
+    public function buscarSuperadminPorCorreo(string $correo): ?array {
+        $stmt = $this->db->prepare(
+            "SELECT * FROM usuario WHERE email=:email AND rol='superadmin' AND id_empresa IS NULL LIMIT 1"
+        );
+        $stmt->execute([':email' => $correo]);
+        $row = $stmt->fetch();
+        return $row ?: null;
     }
 
     public function buscarPorCorreo(string $correo) {
@@ -353,26 +389,37 @@ class UserModel {
     }
 
     public function usuarioExiste(string $usuario): bool {
-        $stmt = $this->db->prepare('SELECT id_usuario FROM usuario WHERE nombre_usuario = :u' . $this->filtroSede() . ' LIMIT 1');
+        $stmt = $this->db->prepare('SELECT id_usuario FROM usuario WHERE nombre_usuario = :u' . $this->filtroIdentidadEmpresa() . ' LIMIT 1');
         $stmt->execute([':u' => $usuario]);
         return (bool) $stmt->fetch();
     }
 
     public function correoExiste(string $correo): bool {
-        $stmt = $this->db->prepare('SELECT id_usuario FROM usuario WHERE email = :e' . $this->filtroSede() . ' LIMIT 1');
+        $stmt = $this->db->prepare('SELECT id_usuario FROM usuario WHERE email = :e' . $this->filtroIdentidadEmpresa() . ' LIMIT 1');
         $stmt->execute([':e' => $correo]);
         return (bool) $stmt->fetch();
     }
 
     public function dniExiste(string $dni): bool {
-        $stmt = $this->db->prepare('SELECT id_usuario FROM usuario WHERE dni = :d' . $this->filtroSede() . ' LIMIT 1');
+        $stmt = $this->db->prepare('SELECT id_usuario FROM usuario WHERE dni = :d' . $this->filtroIdentidadEmpresa() . ' LIMIT 1');
         $stmt->execute([':d' => $dni]);
         return (bool) $stmt->fetch();
     }
 
     public function correoExisteOtroUsuario(string $correo, int $idUsuario): bool {
         $stmt = $this->db->prepare(
-            'SELECT id_usuario FROM usuario WHERE email = :email AND id_usuario <> :id' . $this->filtroSede() . ' LIMIT 1'
+            'SELECT id_usuario FROM usuario WHERE email = :email AND id_usuario <> :id' . $this->filtroIdentidadEmpresa() . ' LIMIT 1'
+        );
+        $stmt->execute([':email' => $correo, ':id' => $idUsuario]);
+        return (bool) $stmt->fetch();
+    }
+
+    /** Unicidad de las cuentas internas de plataforma (id_empresa NULL). */
+    public function correoExisteOtroUsuarioPlataforma(string $correo, int $idUsuario): bool {
+        $stmt = $this->db->prepare(
+            'SELECT id_usuario FROM usuario
+              WHERE email = :email AND id_usuario <> :id AND id_empresa IS NULL
+              LIMIT 1'
         );
         $stmt->execute([':email' => $correo, ':id' => $idUsuario]);
         return (bool) $stmt->fetch();

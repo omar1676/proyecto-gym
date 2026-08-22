@@ -31,7 +31,13 @@ $suites = [
         'tests/Integration/AuditFailureModeTest.php',
         'tests/Integration/SchemaCompatibilityTest.php',
         'tests/Integration/MigrationV28StructureTest.php',
+        'tests/Integration/MigrationV29StructureTest.php',
         'tests/Integration/RestoreCurrencyTest.php',
+        'tests/Integration/TenantProvisioningTest.php',
+        'tests/Integration/TenantConfigurationTest.php',
+        'tests/Integration/TenantOnboardingConcurrencyTest.php',
+        'tests/Integration/AtlasOnboardingTest.php',
+        'tests/Integration/TenantProvisioningScaleTest.php',
     ],
     'Security' => [
         'tests/Security/OutputEncodingTest.php', 'tests/Security/RateLimitTest.php',
@@ -39,6 +45,7 @@ $suites = [
         'tests/Security/EconomicIsolationTest.php', 'tests/Security/AccessControlIsolationTest.php',
         'tests/Security/StagingSafetyTest.php', 'pruebas/multiempresa.php',
         'tests/Security/PrivacyRoutesTest.php', 'tests/Security/InfrastructureFailureTest.php',
+        'tests/Security/TenantOnboardingIsolationTest.php',
         'pruebas/multisede.php', 'pruebas/autorizacion.php',
     ],
     'Functional' => [
@@ -48,6 +55,7 @@ $suites = [
         'tests/Functional/SociosViewTest.php', 'tests/Functional/DashboardViewTest.php',
         'tests/Functional/VentaSinSedeTest.php', 'tests/Functional/MigrationViewTest.php',
         'tests/Functional/CashViewTest.php', 'tests/Functional/ExportFormsTest.php',
+        'tests/Functional/TenantBrandingTest.php',
         'pruebas/acceso.php',
     ],
 ];

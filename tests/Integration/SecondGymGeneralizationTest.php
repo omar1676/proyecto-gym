@@ -29,7 +29,7 @@ try {
     check('otra empresa no ve la venta demo', (new VentaModel(null, $otraEmpresa))->buscarPorId($demo['venta']) === null);
     check('otra empresa no ve las sedes demo', (new GimnasioModel($otraEmpresa))->buscarPorId($sedeRio) === null);
     check('la empresa demo sí ve datos de sus dos sedes', count((new GimnasioModel($empresaId))->listar()) === 2);
-    check('el aprovisionamiento técnico pendiente está explicitado', $demo['aprovisionamiento_sql'] === ['empresa', 'direccion']);
+    check('empresa y dirección usan aprovisionamiento oficial sin SQL cliente', $demo['aprovisionamiento_sql'] === []);
 } catch (Throwable $e) {
     check('configuración completa de Gimnasio Demo Norte', false, $e->getMessage());
 } finally {

@@ -15,6 +15,24 @@ $b=MigrationTestFactory::tenant($db,'secb'.bin2hex(random_bytes(2)));
 try {
     $serviceA=MigrationTestFactory::service($db,$a);
     $serviceB=MigrationTestFactory::service($db,$b);
+    $hostileUser = $db->prepare(
+        "INSERT INTO usuario
+         (id_empresa,id_gimnasio,nombre,apellidos,dni,email,nombre_usuario,contrasena,rol,activo)
+         VALUES (:e,:s,'Hostil','Import',NULL,:m,:u,:p,:r,1)"
+    );
+    $denyByRole = [];
+    foreach (['admin', 'superadmin'] as $hostileRole) {
+        $suffix = $hostileRole . bin2hex(random_bytes(3));
+        $hostileUser->execute([
+            ':e'=>$a['company'], ':s'=>$hostileRole === 'admin' ? $a['site'] : null,
+            ':m'=>$suffix.'@test.invalid', ':u'=>$suffix,
+            ':p'=>password_hash('Synthetic-Only!',PASSWORD_BCRYPT,['cost'=>4]), ':r'=>$hostileRole,
+        ]);
+        try { new MigrationService($a['company'],$a['site'],(int)$db->lastInsertId(),$db); $denyByRole[$hostileRole]=false; }
+        catch (MigrationException $e) { $denyByRole[$hostileRole]=$e->safeCode()==='invalid_context'; }
+    }
+    check('admin de sede es rechazado también por el servicio de importación', $denyByRole['admin']);
+    check('superadmin ligado a tenant no puede importar como plataforma', $denyByRole['superadmin']);
     $batch=$serviceA->createFromPath('socios','security','socios_100.csv',MigrationTestFactory::fixture('socios_100.csv'));
     $denied=false;
     try { $serviceB->getBatch($batch['uuid']); } catch (MigrationException $e) { $denied=$e->safeCode()==='batch_not_found'; }

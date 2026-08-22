@@ -8,7 +8,7 @@
  * para que las pantallas de acceso no tengan que hacer cuentas de color.
  *
  * La regla que gobierna estos cálculos: el logo del cliente puede ser de
- * cualquier color, incluido negro sobre transparente (Cleto Reyes), así que
+ * cualquier color, incluido negro sobre transparente, así que
  * SIEMPRE se pinta sobre una superficie blanca. El color de marca manda en el
  * fondo, los botones y los acentos, nunca debajo del logo.
  */

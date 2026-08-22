@@ -22,8 +22,8 @@ class LogModel {
     private $db;
     private $idEmpresa;
 
-    public function __construct(?int $idEmpresa = null) {
-        $this->db = Database::getInstance()->getConnection();
+    public function __construct(?int $idEmpresa = null, ?PDO $db = null) {
+        $this->db = $db ?: Database::getInstance()->getConnection();
         $this->idEmpresa = $idEmpresa;
     }
 
@@ -39,10 +39,10 @@ class LogModel {
      * Registro completo. Todo lo que va más allá de los tres primeros campos es
      * opcional, así que sirve igual para un alta que para un cambio de valor.
      *
-     * Ejemplo — Dani cambia el vencimiento de Omar:
+     * Ejemplo — una persona empleada cambia el vencimiento de un socio:
      *   $log->registrarCambio(
-     *       $idDani, 'Cambio de vencimiento', 'Membresía de Omar Pérez',
-     *       $idOmar, 'socio', $idOmar, '2026-08-30', '2026-09-30'
+     *       $idActor, 'Cambio de vencimiento', 'Membresía del socio',
+     *       $idSocio, 'socio', $idSocio, '2026-08-30', '2026-09-30'
      *   );
      */
     public function registrarCambio(
@@ -67,7 +67,7 @@ class LogModel {
             if (!in_array($resultado, ['exito', 'fallo'], true)) {
                 $resultado = 'fallo';
             }
-            if (!in_array($actorType, ['usuario', 'system', 'anonymous'], true)) $actorType = 'system';
+            if (!in_array($actorType, ['usuario', 'sede', 'system', 'anonymous'], true)) $actorType = 'system';
             $origin = strtoupper((string) ($origin ?: RequestContext::origin()));
             if (!in_array($origin, ['WEB', 'CRON', 'SYSTEM', 'API', 'MOBILE'], true)) $origin = 'SYSTEM';
             $reasonCode = $reasonCode !== null

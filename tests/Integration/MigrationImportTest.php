@@ -31,11 +31,24 @@ try {
     $stmt->execute([':e'=>$tenant['company']]);
     check('confirmar dos veces no duplica mapas ni socios', (int)$stmt->fetchColumn() === 100);
 
+    $categoryInsert = $db->prepare('INSERT INTO categoria_producto (id_empresa,nombre_categoria) VALUES (:e,:n)');
+    foreach (['Bebidas', 'Nutrición'] as $categoryName) {
+        $categoryInsert->execute([':e'=>$tenant['company'], ':n'=>$categoryName]);
+    }
+    check('tenant de importación tiene categorías propias aunque existan homónimas', (int)$db->query(
+        'SELECT COUNT(*) FROM categoria_producto WHERE id_empresa=' . (int)$tenant['company']
+    )->fetchColumn() === 2);
     $productBatch = $service->createFromPath('productos','generic','productos_500.csv',MigrationTestFactory::fixture('productos_500.csv'));
     $productReport = $service->dryRun($productBatch['uuid'],$productBatch['mapping']);
     check('dry-run de productos valida 500 filas', (int)$productReport['batch']['row_count'] === 500 && (int)$productReport['batch']['error_count'] === 0);
     $productDone = $service->confirm($productBatch['uuid'],100);
     check('importa 500 productos con DECIMAL y stock no negativo', (int)$productDone['batch']['imported_count'] === 500);
+    $stmt=$db->prepare(
+        'SELECT COUNT(*) FROM producto p JOIN categoria_producto c ON c.id_categoria=p.id_categoria
+          WHERE p.id_gimnasio=:s AND c.id_empresa<>:e'
+    );
+    $stmt->execute([':s'=>$tenant['site'], ':e'=>$tenant['company']]);
+    check('importación nunca enlaza categorías de otra empresa', (int)$stmt->fetchColumn() === 0);
     $stmt=$db->prepare('SELECT COUNT(*) FROM producto WHERE id_gimnasio=:s AND stock<0'); $stmt->execute([':s'=>$tenant['site']]);
     check('ningún producto importado tiene stock negativo', (int)$stmt->fetchColumn() === 0);
 
