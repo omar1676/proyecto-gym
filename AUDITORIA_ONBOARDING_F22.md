@@ -18,6 +18,7 @@ Clasificación previa al onboarding. No contiene secretos ni datos reales.
 | Flash de credenciales temporales en sesión | P1 SECRETOS | Corregido: claves solo en respuesta `no-store`, nunca serializadas en sesión. |
 | Footer con contacto/horario de ejemplo | CONFIGURACIÓN PENDIENTE | No bloquea aislamiento; debe pasar a datos tenant antes de cliente real. |
 | SMTP funcional, reglas de caja/impago y fiscalidad | DECISIÓN DE NEGOCIO | No se inventan; email nace disabled. |
+| Staging legacy no tenía `superadmin` global | P1 BOOTSTRAP | Detectado postdeploy; se añade bootstrap CLI de un solo uso, transaccional, auditado y sin salida de credenciales. |
 
 ## Decisiones
 

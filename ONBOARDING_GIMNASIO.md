@@ -25,6 +25,13 @@ importaciones.
 
 ## 2. Alta inicial
 
+Prerequisito de una instalación que todavía no tenga identidad de plataforma:
+un operador autorizado ejecuta una sola vez `ops/bootstrap_platform_admin.php`
+con los cinco campos `PLATFORM_ADMIN_*` recibidos por entorno y la confirmación
+del entorno. El comando no muestra la contraseña, se bloquea contra carreras,
+se audita y se niega a crear una segunda identidad. No promueve cuentas de un
+gimnasio ni requiere SQL manual.
+
 1. Entrar con cuenta nominal `superadmin`.
 2. Abrir `Empresas`.
 3. Completar razón social, nombre comercial, contacto, primera sede, email

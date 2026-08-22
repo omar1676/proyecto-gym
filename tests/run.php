@@ -34,6 +34,7 @@ $suites = [
         'tests/Integration/MigrationV29StructureTest.php',
         'tests/Integration/RestoreCurrencyTest.php',
         'tests/Integration/TenantProvisioningTest.php',
+        'tests/Integration/PlatformAdminBootstrapTest.php',
         'tests/Integration/TenantConfigurationTest.php',
         'tests/Integration/TenantOnboardingConcurrencyTest.php',
         'tests/Integration/AtlasOnboardingTest.php',
