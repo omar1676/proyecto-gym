@@ -66,6 +66,9 @@ alpha controlada se instalan las unidades versionadas de `ops/systemd/`:
 
 ```bash
 sudo cp ops/systemd/gimnera-* /etc/systemd/system/
+sudo touch /var/www/gimnasio/shared/.backup-operation.lock
+sudo chown root:www-data /var/www/gimnasio/shared/.backup-operation.lock
+sudo chmod 0660 /var/www/gimnasio/shared/.backup-operation.lock
 sudo systemctl daemon-reload
 sudo systemctl enable --now gimnera-backup-db.timer gimnera-backup-files.timer
 sudo systemctl enable --now gimnera-maintenance.timer gimnera-monitor.timer

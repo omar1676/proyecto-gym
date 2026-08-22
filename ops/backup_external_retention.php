@@ -32,10 +32,7 @@ try {
         if (!preg_match('/^backup_set_[A-Za-z0-9_.-]+$/', $name)) continue;
         $files = preg_split('/\r?\n/', trim(retentionRclone(['lsf', rtrim(BACKUP_EXTERNAL_REMOTE, '/') . '/' . $name, '--files-only']))) ?: [];
         $files = array_values(array_filter($files));
-        $setJson = array_values(array_filter($files, static fn(string $f): bool => str_starts_with($f, 'backup_set_') && str_ends_with($f, '.json')));
-        $verified = count($files) >= 9 && count($setJson) === 1
-            && in_array($setJson[0] . '.sha256', $files, true)
-            && in_array($setJson[0] . '.manifest.json', $files, true);
+        $verified = BackupRetention::verifiedSetFiles($files);
         $timestamp = BackupRetention::timestampFromSetName($name);
         $items[] = [
             'name' => $name,

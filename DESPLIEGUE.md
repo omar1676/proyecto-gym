@@ -20,6 +20,11 @@ escritura en uploads, logs y sesiones si se almacenan en disco. Código, `app/`,
 `ops/`, `cron/`, migraciones y tests deben ser de solo lectura. No usar `777`:
 directorios compartidos `0750`, archivos `0640`, código `0755/0644`.
 
+Las unidades de backup requieren que el despliegue cree previamente
+`shared/.backup-operation.lock` con propietario `root:www-data` y modo `0660`.
+El directorio `shared` no debe hacerse escribible globalmente para compensar la
+ausencia de este fichero.
+
 Requisitos: Linux, Apache 2.4 o Nginx, PHP **8.1+** (recomendado 8.2) con
 `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `curl`, `dom`, `simplexml` y
 `zlib`; MariaDB 10.4+ o MySQL 8; UTF-8 `utf8mb4`; zona `Europe/Madrid`; TLS

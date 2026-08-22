@@ -2,6 +2,22 @@
 
 final class BackupRetention
 {
+    /** @param string[] $files */
+    public static function verifiedSetFiles(array $files): bool
+    {
+        $files = array_values(array_filter(array_map('trim', $files)));
+        $setJson = array_values(array_filter(
+            $files,
+            static fn(string $file): bool => str_starts_with($file, 'backup_set_')
+                && str_ends_with($file, '.json')
+                && !str_ends_with($file, '.manifest.json')
+        ));
+        return count($files) >= 9
+            && count($setJson) === 1
+            && in_array($setJson[0] . '.sha256', $files, true)
+            && in_array($setJson[0] . '.manifest.json', $files, true);
+    }
+
     /**
      * @param array<int,array{name:string,timestamp:int,verified:bool}> $items
      * @return array{keep:string[],delete:string[],ignored:string[]}

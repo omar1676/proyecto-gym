@@ -26,6 +26,14 @@ $check('retención obtiene UTC del nombre aunque R2 no tenga fecha de carpeta',
     $parsedSet === strtotime('2026-08-22 03:15:00 UTC'));
 $check('retención preserva un nombre remoto de fecha ambigua',
     BackupRetention::timestampFromSetName('backup_set_sin_fecha') === null);
+$setBase = 'backup_set_2026-08-22_031500_123456Z_aabbccddeeff0011.json';
+$setFiles = [
+    'backup_db.sql.gz', 'backup_db.sql.gz.manifest.json', 'backup_db.sql.gz.sha256',
+    'backup_files.tar.gz', 'backup_files.tar.gz.manifest.json', 'backup_files.tar.gz.sha256',
+    $setBase, $setBase . '.manifest.json', $setBase . '.sha256',
+];
+$check('retención distingue el manifiesto principal de su metadata', BackupRetention::verifiedSetFiles($setFiles));
+$check('retención rechaza un set sin hash principal', !BackupRetention::verifiedSetFiles(array_slice($setFiles, 0, -1)));
 
 $serviceRoot = dirname(__DIR__, 2) . '/ops/systemd';
 $lockLine = '/usr/bin/flock -w 1800 /var/www/gimnasio/shared/.backup-operation.lock';
