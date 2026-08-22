@@ -16,8 +16,8 @@ $check('acceso físico deshabilitado en staging', APP_ENV !== 'staging' || ACCES
 $check('.env no versionado', trim((string) shell_exec('git -C ' . escapeshellarg($root) . ' ls-files .env')) === '');
 $check('document root public', realpath($root . '/public') !== false);
 $externalMarkerOk = false;
-$externalMarker = rtrim(BACKUP_EXTERNAL_VERIFY_DIR, '/\\') . '/external_backup_success.json';
-if (BACKUP_EXTERNAL_VERIFY_DIR !== '' && is_file($externalMarker)) {
+$externalMarker = rtrim(MONITOR_STATE_DIR, '/\\') . '/external_backup_success.json';
+if (MONITOR_STATE_DIR !== '' && is_file($externalMarker)) {
     $markerData = json_decode((string) file_get_contents($externalMarker), true);
     $verifiedAt = strtotime((string) ($markerData['verified_at_utc'] ?? ''));
     $externalMarkerOk = is_array($markerData)
