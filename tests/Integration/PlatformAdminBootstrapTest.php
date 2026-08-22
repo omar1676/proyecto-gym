@@ -48,13 +48,17 @@ try {
     } catch (DomainException) { $secondRejected = true; }
     check('bootstrap de un solo uso rechaza una segunda identidad', $secondRejected);
 } finally {
-    if ($created > 0) {
-        $db->prepare('DELETE FROM log_actividad WHERE id_usuario=:id OR id_usuario_afectado=:id')->execute([':id'=>$created]);
-        $db->prepare('DELETE FROM usuario WHERE id_usuario=:id')->execute([':id'=>$created]);
-    }
-    if ($original) {
-        $db->prepare("UPDATE usuario SET rol='superadmin',id_empresa=NULL WHERE id_usuario=:id")
-            ->execute([':id'=>(int)$original['id_usuario']]);
+    try {
+        if ($created > 0) {
+            $db->prepare('DELETE FROM log_actividad WHERE id_usuario=:actor OR id_usuario_afectado=:affected')
+                ->execute([':actor'=>$created, ':affected'=>$created]);
+            $db->prepare('DELETE FROM usuario WHERE id_usuario=:id')->execute([':id'=>$created]);
+        }
+    } finally {
+        if ($original) {
+            $db->prepare("UPDATE usuario SET rol='superadmin',id_empresa=NULL WHERE id_usuario=:id")
+                ->execute([':id'=>(int)$original['id_usuario']]);
+        }
     }
 }
 
