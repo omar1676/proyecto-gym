@@ -24,6 +24,7 @@
 /storage/sessions/
 /storage/imports/
 /storage/uploads/
+/storage/private/
 /storage/staging-*/
 /pruebas/sesiones_tmp/
 

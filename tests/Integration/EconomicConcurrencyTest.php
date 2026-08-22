@@ -65,7 +65,9 @@ $sepa = new SepaModel(1, 1);
 check('devolución libera el claim para una nueva presentación', $sepa->marcarDevuelto($firstReceipt, 'F20 reintento sintético', 1));
 $sameRemittance = f20Concurrent('remittance', (int)$membership, ['f20-remittance-same-key', 'f20-remittance-same-key']);
 $sameRemittanceIds = array_values(array_unique(array_map(fn($r)=>(int)($r['data']['id'] ?? 0), $sameRemittance)));
-check('doble submit de remesa devuelve la misma remesa', count($sameRemittanceIds) === 1 && $sameRemittanceIds[0] > 0);
+$sameRemittanceOk = count($sameRemittanceIds) === 1 && $sameRemittanceIds[0] > 0;
+if (!$sameRemittanceOk) fwrite(STDERR, 'diagnóstico ids remesa idempotente: ' . json_encode($sameRemittanceIds) . "\n");
+check('doble submit de remesa devuelve la misma remesa', $sameRemittanceOk);
 check('doble submit de remesa crea un solo recibo nuevo', (int)$db->query('SELECT COUNT(*) FROM remesa_recibo WHERE id_socio_membresia='.(int)$membership." AND estado='pendiente'")->fetchColumn() === 1);
 $constraintReceipt = false;
 try {

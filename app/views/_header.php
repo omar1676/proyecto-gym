@@ -67,7 +67,7 @@ if ($logoSedeH !== '' && is_file($rutaPublicaH . 'gimnasios/' . $logoSedeH)) {
                 <a href="<?= $perfilUrlH ?>"
                     class="flex items-center gap-2 px-[14px] py-[9px] rounded-[10px] bg-white text-[#000000] text-[13.5px] font-bold no-underline whitespace-nowrap hover:opacity-90 transition-all">
                     <?php if (!empty($_SESSION['usuario_foto'])): ?>
-                    <img src="assets/fotos/<?= htmlspecialchars($_SESSION['usuario_foto'], ENT_QUOTES) ?>"
+                    <img src="<?= APP_URL ?>/index.php?action=media_foto&amp;id=<?= (int) ($_SESSION['usuario_id'] ?? 0) ?>"
                          class="w-6 h-6 rounded-full object-cover" alt="Foto perfil">
                     <?php else: ?>
                     <div class="w-6 h-6 rounded-full bg-[#111318] flex items-center justify-center text-white font-bold text-xs">

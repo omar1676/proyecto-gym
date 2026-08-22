@@ -14,8 +14,11 @@ ob_start();
 
 require_once __DIR__ . '/../app/controllers/AuthController.php';
 require_once __DIR__ . '/../app/controllers/AdminController.php';
+require_once __DIR__ . '/../app/controllers/MediaController.php';
 require_once __DIR__ . '/../app/helpers/SecurityHeaders.php';
 require_once __DIR__ . '/../app/helpers/ErrorHandler.php';
+require_once __DIR__ . '/../app/helpers/RequestContext.php';
+RequestContext::bootstrap('WEB');
 SecurityHeaders::apply();
 ErrorHandler::register();
 
@@ -27,6 +30,27 @@ if (($_GET['action'] ?? '') === 'health' || rtrim($requestPath, '/') === '/healt
     header('Content-Type: application/json; charset=UTF-8');
     header('Cache-Control: no-store');
     echo json_encode(['status' => $health['ok'] ? 'ok' : 'unavailable']);
+    exit;
+}
+if (($_GET['action'] ?? '') === 'heartbeat' || rtrim($requestPath, '/') === '/heartbeat') {
+    header('Content-Type: application/json; charset=UTF-8');
+    header('Cache-Control: no-store');
+    $file = MONITOR_STATE_DIR !== '' ? rtrim(MONITOR_STATE_DIR, '/\\') . '/heartbeat.json' : '';
+    $payload = $file !== '' && is_file($file) ? json_decode((string) file_get_contents($file), true) : null;
+    $stamp = is_array($payload) ? strtotime((string) ($payload['checked_at_utc'] ?? '')) : false;
+    $age = $stamp ? max(0, time() - $stamp) : null;
+    $monitorStatus = is_array($payload) ? strtoupper((string) ($payload['status'] ?? 'UNKNOWN')) : 'UNKNOWN';
+    $fresh = is_array($payload) && $stamp !== false && $age <= 300 && ($payload['environment'] ?? '') === APP_ENV;
+    $ok = $fresh && $monitorStatus === 'OK';
+    http_response_code($ok ? 200 : 503);
+    echo json_encode([
+        'status' => $ok ? 'ok' : ($fresh ? strtolower($monitorStatus) : 'stale'),
+        'monitor_status' => $monitorStatus,
+        'environment' => APP_ENV,
+        'instance' => is_array($payload) ? ($payload['instance'] ?? null) : null,
+        'checked_at_utc' => is_array($payload) ? ($payload['checked_at_utc'] ?? null) : null,
+        'age_seconds' => $age,
+    ], JSON_UNESCAPED_SLASHES);
     exit;
 }
 
@@ -45,6 +69,23 @@ if (APP_ENV === 'development') {
 } else {
     ini_set('display_errors', '0');
     ini_set('log_errors', '1');
+}
+
+// Una release antigua no puede operar silenciosamente contra un esquema que
+// no entiende. Health/heartbeat siguen disponibles para diagnosticar; el
+// resto del runtime se detiene de forma segura.
+try {
+    require_once __DIR__ . '/../app/config/database.php';
+    require_once __DIR__ . '/../app/helpers/SchemaCompatibility.php';
+    SchemaCompatibility::assertRuntime(Database::getInstance()->getConnection(), dirname(__DIR__));
+} catch (Throwable $e) {
+    require_once __DIR__ . '/../app/helpers/AppLogger.php';
+    AppLogger::error('runtime_schema_incompatible');
+    http_response_code(503);
+    header('Content-Type: text/plain; charset=UTF-8');
+    header('Cache-Control: no-store');
+    echo 'Servicio temporalmente no disponible.';
+    exit;
 }
 
 /**
@@ -73,6 +114,7 @@ $rutas = [
     /* --- Perfil propio -------------------------------------------------- */
     'perfil'                 => ['auth', 'mostrarPerfil'],
     'perfil_actualizar'      => ['auth', 'actualizarPerfil'],
+    'media_foto'             => ['media', 'fotoUsuario'],
 
     /* --- Panel ---------------------------------------------------------- */
     'admin'                  => ['admin', 'mostrarInicio'],
@@ -137,5 +179,7 @@ if (!isset($rutas[$action])) {
 
 // Los controladores se crean al usarlos: cada constructor arranca la sesión y
 // abre la conexión, y no hace falta hacerlo dos veces en cada petición.
-$ctrl = $controlador === 'auth' ? new AuthController() : new AdminController();
+$ctrl = $controlador === 'auth'
+    ? new AuthController()
+    : ($controlador === 'media' ? new MediaController() : new AdminController());
 $ctrl->$metodo();

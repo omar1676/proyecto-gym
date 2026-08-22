@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "release": "0.12.0-fase21",
+  "minimum_runtime_version": 27,
+  "maximum_runtime_version": 28,
+  "maximum_migrator_version": 28,
+  "notes": "El runtime acepta v27-v28. El migrador solo se ejecuta si la base no supera v28."
+}

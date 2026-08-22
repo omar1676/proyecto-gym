@@ -21,12 +21,14 @@ require_once __DIR__ . '/../app/config/database.php';
 require_once __DIR__ . '/../app/helpers/BackupStorage.php';
 require_once __DIR__ . '/../app/helpers/BackupManifest.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
+require_once __DIR__ . '/../app/helpers/RequestContext.php';
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
     fwrite(STDERR, "Solo por línea de comandos.\n");
     exit(1);
 }
+RequestContext::bootstrap('CRON');
 
 $inicio  = microtime(true);
 $destino = rtrim(COPIAS_DIR, "/\\");
@@ -38,7 +40,7 @@ catch (Throwable $e) { AppLogger::error('backup_database_failed', ['reason' => $
 // volcado entero (con los IBAN dentro) quedaría descargable desde la web.
 protegerCarpeta($destino);
 
-$archivo = $destino . DIRECTORY_SEPARATOR . 'backup_db_' . gmdate('Y-m-d_His\Z') . '.sql';
+$archivo = BackupStorage::uniqueArtifactPath($destino, 'backup_db_', '.sql');
 
 // Con --php se salta mysqldump. Sirve para comprobar que la vía de emergencia
 // funciona en este servidor ANTES de necesitarla.

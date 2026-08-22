@@ -6,13 +6,12 @@ final class AppLogger
     {
         $permitidos = ['INFO', 'WARNING', 'ERROR', 'SECURITY'];
         $nivel = in_array($nivel, $permitidos, true) ? $nivel : 'INFO';
-        foreach (array_keys($contexto) as $clave) {
-            if (preg_match('/pass|contras|token|cookie|session|csrf|iban|secret|clave/i', (string) $clave)) {
-                unset($contexto[$clave]);
-            }
-        }
+        require_once __DIR__ . '/RequestContext.php';
+        $contexto = self::sanitize($contexto);
         $linea = (string) json_encode([
             'timestamp' => date(DATE_ATOM), 'level' => $nivel, 'event' => $evento,
+            'correlation_id' => RequestContext::correlationId(),
+            'origin' => RequestContext::origin(),
             'context' => $contexto,
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
@@ -32,4 +31,17 @@ final class AppLogger
     public static function warning(string $evento, array $contexto = []): void { self::write('WARNING', $evento, $contexto); }
     public static function error(string $evento, array $contexto = []): void { self::write('ERROR', $evento, $contexto); }
     public static function security(string $evento, array $contexto = []): void { self::write('SECURITY', $evento, $contexto); }
+
+    private static function sanitize(array $context): array
+    {
+        foreach (array_keys($context) as $key) {
+            if (preg_match('/pass|contras|token|cookie|session|csrf|iban|secret|clave/i', (string) $key)) {
+                unset($context[$key]);
+                continue;
+            }
+            if (is_array($context[$key])) $context[$key] = self::sanitize($context[$key]);
+            elseif (is_string($context[$key])) $context[$key] = mb_substr(str_replace(["\r", "\n"], ' ', $context[$key]), 0, 500);
+        }
+        return $context;
+    }
 }

@@ -13,7 +13,7 @@ Group=www-data
 WorkingDirectory=/var/www/gimnasio/current
 LoadCredential=rclone.conf:/etc/gimnera/rclone.conf
 Environment=BACKUP_EXTERNAL_CONFIG=%d/rclone.conf
-ExecStart=/usr/bin/php /var/www/gimnasio/current/cron/copia_externa.php
+ExecStart=/usr/bin/flock -w 1800 /var/www/gimnasio/shared/.backup-operation.lock /usr/bin/php /var/www/gimnasio/current/cron/copia_externa.php
 UMask=0027
 NoNewPrivileges=true
 PrivateTmp=true

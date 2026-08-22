@@ -27,11 +27,13 @@ require_once __DIR__ . '/../app/models/MembresiaModel.php';
 require_once __DIR__ . '/../app/models/SepaModel.php';
 require_once __DIR__ . '/../app/models/LogModel.php';
 require_once __DIR__ . '/../app/helpers/Mailer.php';
+require_once __DIR__ . '/../app/helpers/RequestContext.php';
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
     exit("Solo por línea de comandos.\n");
 }
+RequestContext::bootstrap('CRON');
 
 /** Día del mes en que se prepara la remesa de las cuotas domiciliadas. */
 const DIA_REMESA = 1;

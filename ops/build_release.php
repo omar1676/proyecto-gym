@@ -26,7 +26,7 @@ function releaseCommand(array $command, string $cwd): array
 
 function releaseGit(array $args, string $root): string
 {
-    $result = releaseCommand(array_merge(['git'], $args), $root);
+    $result = releaseCommand(array_merge(['git', '-c', 'safe.directory=' . str_replace('\\', '/', $root)], $args), $root);
     if ($result['exit'] !== 0) {
         throw new RuntimeException('Git falló: ' . trim($result['stderr']));
     }
@@ -64,11 +64,13 @@ try {
     }
 
     $pathspecs = [
-        'app', 'public', 'cron', 'ops', '.env.example', '.env.staging.example',
+        'app', 'public', 'cron', 'ops', '.env.example', '.env.staging.example', 'SCHEMA_COMPATIBILITY.json',
         'VERSION', 'README.md', 'DESPLIEGUE.md', 'INCIDENTES.md',
         'RUNBOOK_STAGING.md', 'RUNBOOK_ALPHA.md', 'MONITORIZACION_STAGING.md',
         'BACKUP_STAGING_REAL.md', 'DISASTER_RECOVERY_GIMNERA.md',
         'RESTORE_STAGING_REAL.md', 'SMTP_STAGING.md', 'RELEASE_MANIFEST.md',
+        'WATCHDOG_EXTERNO.md', 'SEGUNDO_OPERADOR.md', 'CUSTODIA_SECRETOS.md',
+        'POLITICA_DATOS_AUDITORIA.md',
     ];
     $list = releaseGit(array_merge(['ls-tree', '-r', '--name-only', 'HEAD', '--'], $pathspecs), $root);
     $files = array_values(array_filter(preg_split('/\r?\n/', trim($list)) ?: []));
@@ -93,7 +95,8 @@ try {
         throw new RuntimeException('El artefacto ya existe; usa un directorio de salida vacío.');
     }
     $archive = releaseCommand(
-        array_merge(['git', 'archive', '--format=zip', '--output=' . $zipPath, 'HEAD', '--'], $pathspecs),
+        array_merge(['git', '-c', 'safe.directory=' . str_replace('\\', '/', $root),
+            'archive', '--format=zip', '--output=' . $zipPath, 'HEAD', '--'], $pathspecs),
         $root
     );
     if ($archive['exit'] !== 0 || !is_file($zipPath)) {
@@ -105,7 +108,8 @@ try {
     $entries = [];
     try {
         $tarArchive = releaseCommand(
-            array_merge(['git', 'archive', '--format=tar', '--output=' . $tarPath, 'HEAD', '--'], $pathspecs),
+            array_merge(['git', '-c', 'safe.directory=' . str_replace('\\', '/', $root),
+                'archive', '--format=tar', '--output=' . $tarPath, 'HEAD', '--'], $pathspecs),
             $root
         );
         if ($tarArchive['exit'] !== 0 || !is_file($tarPath)) {

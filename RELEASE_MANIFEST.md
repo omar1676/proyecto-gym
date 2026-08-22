@@ -2,15 +2,15 @@
 
 ## Identidad
 
-- Versión declarada por la aplicación: `0.11.0-fase20`.
-- Migración más reciente: `migracion_v27.sql`.
+- Versión declarada por la aplicación: `0.12.0-fase21`.
+- Migración más reciente: `migracion_v28.sql`.
 - Último tag histórico de release anotado: `v0.9.0-fase10`.
 - El commit exacto del tag se obtiene con
   `git rev-parse v0.9.0-fase10^{commit}`. Fases 11–12 añaden preparación y una
   corrección neutral de mensajes; no se ha creado un tag nuevo.
-- Fecha de saneamiento: 21/08/2026 (Europe/Madrid).
+- Fecha de saneamiento: 22/08/2026 (Europe/Madrid).
 
-F20 no añade funciones de negocio. Cada artefacto se genera desde un commit
+F21 no añade funciones de negocio. Cada artefacto se genera desde un commit
 limpio mediante `php ops/build_release.php --output-dir=<directorio>` y se
 acompaña de un manifiesto determinista de hashes por archivo.
 
@@ -54,15 +54,17 @@ reales dentro de la release.
 pero se excluye de la release productiva. La instalación productiva debe usar
 el procedimiento de `DESPLIEGUE.md` y `ops/migrate.php`.
 
-## Evidencia y contrato de F20
+## Evidencia local y contrato de F21
 
 - La evidencia de fases anteriores es histórica y no se reutiliza para declarar
-  F20 aprobada.
-- HTTP: 37 correctas, 0 fallidas.
-- Render: 12 pantallas correctas.
-- Smoke: 11 comprobaciones correctas.
-- Lint: 145 archivos PHP, 0 fallos.
-- Migraciones: `pending=[]`, `checksum_mismatch=[]`, última v27.
+  F21 aprobada.
+- Suite local F21: 626 assertions correctas, 0 fallidas, 50 scripts, 0 omitidos.
+- Carrera económica intermitente reproducida y corregida: 20/20 repeticiones
+  concurrentes correctas después del bloqueo estable por sede.
+- Lint local del árbol completo: 180 archivos PHP, 0 fallos.
+- HTTP, smoke, PHP 8.3 y MariaDB 10.11 se vuelven a ejecutar contra la release
+  inmutable antes de activarla; su resultado no se anticipa en este archivo.
+- Migraciones: objetivo `pending=[]`, `checksum_mismatch=[]`, última v28.
 - Segundo gimnasio sintético: 16 comprobaciones, 0 fallos; fixture eliminada.
 
 El gate P0 se ejecuta con `php tests/run.php --p0-gate`; el contrato del runner
@@ -83,7 +85,9 @@ sesiones, imports, datos personales ni secretos.
   se distribuye ni se documenta.
 - Decidir con el propietario si se reescribe el historial remoto; retirar el
   archivo en un commit nuevo no lo elimina del commit antiguo.
-- Verificar dominio, TLS, SMTP, backup externo y restauración en el proveedor.
+- Configurar y recibir una alerta humana por SMTP técnico autorizado.
+- Instalar y probar un watchdog fuera del VPS.
+- Designar y probar un segundo operador nominal; verificar MFA de proveedores.
 - Aclarar licencia y derechos de todos los colaboradores y assets.
 - DORLET, IDEMIA y biometría no están implementados ni forman parte de esta
   release.

@@ -3,12 +3,14 @@
 require_once __DIR__ . '/../app/config/config.php';
 require_once __DIR__ . '/../app/config/database.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
+require_once __DIR__ . '/../app/helpers/RequestContext.php';
 require_once __DIR__ . '/../app/services/AccessControlMode.php';
 require_once __DIR__ . '/../app/services/MockAccessControlProvider.php';
 require_once __DIR__ . '/../app/services/AccessControlRepository.php';
 require_once __DIR__ . '/../app/services/AccessControlSyncService.php';
 
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
+RequestContext::bootstrap('CRON');
 
 $mode = AccessControlMode::resolve(ACCESS_CONTROL_MODE, ACCESS_CONTROL_ACTIVE_CONFIRM);
 if ($mode === AccessControlMode::DISABLED) {

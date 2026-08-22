@@ -3,17 +3,19 @@ require_once __DIR__ . '/../app/config/config.php';
 require_once __DIR__ . '/../app/helpers/BackupStorage.php';
 require_once __DIR__ . '/../app/helpers/BackupManifest.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
+require_once __DIR__ . '/../app/helpers/RequestContext.php';
 
 if (PHP_SAPI !== 'cli') { http_response_code(403); fwrite(STDERR, "Solo CLI.\n"); exit(1); }
+RequestContext::bootstrap('CRON');
 
 $root = dirname(__DIR__);
 $dest = rtrim(COPIAS_DIR, '/\\');
 try {
     BackupStorage::ensureDirectory($dest);
-    $base = $dest . DIRECTORY_SEPARATOR . 'backup_files_' . gmdate('Y-m-d_His\Z');
+    $base = BackupStorage::uniqueArtifactPath($dest, 'backup_files_', '');
     $tarPath = $base . '.tar';
     $archive = new PharData($tarPath);
-    $roots = ['public/assets/fotos', 'public/assets/productos', 'public/assets/gimnasios', 'public/assets/marca'];
+    $roots = ['public/assets/productos', 'public/assets/gimnasios', 'public/assets/marca'];
     $files = [];
     foreach ($roots as $relativeRoot) {
         $absoluteRoot = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativeRoot);
@@ -22,6 +24,16 @@ try {
         foreach ($iterator as $item) {
             if (!$item->isFile() || $item->isLink()) continue;
             $relative = str_replace('\\', '/', substr($item->getPathname(), strlen($root) + 1));
+            $archive->addFile($item->getPathname(), $relative);
+            $files[] = ['path' => $relative, 'bytes' => $item->getSize(), 'sha256' => hash_file('sha256', $item->getPathname())];
+        }
+    }
+    if (is_dir(PRIVATE_PHOTO_DIR)) {
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(PRIVATE_PHOTO_DIR, FilesystemIterator::SKIP_DOTS));
+        foreach ($iterator as $item) {
+            if (!$item->isFile() || $item->isLink()) continue;
+            $inside = str_replace('\\', '/', substr($item->getPathname(), strlen(rtrim(PRIVATE_PHOTO_DIR, '/\\')) + 1));
+            $relative = 'private/fotos/' . $inside;
             $archive->addFile($item->getPathname(), $relative);
             $files[] = ['path' => $relative, 'bytes' => $item->getSize(), 'sha256' => hash_file('sha256', $item->getPathname())];
         }

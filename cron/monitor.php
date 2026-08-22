@@ -3,7 +3,9 @@ require_once __DIR__ . '/../app/config/config.php';
 require_once __DIR__ . '/../app/helpers/BackupStorage.php';
 require_once __DIR__ . '/../app/helpers/MigrationManager.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
-require_once __DIR__ . '/../app/helpers/Mailer.php';
+require_once __DIR__ . '/../app/helpers/TechnicalAlertMailer.php';
+require_once __DIR__ . '/../app/helpers/AlertPolicy.php';
+RequestContext::bootstrap('CRON');
 
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit(1); }
 
@@ -69,12 +71,14 @@ if ($db instanceof PDO) {
 
 $status = overallStatus($checks);
 $notification = updateMonitorState($status, $checks);
+$heartbeat = writeMonitorHeartbeat($status);
 $result = [
     'status' => $status,
     'checked_at_utc' => gmdate('Y-m-d\TH:i:s\Z'),
     'checks' => $checks,
     'notification' => $notification,
     'alert_channel_configured' => monitorAlertChannelConfigured(),
+    'heartbeat_written' => $heartbeat,
 ];
 echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL;
 exit($status === MONITOR_CRITICAL ? 2 : ($status === MONITOR_WARNING ? 1 : 0));
@@ -223,8 +227,12 @@ function checkSchema(array &$checks, PDO $db): void
 {
     try {
         $schema = (new MigrationManager($db))->status();
-        $ok = !empty($schema['initialized']) && empty($schema['pending']) && empty($schema['checksum_mismatch']);
-        addCheck($checks, 'migrations', $ok ? MONITOR_OK : MONITOR_CRITICAL, count($schema['pending'] ?? []) . ' pendientes, ' . count($schema['checksum_mismatch'] ?? []) . ' checksum mismatch');
+        $ok = !empty($schema['initialized']) && empty($schema['pending'])
+            && empty($schema['checksum_mismatch']) && empty($schema['structural_mismatch']);
+        addCheck($checks, 'migrations', $ok ? MONITOR_OK : MONITOR_CRITICAL,
+            count($schema['pending'] ?? []) . ' pendientes, '
+            . count($schema['checksum_mismatch'] ?? []) . ' checksum mismatch, '
+            . count($schema['structural_mismatch'] ?? []) . ' estructurales');
     } catch (Throwable $e) {
         addCheck($checks, 'migrations', MONITOR_CRITICAL, 'estado no verificable');
     }
@@ -270,11 +278,9 @@ function updateMonitorState(string $status, array $checks): array
     $previous = $stateFile !== '' && is_file($stateFile) ? json_decode((string) file_get_contents($stateFile), true) : [];
     if (!is_array($previous)) $previous = [];
     $cooldown = MONITOR_ALERT_COOLDOWN_MINUTES * 60;
-    $lastNotified = strtotime((string) ($previous['last_notified_at_utc'] ?? '')) ?: 0;
-    $lastAttempted = strtotime((string) ($previous['last_attempted_at_utc'] ?? '')) ?: $lastNotified;
-    $changed = ($previous['fingerprint'] ?? '') !== $fingerprint;
-    $recovered = $status === MONITOR_OK && !empty($previous) && ($previous['status'] ?? MONITOR_OK) !== MONITOR_OK;
-    $alertRequired = $status !== MONITOR_OK && ($changed || time() - $lastAttempted >= $cooldown);
+    $decision = AlertPolicy::decide($previous, $status, $fingerprint, time(), $cooldown);
+    $recovered = $decision['recovered'];
+    $alertRequired = $decision['alert_required'];
     $notificationDue = $alertRequired || $recovered;
     $delivered = false;
     if ($notificationDue && monitorAlertChannelConfigured()) {
@@ -304,37 +310,52 @@ function updateMonitorState(string $status, array $checks): array
         'recovered' => $recovered,
         'delivery_attempted' => $notificationDue && monitorAlertChannelConfigured(),
         'delivered' => $delivered,
-        'suppressed_by_cooldown' => $status !== MONITOR_OK && !$alertRequired,
+        'suppressed_by_cooldown' => $decision['suppressed_by_cooldown'],
     ];
 }
 
 function monitorAlertChannelConfigured(): bool
 {
-    if (!filter_var(MONITOR_ALERT_EMAIL, FILTER_VALIDATE_EMAIL) || MAIL_SMTP_HOST === '') return false;
-    $allowed = array_values(array_filter(array_map(
-        static fn(string $email): string => strtolower(trim($email)),
-        explode(',', STAGING_MAIL_ALLOWLIST)
-    )));
-    return in_array(strtolower(MONITOR_ALERT_EMAIL), $allowed, true);
+    return TechnicalAlertMailer::configured();
 }
 
 function sendMonitorAlert(string $status, array $checks, bool $recovered): bool
 {
-    $subject = $recovered
-        ? '[GIMNERA STAGING] RECUPERADO'
-        : '[GIMNERA STAGING] ' . $status;
-    $rows = [];
+    $problems = [];
     foreach ($checks as $name => $check) {
         if (!$recovered && ($check['status'] ?? MONITOR_OK) === MONITOR_OK) continue;
-        $rows[] = '<li><b>' . htmlspecialchars((string) $name, ENT_QUOTES, 'UTF-8') . '</b>: '
-            . htmlspecialchars((string) ($check['status'] ?? ''), ENT_QUOTES, 'UTF-8') . ' — '
-            . htmlspecialchars((string) ($check['detail'] ?? ''), ENT_QUOTES, 'UTF-8') . '</li>';
+        $problems[] = (string) $name . '=' . (string) ($check['status'] ?? 'UNKNOWN');
     }
-    $intro = $recovered
-        ? 'El monitor técnico de staging ha vuelto a estado OK.'
-        : 'El monitor técnico de staging requiere atención.';
-    $html = '<p>' . htmlspecialchars($intro, ENT_QUOTES, 'UTF-8') . '</p>'
-        . ($rows ? '<ul>' . implode('', $rows) . '</ul>' : '')
-        . '<p>UTC: ' . htmlspecialchars(gmdate('Y-m-d H:i:s'), ENT_QUOTES, 'UTF-8') . '</p>';
-    return Mailer::enviar(MONITOR_ALERT_EMAIL, $subject, $html);
+    $message = $recovered
+        ? 'El monitor interno ha recuperado el estado OK.'
+        : 'Comprobaciones afectadas: ' . implode(', ', $problems);
+    return TechnicalAlertMailer::send($recovered ? 'RECOVERED' : $status, 'monitor', $message);
+}
+
+function writeMonitorHeartbeat(string $status): bool
+{
+    if (MONITOR_STATE_DIR === '') return false;
+    try {
+        BackupStorage::ensureDirectory(MONITOR_STATE_DIR);
+        $target = rtrim(MONITOR_STATE_DIR, '/\\') . DIRECTORY_SEPARATOR . 'heartbeat.json';
+        $temporary = $target . '.tmp.' . bin2hex(random_bytes(6));
+        $payload = [
+            'status' => $status,
+            'environment' => APP_ENV,
+            'instance' => substr(hash('sha256', (string) (gethostname() ?: 'unknown')), 0, 12),
+            'checked_at_utc' => gmdate('Y-m-d\\TH:i:s\\Z'),
+        ];
+        if (file_put_contents($temporary, json_encode($payload, JSON_UNESCAPED_SLASHES) . PHP_EOL, LOCK_EX) === false) {
+            return false;
+        }
+        if (!@rename($temporary, $target)) {
+            @unlink($temporary);
+            return false;
+        }
+        @chmod($target, 0640);
+        return true;
+    } catch (Throwable $e) {
+        AppLogger::error('monitor_heartbeat_write_failed');
+        return false;
+    }
 }

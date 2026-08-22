@@ -12,7 +12,9 @@ function valPerfil($campo, $usuario) {
     return htmlspecialchars($usuario[$campo] ?? '', ENT_QUOTES, 'UTF-8');
 }
 
-$fotoActual = !empty($usuario['foto']) ? 'assets/fotos/' . htmlspecialchars($usuario['foto'], ENT_QUOTES, 'UTF-8') : '';
+$fotoActual = !empty($usuario['foto'])
+    ? APP_URL . '/index.php?action=media_foto&amp;id=' . (int) ($usuario['id_usuario'] ?? 0)
+    : '';
 ?>
 
 <main class="max-w-4xl mx-auto p-6 w-full flex-1">

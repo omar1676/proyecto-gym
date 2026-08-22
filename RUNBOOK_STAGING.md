@@ -51,11 +51,13 @@ La release contiene únicamente runtime/documentación operativa necesaria. El
 ```bash
 php ops/setup_directories.php
 php ops/preflight.php
+php ops/schema_gate.php --mode=migrate
 php ops/migrate.php --confirm-staging
 php ops/status.php
 ```
 
-Exigir v27, `pending=[]` y `checksum_mismatch=[]`.
+Exigir v28, `pending=[]`, `checksum_mismatch=[]` y compatibilidad declarada en
+`SCHEMA_COMPATIBILITY.json`.
 
 ## 6. Backup, cron y alertas
 
@@ -69,6 +71,13 @@ sudo systemctl enable --now gimnera-backup-db.timer gimnera-backup-files.timer
 sudo systemctl enable --now gimnera-maintenance.timer gimnera-monitor.timer
 ```
 
+Las tres unidades de backup comparten
+`/var/www/gimnasio/shared/.backup-operation.lock`: una ejecución concurrente
+espera hasta 30 minutos en vez de mezclar artefactos de dos sets. La retención
+R2 se observa primero con `php ops/backup_external_retention.php`; solo se
+aplica en staging con `--apply --confirm-staging` y nunca elimina un set cuya
+fecha o estructura no puedan verificarse.
+
 No se habilitan `tareas.php`, remesas, correo a socios ni `control_acceso.php`.
 Este último debe seguir respondiendo `disabled`. Probar una alerta fallida de
 forma segura solo cuando exista un canal humano autorizado.
@@ -78,6 +87,10 @@ forma segura solo cuando exista un canal humano autorizado.
 Descargar backups desde el destino externo a un entorno limpio, verificar hash,
 restaurar DB/archivos y ejecutar `verify_restore`, migrate status y smoke.
 Medir desde el inicio de descarga hasta el último smoke correcto.
+
+El archivo de ficheros restaura las fotos personales bajo `private/fotos/`.
+Después de verificar su manifiesto y hashes, esa carpeta se copia al
+`PRIVATE_PHOTO_DIR` compartido, nunca a `public/assets/fotos`.
 
 Desde fuera del servidor ejecutar `/health`, smoke y el quick check no
 destructivo: tenant A/B, CSRF, IDOR básico, archivos sensibles, errores y
@@ -90,3 +103,17 @@ commit y esquema. Si falla un control obligatorio, mantener sistema actual como
 fuente oficial, desactivar staging público y volver a la release anterior. Una
 restauración de DB requiere decisión explícita por posible pérdida desde el
 último backup.
+
+### Rollback forward-only
+
+`ROLLBACK DE CÓDIGO` no equivale a `ROLLBACK DE ESQUEMA`.
+
+1. Ejecutar en la release candidata a rollback `php ops/schema_gate.php
+   --mode=runtime --release=/ruta/release-anterior` contra el esquema actual.
+2. Si acepta, cambiar `current` atómicamente, comprobar health/smoke y no
+   ejecutar el migrador antiguo.
+3. Si rechaza, STOP: no activar la release anterior. Volver a la release nueva
+   o restaurar en una DB independiente el backup previo.
+4. Nunca ejecutar un migrador antiguo ante una migración desconocida. El gate
+   `--mode=migrate` debe rechazarla explícitamente.
+5. Registrar releases, esquema, responsable, motivo y resultado.

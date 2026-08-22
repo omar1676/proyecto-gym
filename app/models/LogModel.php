@@ -14,6 +14,7 @@
  */
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../helpers/RequestContext.php';
 
 class LogModel {
     private $db;
@@ -52,12 +53,23 @@ class LogModel {
         ?string $valorAnterior = null,
         ?string $valorNuevo = null,
         ?int    $idGimnasio = null,
-        string  $resultado = 'exito'
+        string  $resultado = 'exito',
+        ?string $reasonCode = null,
+        array   $metadata = [],
+        string  $actorType = 'usuario',
+        ?string $origin = null
     ): void {
         try {
             if (!in_array($resultado, ['exito', 'fallo'], true)) {
                 $resultado = 'fallo';
             }
+            if (!in_array($actorType, ['usuario', 'system', 'anonymous'], true)) $actorType = 'system';
+            $origin = strtoupper((string) ($origin ?: RequestContext::origin()));
+            if (!in_array($origin, ['WEB', 'CRON', 'SYSTEM', 'API', 'MOBILE'], true)) $origin = 'SYSTEM';
+            $reasonCode = $reasonCode !== null
+                ? preg_replace('/[^A-Z0-9_.-]/', '_', strtoupper($reasonCode))
+                : null;
+            $metadata = $this->safeMetadata($metadata);
             $empresa = $this->idEmpresa;
             if ($empresa === null && $idGimnasio !== null) {
                 $q = $this->db->prepare('SELECT id_empresa FROM gimnasio WHERE id_gimnasio = :id');
@@ -66,23 +78,31 @@ class LogModel {
             }
             $stmt = $this->db->prepare(
                 "INSERT INTO log_actividad
-                 (id_usuario, id_usuario_afectado, accion, resultado, entidad, id_entidad,
-                   detalle, valor_anterior, valor_nuevo, ip, id_gimnasio, id_empresa, fecha)
+                 (event_id, correlation_id, id_usuario, actor_type, id_usuario_afectado,
+                  accion, resultado, origin, reason_code, entidad, id_entidad,
+                  detalle, valor_anterior, valor_nuevo, metadata_json, ip, id_gimnasio, id_empresa, fecha)
                  VALUES
-                 (:id_usuario, :id_afectado, :accion, :resultado, :entidad, :id_entidad,
-                  :detalle, :valor_anterior, :valor_nuevo, :ip, :id_gimnasio, :id_empresa, NOW())"
+                 (:event_id, :correlation_id, :id_usuario, :actor_type, :id_afectado,
+                  :accion, :resultado, :origin, :reason_code, :entidad, :id_entidad,
+                  :detalle, :valor_anterior, :valor_nuevo, :metadata_json, :ip, :id_gimnasio, :id_empresa, NOW())"
             );
             $stmt->execute([
+                ':event_id'       => RequestContext::newId(),
+                ':correlation_id' => RequestContext::correlationId(),
                 ':id_usuario'     => $idUsuario ?: null,
+                ':actor_type'     => $actorType,
                 ':id_afectado'    => $idUsuarioAfectado ?: null,
                 ':accion'         => $accion,
                 ':resultado'      => $resultado,
+                ':origin'         => $origin,
+                ':reason_code'    => $reasonCode !== '' ? $reasonCode : null,
                 ':entidad'        => $entidad,
                 ':id_entidad'     => $idEntidad ?: null,
                 ':detalle'        => mb_substr($detalle, 0, 500),
                 ':valor_anterior' => $valorAnterior !== null ? mb_substr($valorAnterior, 0, 255) : null,
                 ':valor_nuevo'    => $valorNuevo    !== null ? mb_substr($valorNuevo, 0, 255)    : null,
-                ':ip'             => $_SERVER['REMOTE_ADDR'] ?? null,
+                ':metadata_json'  => $metadata !== [] ? json_encode($metadata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null,
+                ':ip'             => RequestContext::clientIp(),
                 ':id_gimnasio'    => $idGimnasio ?: null,
                 ':id_empresa'     => $empresa,
             ]);
@@ -90,6 +110,20 @@ class LogModel {
             // El log nunca debe tumbar la operación que lo genera.
             error_log('LogModel::registrarCambio error: ' . $e->getMessage());
         }
+    }
+
+    /** @return array<string,int|float|string|bool|null> */
+    private function safeMetadata(array $metadata): array
+    {
+        $safe = [];
+        foreach ($metadata as $key => $value) {
+            $name = strtolower((string) $key);
+            if (preg_match('/pass|contras|token|cookie|session|csrf|iban|secret|authorization|clave/i', $name)
+                || !(is_scalar($value) || $value === null)) continue;
+            $safe[mb_substr((string) $key, 0, 64)] = is_string($value) ? mb_substr($value, 0, 255) : $value;
+            if (count($safe) >= 20) break;
+        }
+        return $safe;
     }
 
     /**

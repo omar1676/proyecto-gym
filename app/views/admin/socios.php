@@ -211,7 +211,7 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
                                     <td class="px-5 py-3">
                                         <div class="flex items-center gap-3">
                                             <?php if (!empty($socio['foto'])): ?>
-                                            <img src="assets/fotos/<?= htmlspecialchars($socio['foto'], ENT_QUOTES, 'UTF-8') ?>"
+                                            <img src="<?= APP_URL ?>/index.php?action=media_foto&amp;id=<?= (int) $socio['id_usuario'] ?>"
                                                 class="w-9 h-9 rounded-full object-cover" alt="">
                                             <?php else: ?>
                                             <div class="w-9 h-9 rounded-full bg-[#e4e4e7] flex items-center justify-center text-[#111318] font-bold text-sm">

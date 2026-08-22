@@ -15,6 +15,7 @@
  */
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../helpers/PrivatePhotoStorage.php';
 
 class UserModel {
     private $db;
@@ -302,6 +303,11 @@ class UserModel {
         try {
             $stmt = $this->db->prepare(
                 'UPDATE usuario SET
+                    sesiones_desde = CASE
+                        WHEN rol <> :rol_check OR NOT (id_gimnasio <=> :id_gimnasio_check)
+                            THEN DATE_ADD(NOW(), INTERVAL 1 SECOND)
+                        ELSE sesiones_desde
+                    END,
                     nombre      = :nombre,
                     apellidos   = :apellidos,
                     email       = :email,
@@ -317,6 +323,8 @@ class UserModel {
                 ':apellidos'   => $apellidos,
                 ':email'       => $email,
                 ':telefono'    => $telefono,
+                ':rol_check'   => $rol,
+                ':id_gimnasio_check' => $rol === 'direccion' ? null : $idGimnasio,
                 ':rol'         => $rol,
                 ':id_empresa'  => $this->idEmpresa,
                 ':id_gimnasio' => $rol === 'direccion' ? null : $idGimnasio,
@@ -372,7 +380,13 @@ class UserModel {
     /** Devuelve false si el usuario no es de esta sede y no se ha tocado nada. */
     public function toggleActivo(int $id): bool {
         $stmt = $this->db->prepare(
-            'UPDATE usuario SET activo = NOT activo WHERE id_usuario = :id' . $this->filtroSede()
+            'UPDATE usuario SET
+                sesiones_desde = CASE
+                    WHEN activo = 1 THEN DATE_ADD(NOW(), INTERVAL 1 SECOND)
+                    ELSE DATE_SUB(NOW(), INTERVAL 1 SECOND)
+                END,
+                activo = NOT activo
+             WHERE id_usuario = :id' . $this->filtroSede()
         );
         $stmt->execute([':id' => $id]);
         return $stmt->rowCount() > 0;
@@ -582,8 +596,7 @@ class UserModel {
 
             // La foto era el único dato personal fuera de la base: se borra del disco.
             if ($foto) {
-                $ruta = __DIR__ . '/../../public/assets/fotos/' . $foto;
-                if (is_file($ruta)) @unlink($ruta);
+                PrivatePhotoStorage::delete((string) $foto);
             }
             return $nombrePrevio;
         } catch (\PDOException $e) {
@@ -622,8 +635,7 @@ class UserModel {
             if ($ok) {
                 $this->db->commit();
                 if ($foto) {
-                    $rutaFoto = __DIR__ . '/../../public/assets/fotos/' . $foto;
-                    if (is_file($rutaFoto)) @unlink($rutaFoto);
+                    PrivatePhotoStorage::delete((string) $foto);
                 }
                 return true;
             }

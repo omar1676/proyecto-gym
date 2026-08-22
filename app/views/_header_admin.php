@@ -153,7 +153,7 @@ if ($logoSede !== '' && is_file($rutaPublica . 'gimnasios/' . $logoSede)) {
         <?php if (!empty($nombreSesion)): ?>
         <a href="<?= $perfilUrl ?>" class="flex items-center gap-2 bg-white/20 hover:bg-white/30 transition rounded-full px-2.5 py-1.5">
             <?php if (!empty($_SESSION['usuario_foto'])): ?>
-            <img src="assets/fotos/<?= htmlspecialchars($_SESSION['usuario_foto'], ENT_QUOTES) ?>"
+            <img src="<?= APP_URL ?>/index.php?action=media_foto&amp;id=<?= (int) ($_SESSION['usuario_id'] ?? 0) ?>"
                  class="w-7 h-7 rounded-full object-cover" alt="Foto perfil">
             <?php else: ?>
             <div class="w-7 h-7 rounded-full bg-white flex items-center justify-center text-[#111318] font-bold text-sm">

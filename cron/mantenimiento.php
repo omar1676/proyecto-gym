@@ -2,8 +2,10 @@
 require_once __DIR__ . '/../app/config/config.php';
 require_once __DIR__ . '/../app/config/database.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
+require_once __DIR__ . '/../app/helpers/RequestContext.php';
 require_once __DIR__ . '/../app/services/MigrationMaintenance.php';
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
+RequestContext::bootstrap('CRON');
 try {
     $db = Database::getInstance()->getConnection();
     $deleted = [];

@@ -5,7 +5,7 @@ $root = dirname(__DIR__);
 $dirs = array_values(array_filter([
     LOG_DIR, COPIAS_DIR, IMPORT_DIR, SESSION_DIR ?: null,
     MONITOR_STATE_DIR ?: null, BACKUP_EXTERNAL_VERIFY_DIR ?: null,
-    $root.'/public/assets/fotos', $root.'/public/assets/productos',
+    PRIVATE_PHOTO_DIR, $root.'/public/assets/productos',
     $root.'/public/assets/gimnasios', $root.'/public/assets/marca'
 ]));
 foreach ($dirs as $dir) {

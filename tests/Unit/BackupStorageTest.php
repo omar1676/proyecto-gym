@@ -11,6 +11,17 @@ $check = static function (string $name, bool $condition) use (&$checks, &$failur
 $base = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'gimnera-backup-test-' . bin2hex(random_bytes(6));
 mkdir($base, 0750, true);
 try {
+    $names = [];
+    for ($i = 0; $i < 100; $i++) {
+        $names[] = BackupStorage::uniqueArtifactPath($base, 'backup_db_', '.sql.gz');
+    }
+    $check('cien nombres creados en el mismo segundo no colisionan', count(array_unique($names)) === 100);
+    BackupStorage::writeExclusive($names[0], 'primero');
+    $collisionRejected = false;
+    try { BackupStorage::writeExclusive($names[0], 'segundo'); }
+    catch (RuntimeException $e) { $collisionRejected = true; }
+    $check('la escritura exclusiva impide sobrescribir un backup válido', $collisionRejected && file_get_contents($names[0]) === 'primero');
+
     $artifact = $base . DIRECTORY_SEPARATOR . 'backup_db_test.sql.gz';
     file_put_contents($artifact, str_repeat('backup-sintetico', 40));
     $hash = BackupStorage::checksum($artifact);
@@ -22,6 +33,7 @@ try {
 
     $manifest = BackupStorage::verifyArtifact($artifact);
     $check('acepta artefacto con hash y manifiesto coherentes', ($manifest['sha256'] ?? '') === $hash);
+    $check('un fallo de transferencia no altera el backup local', hash_file('sha256', $artifact) === $hash);
 
     file_put_contents($artifact, 'alterado', FILE_APPEND);
     $tamperDetected = false;

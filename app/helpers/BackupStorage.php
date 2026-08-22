@@ -4,6 +4,43 @@ require_once __DIR__ . '/AppLogger.php';
 
 final class BackupStorage
 {
+    /**
+     * Devuelve una ruta impredecible incluso cuando varios procesos arrancan
+     * en el mismo microsegundo. El nonce evita que el nombre sea el lock.
+     */
+    public static function uniqueArtifactPath(string $dir, string $prefix, string $suffix): string
+    {
+        self::ensureDirectory($dir);
+        $timestamp = (new DateTimeImmutable('now', new DateTimeZone('UTC')))
+            ->format('Y-m-d_His_u\Z');
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $nonce = bin2hex(random_bytes(8));
+            $path = rtrim($dir, '/\\') . DIRECTORY_SEPARATOR
+                . $prefix . $timestamp . '_' . $nonce . $suffix;
+            if (!file_exists($path) && !file_exists($path . '.sha256') && !file_exists($path . '.manifest.json')) {
+                return $path;
+            }
+        }
+        throw new RuntimeException('No se pudo reservar un nombre único de backup.');
+    }
+
+    public static function writeExclusive(string $path, string $contents): void
+    {
+        $handle = @fopen($path, 'xb');
+        if (!$handle) throw new RuntimeException('El artefacto ya existe o no se puede crear de forma exclusiva.');
+        try {
+            if (fwrite($handle, $contents) === false || !fflush($handle)) {
+                throw new RuntimeException('No se pudo completar el artefacto de backup.');
+            }
+        } catch (Throwable $e) {
+            fclose($handle);
+            @unlink($path);
+            throw $e;
+        }
+        fclose($handle);
+        @chmod($path, 0640);
+    }
+
     public static function ensureDirectory(string $dir): void
     {
         $dir = rtrim($dir, '/\\');
@@ -81,10 +118,21 @@ final class BackupStorage
             fn($f) => is_file($f) && !str_ends_with($f, '.sha256') && !str_ends_with($f, '.manifest.json')
         ));
         usort($files, fn($a, $b) => filemtime($b) <=> filemtime($a));
+        $verified = [];
+        foreach ($files as $file) {
+            try {
+                self::verifyArtifact($file);
+                $verified[] = $file;
+            } catch (Throwable $e) {
+                // Un artefacto incompleto se conserva para diagnóstico. Nunca
+                // puede provocar el borrado de una copia válida.
+            }
+        }
+        if (count($verified) < 2) return 0;
         $keep = [];
         foreach ([['Y-m-d', COPIAS_DIARIAS], ['o-W', COPIAS_SEMANALES], ['Y-m', COPIAS_MENSUALES]] as [$format, $limit]) {
             $buckets = [];
-            foreach ($files as $file) {
+            foreach ($verified as $file) {
                 $bucket = date($format, filemtime($file));
                 if (!isset($buckets[$bucket]) && count($buckets) < $limit) {
                     $buckets[$bucket] = true;
@@ -93,7 +141,10 @@ final class BackupStorage
             }
         }
         $deleted = 0;
-        foreach ($files as $file) {
+        // La copia válida más reciente queda protegida aunque una política se
+        // configure erróneamente con todos los límites a cero.
+        $keep[$verified[0]] = true;
+        foreach ($verified as $file) {
             if (!isset($keep[$file]) && @unlink($file)) {
                 @unlink($file . '.sha256');
                 @unlink($file . '.manifest.json');

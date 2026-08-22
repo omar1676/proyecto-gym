@@ -29,6 +29,10 @@ $clavesEntorno = [
     'BACKUP_EXTERNAL_ENCRYPTED', 'BACKUP_EXTERNAL_VERIFY_DIR',
     'LOG_DIR', 'LOG_DIAS', 'LOG_MAX_BYTES', 'LOG_ERRORS_HORA_MAX', 'DISCO_LIBRE_MINIMO_PCT', 'MONITOR_URL',
     'MONITOR_STATE_DIR', 'MONITOR_ALERT_COOLDOWN_MINUTES', 'MONITOR_ALERT_EMAIL',
+    'ALERT_SMTP_HOST', 'ALERT_SMTP_PORT', 'ALERT_SMTP_USER', 'ALERT_SMTP_PASSWORD',
+    'ALERT_SMTP_SECURITY', 'ALERT_FROM', 'ALERT_FROM_NAME', 'ALERT_TO',
+    'ALERT_ALLOWED_RECIPIENTS', 'ALERT_SMTP_TIMEOUT',
+    'PRIVATE_PHOTO_DIR', 'TRUSTED_PROXY_IPS',
     'IMPORT_DIR', 'IMPORT_MAX_BYTES', 'IMPORT_MAX_ROWS', 'IMPORT_RETENTION_DAYS',
     'ACCESS_CONTROL_MODE', 'ACCESS_CONTROL_PROVIDER', 'ACCESS_CONTROL_ACTIVE_CONFIRM',
     'ACCESS_CONTROL_MAX_ATTEMPTS', 'ACCESS_CONTROL_BACKOFF_SECONDS',
@@ -121,6 +125,24 @@ define('MONITOR_URL', rtrim((string) ($_ENV['MONITOR_URL'] ?? ''), '/'));
 define('MONITOR_STATE_DIR', trim((string) ($_ENV['MONITOR_STATE_DIR'] ?? '')));
 define('MONITOR_ALERT_COOLDOWN_MINUTES', max(5, min(1440, (int) ($_ENV['MONITOR_ALERT_COOLDOWN_MINUTES'] ?? 60))));
 define('MONITOR_ALERT_EMAIL', trim((string) ($_ENV['MONITOR_ALERT_EMAIL'] ?? '')));
+define('ALERT_SMTP_HOST', trim((string) ($_ENV['ALERT_SMTP_HOST'] ?? '')));
+define('ALERT_SMTP_PORT', max(1, (int) ($_ENV['ALERT_SMTP_PORT'] ?? 587)));
+define('ALERT_SMTP_USER', trim((string) ($_ENV['ALERT_SMTP_USER'] ?? '')));
+define('ALERT_SMTP_PASSWORD', (string) ($_ENV['ALERT_SMTP_PASSWORD'] ?? ''));
+define('ALERT_SMTP_SECURITY', strtolower(trim((string) ($_ENV['ALERT_SMTP_SECURITY'] ?? 'tls'))));
+define('ALERT_FROM', trim((string) ($_ENV['ALERT_FROM'] ?? '')));
+define('ALERT_FROM_NAME', trim((string) ($_ENV['ALERT_FROM_NAME'] ?? 'Gimnera alertas')));
+define('ALERT_TO', trim((string) ($_ENV['ALERT_TO'] ?? MONITOR_ALERT_EMAIL)));
+define('ALERT_ALLOWED_RECIPIENTS', array_values(array_filter(array_map(
+    static fn(string $email): string => strtolower(trim($email)),
+    explode(',', (string) ($_ENV['ALERT_ALLOWED_RECIPIENTS'] ?? ''))
+))));
+define('ALERT_SMTP_TIMEOUT', max(3, min(30, (int) ($_ENV['ALERT_SMTP_TIMEOUT'] ?? 10))));
+define('PRIVATE_PHOTO_DIR', trim((string) ($_ENV['PRIVATE_PHOTO_DIR'] ?? dirname(__DIR__, 2) . '/storage/private/fotos')));
+define('TRUSTED_PROXY_IPS', array_values(array_filter(array_map(
+    static fn(string $ip): string => trim($ip),
+    explode(',', (string) ($_ENV['TRUSTED_PROXY_IPS'] ?? ''))
+))));
 
 // Staging temporal de importaciones. Debe vivir fuera de public/ y se limpia
 // automáticamente al vencer cada batch.

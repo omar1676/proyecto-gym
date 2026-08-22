@@ -2,6 +2,24 @@
 
 Estado: **PREPARADO / NO VERIFICADO**. No existen credenciales SMTP de staging.
 
+## Canal técnico de alertas
+
+Es independiente del correo funcional y usa únicamente `ALERT_SMTP_*`,
+`ALERT_FROM`, `ALERT_FROM_NAME`, `ALERT_TO` y `ALERT_ALLOWED_RECIPIENTS`.
+No existe fallback a `mail()`. `ALERT_TO` debe aparecer de forma exacta en
+la lista separada por comas `ALERT_ALLOWED_RECIPIENTS`; vacío bloquea todos
+los envíos aunque el SMTP esté configurado.
+Tiene timeout y tres intentos limitados; los logs no incluyen credenciales.
+
+```bash
+php ops/monitor_alert_test.php --confirm-staging-test --severity=TEST
+php ops/monitor_alert_test.php --confirm-staging-test --severity=WARNING
+php ops/monitor_alert_test.php --confirm-staging-test --severity=CRITICAL
+```
+
+No se marca VERIFICADO hasta confirmar recepción humana y observar
+deduplicación/cooldown.
+
 El `Mailer` actual impone tres controles en `APP_ENV=staging`:
 
 1. SMTP debe estar configurado; no existe fallback a `mail()`.

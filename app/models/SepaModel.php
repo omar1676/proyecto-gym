@@ -348,6 +348,15 @@ class SepaModel
         try {
             $this->db->beginTransaction();
 
+            // Una fila estable por sede serializa la construcción de remesas.
+            // Evita que dos snapshots REPEATABLE READ concluyan a la vez que
+            // la misma membresía sigue libre antes de insertar el recibo.
+            $scopeLock = $this->db->prepare(
+                'SELECT id_gimnasio FROM gimnasio WHERE id_gimnasio = :sede AND id_empresa = :empresa FOR UPDATE'
+            );
+            $scopeLock->execute([':sede' => $this->idGimnasio, ':empresa' => $this->idEmpresa]);
+            if (!$scopeLock->fetchColumn()) throw new DomainException('La sede no pertenece al ámbito activo.');
+
             if ($idempotencyKey !== null) {
                 $repetida = $this->db->prepare(
                     'SELECT id_remesa FROM remesa WHERE id_gimnasio = :sede AND idempotency_key = :clave LIMIT 1 FOR UPDATE'
@@ -388,6 +397,18 @@ class SepaModel
             }
             if (empty($seleccion)) {
                 $this->db->rollBack();
+                // En un doble submit, el proceso ganador puede haber creado
+                // la remesa mientras este esperaba el lock de la membresía.
+                // La operación idempotente debe devolver ese mismo resultado,
+                // no un falso fallo dependiente del orden del scheduler.
+                if ($idempotencyKey !== null) {
+                    $existente = $this->db->prepare(
+                        'SELECT id_remesa FROM remesa WHERE id_gimnasio = :sede AND idempotency_key = :clave LIMIT 1'
+                    );
+                    $existente->execute([':sede' => $this->idGimnasio, ':clave' => $idempotencyKey]);
+                    $idExistente = (int) $existente->fetchColumn();
+                    if ($idExistente > 0) return $idExistente;
+                }
                 $error = 'No hay cobros seleccionados que se puedan domiciliar.';
                 return null;
             }
@@ -452,6 +473,18 @@ class SepaModel
 
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) $this->db->rollBack();
+            if ($idempotencyKey !== null) {
+                try {
+                    $existente = $this->db->prepare(
+                        'SELECT id_remesa FROM remesa WHERE id_gimnasio = :sede AND idempotency_key = :clave LIMIT 1'
+                    );
+                    $existente->execute([':sede' => $this->idGimnasio, ':clave' => $idempotencyKey]);
+                    $idExistente = (int) $existente->fetchColumn();
+                    if ($idExistente > 0) return $idExistente;
+                } catch (\Throwable $ignored) {
+                    // Se conserva el fallo original y no se muestra SQL.
+                }
+            }
             error_log('SepaModel::crearRemesa error: ' . $e->getMessage());
             $error = 'No se pudo crear la remesa.';
             return null;

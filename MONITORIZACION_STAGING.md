@@ -30,6 +30,10 @@ externo aparece CRITICAL por diseño; la segunda ejecución quedó suprimida por
 cooldown. No existe todavía canal humano, por lo que una alerta recibida sigue
 NO VERIFICADA.
 
+Cada ejecución escribe atómicamente `heartbeat.json` en `MONITOR_STATE_DIR`.
+`/heartbeat` solo expone estado, entorno, identificador no reversible de
+instancia, hora UTC y antigüedad; responde 503 si supera 300 segundos.
+
 ## Automatización prevista
 
 Las unidades versionadas en `ops/systemd/` ejecutan exclusivamente:
@@ -45,8 +49,9 @@ nuevos y escritura limitada a `shared`.
 
 ## Alertas
 
-Canal real: **PENDIENTE**. Faltan destinatario autorizado y proveedor SMTP o
-canal de monitorización. `MONITOR_ALERT_EMAIL` permanece vacío. Cuando se elija,
+Canal real: **PENDIENTE**. Faltan destinatario autorizado y credenciales del
+SMTP técnico. Usa exclusivamente `ALERT_SMTP_*`, sin `mail()` y separado del
+correo funcional. Cuando se elija,
 se probará caída controlada, recuperación y cooldown sin usar datos personales.
 Un CRITICAL sin canal sigue quedando en log/journal, pero no se considerará una
 alerta humana verificada.
@@ -62,7 +67,11 @@ El quinto timer, `gimnera-backup-external`, está habilitado y activo. Ejecuta a
 las 00:20, 02:35, 06:20, 12:20 y 18:20 UTC. El monitor marca WARNING a las 26 h
 y CRITICAL a las 36 h desde la última verificación externa.
 
-Alertas humanas siguen **PENDIENTE / NO VERIFICADO**: SMTP, allowlist y
-`MONITOR_ALERT_EMAIL` están vacíos. Fingerprint y cooldown permanecen a 60
+Alertas humanas siguen **PENDIENTE / NO VERIFICADO**: SMTP técnico,
+`ALERT_TO` y `ALERT_ALLOWED_RECIPIENTS` están vacíos. Fingerprint y cooldown permanecen a 60
 minutos, pero aún falta recibir una prueba `[GIMNERA STAGING TEST]` en un buzón
 técnico autorizado.
+
+El watchdog externo se ejecuta con `ops/external_watchdog.php` fuera del VPS.
+Comprueba health, heartbeat, TLS y latencia. Mientras no exista un ejecutor
+independiente se considera PREPARADO, no VERIFICADO.

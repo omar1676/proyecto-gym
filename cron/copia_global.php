@@ -3,8 +3,10 @@ require_once __DIR__ . '/../app/config/config.php';
 require_once __DIR__ . '/../app/helpers/BackupStorage.php';
 require_once __DIR__ . '/../app/helpers/BackupManifest.php';
 require_once __DIR__ . '/../app/helpers/AppLogger.php';
+require_once __DIR__ . '/../app/helpers/RequestContext.php';
 
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit(1); }
+RequestContext::bootstrap('CRON');
 
 $started = time();
 $root = dirname(__DIR__);
@@ -20,7 +22,7 @@ try {
     $databaseManifest = BackupStorage::verifyArtifact($database);
     $filesManifest = BackupStorage::verifyArtifact($files);
 
-    $setFile = $destination . DIRECTORY_SEPARATOR . 'backup_set_' . gmdate('Y-m-d_His\Z') . '.json';
+    $setFile = BackupStorage::uniqueArtifactPath($destination, 'backup_set_', '.json');
     $set = array_merge(BackupManifest::identity(), [
         'kind' => 'backup-set',
         'artifacts' => [
@@ -31,10 +33,10 @@ try {
         'external_transfer' => 'not_requested',
     ]);
     $json = json_encode($set, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    if ($json === false || file_put_contents($setFile, $json . PHP_EOL, LOCK_EX) === false) {
+    if ($json === false) {
         throw new RuntimeException('No se pudo escribir el manifiesto global.');
     }
-    @chmod($setFile, 0640);
+    BackupStorage::writeExclusive($setFile, $json . PHP_EOL);
     $sha256 = BackupStorage::checksum($setFile);
     BackupManifest::writeForArtifact($setFile, 'backup-set', [
         'database_artifact' => basename($database),

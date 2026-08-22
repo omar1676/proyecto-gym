@@ -10,6 +10,7 @@ $suites = [
         'tests/Unit/ValidationTest.php', 'tests/Unit/MailerTest.php',
         'tests/Unit/CsvImportReaderTest.php', 'tests/Unit/AccessDecisionTest.php',
         'tests/Unit/MockAccessControlProviderTest.php', 'tests/Unit/BackupStorageTest.php',
+        'tests/Unit/F21OperationalSafetyTest.php',
     ],
     'Integration' => [
         'tests/Integration/IntegrityTest.php', 'tests/Integration/IdempotencyTest.php',
@@ -22,12 +23,15 @@ $suites = [
         'tests/Integration/EconomicConcurrencyTest.php',
         'tests/Integration/CashConcurrencyTest.php', 'tests/Integration/AccessControlSyncTest.php',
         'tests/Integration/SecondGymGeneralizationTest.php',
+        'tests/Integration/AuditPrivacyOffboardingTest.php',
+        'tests/Integration/SchemaCompatibilityTest.php',
     ],
     'Security' => [
         'tests/Security/OutputEncodingTest.php', 'tests/Security/RateLimitTest.php',
         'tests/Security/MigrationSecurityTest.php', 'tests/Security/MigrationInconsistentSchemaTest.php',
         'tests/Security/EconomicIsolationTest.php', 'tests/Security/AccessControlIsolationTest.php',
         'tests/Security/StagingSafetyTest.php', 'pruebas/multiempresa.php',
+        'tests/Security/PrivacyRoutesTest.php',
         'pruebas/multisede.php', 'pruebas/autorizacion.php',
     ],
     'Functional' => [
@@ -102,13 +106,13 @@ function suiteDatabaseName(string $base, string $suite, string $runId): string
 {
     $prefix = strtolower(preg_replace('/[^a-z0-9_]+/i', '_', $base) ?: 'gimnera_test');
     $suite = strtolower(preg_replace('/[^a-z0-9]+/i', '_', $suite) ?: 'suite');
-    return substr($prefix . '_f20_' . $suite . '_' . $runId . '_test', 0, 60);
+    return substr($prefix . '_f21_' . $suite . '_' . $runId . '_test', 0, 60);
 }
 
 function dropSuiteDatabase(string $database): void
 {
-    if (!preg_match('/^[a-z0-9_]*f20_[a-z0-9_]+_test$/i', $database) || !preg_match('/test/i', $database)) {
-        throw new RuntimeException('Se rechazó limpiar una base fuera del patrón temporal F20.');
+    if (!preg_match('/^[a-z0-9_]*f21_[a-z0-9_]+_test$/i', $database) || !preg_match('/test/i', $database)) {
+        throw new RuntimeException('Se rechazó limpiar una base fuera del patrón temporal F21.');
     }
     $admin = new PDO(
         'mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';charset=' . DB_CHARSET,
@@ -190,7 +194,7 @@ try {
             dropSuiteDatabase($database);
         } catch (Throwable $e) {
             $failed[] = 'CLEANUP:' . $database;
-            fwrite(STDERR, 'No se pudo limpiar una base temporal F20: ' . $e->getMessage() . "\n");
+            fwrite(STDERR, 'No se pudo limpiar una base temporal F21: ' . $e->getMessage() . "\n");
         }
     }
     if ($temporaryFailure !== null && is_file($temporaryFailure)) {

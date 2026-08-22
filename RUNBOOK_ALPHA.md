@@ -5,8 +5,10 @@
 1. Confirmar `https://staging.gimnera.es/health` y certificado válido.
 2. Revisar `systemctl list-timers 'gimnera-*'` y último resultado de backups.
 3. Ejecutar `sudo -u www-data php /var/www/gimnasio/current/cron/monitor.php`.
-4. Si hay CRITICAL distinto del backup externo pendiente, no iniciar pruebas.
-5. Mantener `ACCESS_CONTROL_MODE=disabled` y usar solo datos sintéticos o
+4. Confirmar que `/heartbeat` tiene menos de 300 segundos y que el watchdog
+   externo está OK cuando haya sido configurado.
+5. Si hay cualquier CRITICAL, no iniciar pruebas.
+6. Mantener `ACCESS_CONTROL_MODE=disabled` y usar solo datos sintéticos o
    controlados autorizados.
 
 ## Operación
@@ -59,3 +61,9 @@ Gates actuales: GO técnico para alpha sintética, backup externo y disaster
 restore; NO-GO para alertas humanas y para cualquier dato real. La clave SSH
 temporal no se retira porque la personal aún no ha demostrado una segunda sesión
 fiable.
+
+## Rollback
+
+Antes de apuntar `current` a otra release, ejecutar su `ops/schema_gate.php
+--mode=runtime`. Si el esquema queda fuera del rango declarado, STOP; no se
+ejecuta el migrador antiguo. Un restore se ensaya primero en DB independiente.

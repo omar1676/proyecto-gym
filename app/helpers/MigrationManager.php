@@ -259,6 +259,16 @@ final class MigrationManager
                 'index:remesa_recibo.uq_recibo_membresia_en_cobro' => $this->hasIndex('remesa_recibo', 'uq_recibo_membresia_en_cobro'),
                 'column:log_actividad.resultado' => $this->hasColumn('log_actividad', 'resultado'),
             ],
+            'migracion_v28.sql' => [
+                'column:log_actividad.event_id' => $this->hasColumn('log_actividad', 'event_id'),
+                'column:log_actividad.correlation_id' => $this->hasColumn('log_actividad', 'correlation_id'),
+                'column:log_actividad.actor_type' => $this->hasColumn('log_actividad', 'actor_type'),
+                'column:log_actividad.origin' => $this->hasColumn('log_actividad', 'origin'),
+                'column:log_actividad.reason_code' => $this->hasColumn('log_actividad', 'reason_code'),
+                'column:log_actividad.metadata_json' => $this->hasColumn('log_actividad', 'metadata_json'),
+                'index:log_actividad.uq_log_event_id' => $this->hasIndex('log_actividad', 'uq_log_event_id'),
+                'index:log_actividad.idx_log_correlation' => $this->hasIndex('log_actividad', 'idx_log_correlation'),
+            ],
             default => [],
         };
     }

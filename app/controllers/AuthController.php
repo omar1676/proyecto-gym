@@ -32,6 +32,7 @@ require_once __DIR__ . '/../helpers/Sesion.php';
 require_once __DIR__ . '/../helpers/TenantContext.php';
 require_once __DIR__ . '/../helpers/AppLogger.php';
 require_once __DIR__ . '/../helpers/Mailer.php';
+require_once __DIR__ . '/../models/LogModel.php';
 
 class AuthController {
 
@@ -125,6 +126,35 @@ class AuthController {
         $_SESSION['flash'][$clave] = $valor;
     }
 
+    /** @param array<string,mixed>|null $user @param array<string,mixed>|null $gym */
+    private function auditAuth(string $action, string $result, ?array $user = null, ?array $gym = null, ?string $reason = null): void
+    {
+        $company = (int) ($user['id_empresa'] ?? $gym['id_empresa'] ?? 0) ?: null;
+        $site = (int) ($user['id_gimnasio'] ?? $gym['id_gimnasio'] ?? 0) ?: null;
+        $targetUser = $user ? (int) ($user['id_usuario'] ?? 0) ?: null : null;
+        $authenticatedActor = $targetUser !== null
+            && $result === 'exito'
+            && in_array($action, [
+                'LOGIN', 'LOGOUT', 'LOGOUT_COMPLETO', 'PASSWORD_RESET_COMPLETED', 'PASSWORD_CHANGED',
+            ], true);
+        (new LogModel($company))->registrarCambio(
+            $authenticatedActor ? $targetUser : null,
+            $action,
+            'Evento de autenticación',
+            $targetUser,
+            'usuario',
+            $targetUser,
+            null,
+            null,
+            $site,
+            $result,
+            $reason,
+            [],
+            $authenticatedActor ? 'usuario' : 'anonymous',
+            'WEB'
+        );
+    }
+
     private function getFlash(string $clave) {
         if (!isset($_SESSION['flash'][$clave])) return null;
         $valor = $_SESSION['flash'][$clave];
@@ -170,7 +200,8 @@ class AuthController {
         $contrasena =      $_POST['contrasena'] ?? '';
         $ip         = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
 
-        $fallar = function (string $mensaje) use ($email) {
+        $fallar = function (string $mensaje, string $reason) use ($email) {
+            $this->auditAuth('LOGIN_GIMNASIO', 'fallo', null, null, $reason);
             $this->setFlash('errores', [$mensaje]);
             $this->setFlash('old', ['email' => $email]);
             $this->redirigir('login');
@@ -178,10 +209,10 @@ class AuthController {
 
         if ($this->intentosGimnasioBloqueado($ip, $email)) {
             AppLogger::write('SECURITY', 'gym_login_rate_limited', ['ip' => $ip]);
-            $fallar('Demasiados intentos fallidos. Espera 15 minutos.');
+            $fallar('Demasiados intentos fallidos. Espera 15 minutos.', 'RATE_LIMITED');
         }
         if ($email === '' || $contrasena === '') {
-            $fallar('Introduce el email y la contraseña del gimnasio.');
+            $fallar('Introduce el email y la contraseña del gimnasio.', 'INVALID_INPUT');
         }
 
         $gimnasio = $this->gimnasioModel->autenticar($email, $contrasena);
@@ -190,13 +221,14 @@ class AuthController {
             $this->registrarIntentoGimnasio($ip, $email);
             // Mensaje único: distinguir "email no existe" de "contraseña
             // incorrecta" permitiría averiguar qué gimnasios están dados de alta.
-            $fallar('Email o contraseña del gimnasio incorrectos.');
+            $fallar('Email o contraseña del gimnasio incorrectos.', 'INVALID_CREDENTIALS');
         }
 
         session_regenerate_id(true);
         $this->limpiarIntentosGimnasio($email);
         $_SESSION['gimnasio_auth_id']     = (int) $gimnasio['id_gimnasio'];
         $_SESSION['gimnasio_auth_nombre'] = $gimnasio['nombre'];
+        $this->auditAuth('LOGIN_GIMNASIO', 'exito', null, $gimnasio, 'AUTHENTICATED');
 
         $this->redirigir('login_gimnasio');
     }
@@ -233,6 +265,9 @@ class AuthController {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
             $this->redirigir('login_gimnasio');
         }
+        $user = !empty($_SESSION['usuario_id']) ? $this->userModel->buscarPorId((int) $_SESSION['usuario_id']) : null;
+        $gym = $this->gimnasioDeSesion();
+        $this->auditAuth('LOGOUT_COMPLETO', 'exito', $user ?: null, $gym, 'USER_REQUEST');
         $this->sessionLogout();
         $this->redirigir('login');
     }
@@ -303,7 +338,9 @@ class AuthController {
             $this->redirigir('login');
         }
 
-        $fallar = function (string $mensaje) use ($usuario) {
+        $authUser = null;
+        $fallar = function (string $mensaje, string $reason) use ($usuario, $gimnasio, &$authUser) {
+            $this->auditAuth('LOGIN', 'fallo', $authUser, $gimnasio, $reason);
             $this->setFlash('errores', [$mensaje]);
             $this->setFlash('old', ['usuario' => $usuario]);
             $this->redirigir('login_gimnasio');
@@ -311,28 +348,29 @@ class AuthController {
 
         if ($this->blacklist->estaBloqueado($ip, $usuario)) {
             AppLogger::write('SECURITY', 'employee_login_rate_limited', ['ip' => $ip]);
-            $fallar('Cuenta bloqueada por múltiples intentos fallidos. Inténtalo de nuevo en 15 minutos.');
+            $fallar('Cuenta bloqueada por múltiples intentos fallidos. Inténtalo de nuevo en 15 minutos.', 'RATE_LIMITED');
         }
         if ($usuario === '' || $contrasena === '') {
-            $fallar('Introduce usuario y contraseña.');
+            $fallar('Introduce usuario y contraseña.', 'INVALID_INPUT');
         }
 
         $user = $this->userModel->buscarPorUsuario($usuario);
+        $authUser = $user ?: null;
 
         if (!$user || !password_verify($contrasena, $user['contrasena'])) {
             $this->blacklist->registrarIntentoFallido($ip, $usuario);
             $restantes = $this->blacklist->getIntentosRestantes($ip, $usuario);
             $fallar($restantes > 0
                 ? 'Usuario o contraseña incorrectos. Te quedan ' . $restantes . ' intentos.'
-                : 'Cuenta bloqueada por múltiples intentos fallidos.');
+                : 'Cuenta bloqueada por múltiples intentos fallidos.', 'INVALID_CREDENTIALS');
         }
 
         // Solo el personal entra al panel. Los socios no tienen acceso web.
         if (!in_array($user['rol'] ?? '', self::ROLES_PANEL, true)) {
-            $fallar('Esta cuenta no tiene acceso al panel de gestión.');
+            $fallar('Esta cuenta no tiene acceso al panel de gestión.', 'ROLE_DENIED');
         }
         if ((int) ($user['activo'] ?? 1) !== 1) {
-            $fallar('Tu acceso está bloqueado. Habla con la administración del gimnasio.');
+            $fallar('Tu acceso está bloqueado. Habla con la administración del gimnasio.', 'ACCOUNT_DISABLED');
         }
 
         // Personal de sede: coincidencia exacta. Dirección: cualquier sede de
@@ -344,7 +382,7 @@ class AuthController {
         if (($rol === 'direccion' && !$mismaEmpresa)
             || (!in_array($rol, ['superadmin', 'direccion'], true) && !$mismaSede)) {
             $this->blacklist->registrarIntentoFallido($ip, $usuario);
-            $fallar('Esta cuenta no pertenece a ' . $gimnasio['nombre'] . '.');
+            $fallar('Esta cuenta no pertenece a ' . $gimnasio['nombre'] . '.', 'TENANT_OR_SITE_MISMATCH');
         }
 
         $this->sessionLogin($user);
@@ -355,6 +393,7 @@ class AuthController {
         // que permite que al salir se vuelva a su pantalla y no a la inicial.
         $_SESSION['gimnasio_auth_id']     = (int) $gimnasio['id_gimnasio'];
         $_SESSION['gimnasio_auth_nombre'] = $gimnasio['nombre'];
+        $this->auditAuth('LOGIN', 'exito', $user, $gimnasio, 'AUTHENTICATED');
 
         $this->redirigirSegunRol();
     }
@@ -374,6 +413,8 @@ class AuthController {
         }
         $idGimnasio = (int) ($_SESSION['gimnasio_auth_id'] ?? $_SESSION['gimnasio_id'] ?? 0);
         $gimnasio   = $idGimnasio > 0 ? $this->gimnasioModel->buscarPorId($idGimnasio) : null;
+        $user = !empty($_SESSION['usuario_id']) ? $this->userModel->buscarPorId((int) $_SESSION['usuario_id']) : null;
+        $this->auditAuth('LOGOUT', 'exito', $user ?: null, $gimnasio ?: null, 'USER_REQUEST');
 
         // No se destruye la sesión: se vacía y se deja solo el gimnasio. El id
         // se regenera igualmente para que la sesión del empleado no se reutilice.
@@ -462,6 +503,7 @@ class AuthController {
                 Mailer::resetContrasena($user['email'], $nombreCompleto, $url);
             }
         }
+        $this->auditAuth('PASSWORD_RESET_REQUESTED', 'exito', $user ?: null, $gimnasio, 'GENERIC_RESPONSE');
 
         // El mensaje es el mismo exista o no la cuenta: si cambiara, serviría
         // para averiguar qué correos están registrados.
@@ -537,9 +579,11 @@ class AuthController {
         $this->userModel->limpiarTokenReset((int) $user['id_usuario']);
 
         if ($ok) {
+            $this->auditAuth('PASSWORD_RESET_COMPLETED', 'exito', $user, null, 'PASSWORD_CHANGED');
             $this->setFlash('exito', 'Contraseña actualizada. Ya puedes iniciar sesión.');
             $this->redirigir('login');
         }
+        $this->auditAuth('PASSWORD_RESET_COMPLETED', 'fallo', $user, null, 'UPDATE_FAILED');
         $this->setFlash('errores', ['No se pudo actualizar la contraseña. Inténtalo de nuevo.']);
         $this->redirigir('password_forgot');
     }
@@ -613,7 +657,12 @@ class AuthController {
         $mensaje = 'Perfil actualizado correctamente.';
 
         if ($nueva !== '') {
-            $this->userModel->cambiarContrasena($idUsuario, $nueva);
+            if (!$this->userModel->cambiarContrasena($idUsuario, $nueva)) {
+                $this->auditAuth('PASSWORD_CHANGED', 'fallo', $usuario, null, 'UPDATE_FAILED');
+                $this->setFlash('errores', ['El perfil se actualizó, pero no se pudo cambiar la contraseña. Inténtalo de nuevo.']);
+                $this->redirigir('perfil');
+            }
+            $this->auditAuth('PASSWORD_CHANGED', 'exito', $usuario, null, 'SELF_SERVICE');
             // Cambiar la clave invalida las sesiones anteriores. Esta se salva
             // adelantando su marca: quien acaba de teclear la nueva contraseña
             // no tiene por qué volver a entrar.

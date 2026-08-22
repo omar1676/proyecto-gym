@@ -1376,7 +1376,13 @@ class AdminController
             $this->irAConError('admin_empleados', $error);
         }
 
-        $this->userModel->actualizarEmpleado($idEmpleado, $nombre, $apellidos, $email, $telefono, $rol, $idSede);
+        if (!$this->userModel->actualizarEmpleado($idEmpleado, $nombre, $apellidos, $email, $telefono, $rol, $idSede)) {
+            $this->registrarLogSobre(
+                'Edición de empleado', $idEmpleado, 'La actualización no se confirmó',
+                $rolAnterior, $rol, 'empleado', $idEmpleado, 'fallo'
+            );
+            $this->irAConError('admin_empleados', 'No se pudo actualizar el empleado.');
+        }
 
         $nombreCompleto = trim($nombre . ' ' . $apellidos);
         if ($rol !== $rolAnterior) {

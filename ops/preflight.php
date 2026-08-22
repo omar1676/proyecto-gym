@@ -1,5 +1,6 @@
 <?php
 require_once dirname(__DIR__) . '/app/config/config.php';
+require_once dirname(__DIR__) . '/app/helpers/TechnicalAlertMailer.php';
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 $root = dirname(__DIR__);
 $results = [];
@@ -22,7 +23,7 @@ $check('sin backup local de secretos en release', !is_file($root . '/.env.produc
 $check('sin repositorio de respaldo en release', !is_dir($root . '/.git.bak'));
 $check('sin ZIP histórico de inscripciones', !is_file($root . '/recursos/inscripciones.zip'));
 $check('sin instalador en release', !is_file($root . '/instalar.php'));
-foreach ([LOG_DIR, COPIAS_DIR, IMPORT_DIR, $root . '/public/assets/fotos', $root . '/public/assets/productos', $root . '/public/assets/gimnasios'] as $dir) {
+foreach ([LOG_DIR, COPIAS_DIR, IMPORT_DIR, PRIVATE_PHOTO_DIR, $root . '/public/assets/productos', $root . '/public/assets/gimnasios'] as $dir) {
     $check('escritura ' . str_replace($root, '<root>', $dir), is_dir($dir) && is_writable($dir));
 }
 foreach (array_filter([MONITOR_STATE_DIR, BACKUP_EXTERNAL_VERIFY_DIR]) as $dir) {
@@ -35,9 +36,10 @@ $paths = [LOG_DIR, COPIAS_DIR, IMPORT_DIR, SESSION_DIR];
 $paths = array_values(array_filter(array_map(static fn($path) => rtrim(str_replace('\\', '/', (string) $path), '/'), $paths)));
 $check('almacenamientos staging separados', APP_ENV !== 'staging' || (count($paths) === 4 && count(array_unique($paths)) === 4), implode(', ', $paths));
 $check('SMTP configurado', MAIL_SMTP_HOST !== '' && MAIL_FROM !== '', MAIL_SMTP_HOST === '' ? 'NO VERIFICADO' : 'configurado');
+$check('SMTP alertas configurado', TechnicalAlertMailer::configured(), TechnicalAlertMailer::configured() ? 'configurado y destinatario permitido' : 'NO VERIFICADO');
 $check('correo staging restringido', APP_ENV !== 'staging' || STAGING_MAIL_ALLOWLIST === '' || !str_contains(STAGING_MAIL_ALLOWLIST, '*'), STAGING_MAIL_ALLOWLIST === '' ? 'bloqueado' : 'allowlist exacta');
 foreach ($results as $r) printf("[%s] %s%s\n", $r['ok'] ? 'OK' : 'PENDIENTE', $r['name'], $r['detail'] !== '' ? ' — ' . $r['detail'] : '');
-$productionOnly = ['SMTP configurado','copia externa configurada','sin backup local de secretos en release','sin repositorio de respaldo en release','sin ZIP histórico de inscripciones','sin instalador en release'];
+$productionOnly = ['SMTP configurado','SMTP alertas configurado','copia externa configurada','sin backup local de secretos en release','sin repositorio de respaldo en release','sin ZIP histórico de inscripciones','sin instalador en release'];
 $strictEnvironment = in_array(APP_ENV, ['staging', 'production'], true);
-$requiredFailures = array_filter($results, fn($r) => !$r['ok'] && ($strictEnvironment ? $r['name'] !== 'SMTP configurado' : !in_array($r['name'], $productionOnly, true)));
+$requiredFailures = array_filter($results, fn($r) => !$r['ok'] && ($strictEnvironment ? !in_array($r['name'], ['SMTP configurado', 'SMTP alertas configurado'], true) : !in_array($r['name'], $productionOnly, true)));
 exit($requiredFailures ? 1 : 0);

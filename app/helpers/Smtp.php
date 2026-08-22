@@ -29,9 +29,40 @@ class Smtp
      */
     public static function enviar(string $para, string $asunto, string $html, string $from, string $nombreFrom): bool
     {
-        $seguridad = defined('MAIL_SMTP_SEGURIDAD') ? MAIL_SMTP_SEGURIDAD : 'tls';
-        $host      = MAIL_SMTP_HOST;
-        $puerto    = MAIL_SMTP_PUERTO ?: ($seguridad === 'ssl' ? 465 : 587);
+        return self::enviarConConfiguracion($para, $asunto, $html, $from, $nombreFrom, [
+            'host' => MAIL_SMTP_HOST,
+            'port' => MAIL_SMTP_PUERTO,
+            'security' => defined('MAIL_SMTP_SEGURIDAD') ? MAIL_SMTP_SEGURIDAD : 'tls',
+            'user' => MAIL_SMTP_USUARIO,
+            'password' => MAIL_SMTP_CLAVE,
+            'timeout' => 15,
+        ]);
+    }
+
+    /**
+     * Transporte SMTP parametrizado para canales separados. Las credenciales
+     * permanecen en memoria y nunca se incluyen en mensajes de error.
+     *
+     * @param array{host:string,port:int,security:string,user:string,password:string,timeout?:int} $config
+     */
+    public static function enviarConConfiguracion(
+        string $para,
+        string $asunto,
+        string $html,
+        string $from,
+        string $nombreFrom,
+        array $config
+    ): bool {
+        $seguridad = strtolower((string) ($config['security'] ?? 'tls'));
+        if (!in_array($seguridad, ['tls', 'ssl'], true)) return false;
+        $host = trim((string) ($config['host'] ?? ''));
+        $puerto = (int) ($config['port'] ?? ($seguridad === 'ssl' ? 465 : 587));
+        $timeout = max(3, min(30, (int) ($config['timeout'] ?? 15)));
+        $usuario = (string) ($config['user'] ?? '');
+        $clave = (string) ($config['password'] ?? '');
+        if ($host === '' || !filter_var($para, FILTER_VALIDATE_EMAIL) || !filter_var($from, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
 
         // Con SSL directo el cifrado empieza desde el saludo; con STARTTLS se
         // abre en claro y se sube después.
@@ -41,12 +72,12 @@ class Smtp
             'ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'SNI_enabled' => true],
         ]);
 
-        $socket = @stream_socket_client($destino, $errNo, $errStr, 15, STREAM_CLIENT_CONNECT, $contexto);
+        $socket = @stream_socket_client($destino, $errNo, $errStr, $timeout, STREAM_CLIENT_CONNECT, $contexto);
         if (!$socket) {
             error_log("Smtp: no se pudo conectar a {$destino} ({$errNo} {$errStr})");
             return false;
         }
-        stream_set_timeout($socket, 15);
+        stream_set_timeout($socket, $timeout);
 
         try {
             self::esperar($socket, 220);
@@ -64,10 +95,10 @@ class Smtp
                 self::orden($socket, 'EHLO ' . $dominio, 250);
             }
 
-            if (MAIL_SMTP_USUARIO !== '') {
+            if ($usuario !== '') {
                 self::orden($socket, 'AUTH LOGIN', 334);
-                self::orden($socket, base64_encode(MAIL_SMTP_USUARIO), 334);
-                self::orden($socket, base64_encode(MAIL_SMTP_CLAVE), 235);
+                self::orden($socket, base64_encode($usuario), 334);
+                self::orden($socket, base64_encode($clave), 235);
             }
 
             self::orden($socket, 'MAIL FROM:<' . $from . '>', 250);

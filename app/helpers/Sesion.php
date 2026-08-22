@@ -15,6 +15,7 @@
  */
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/ClientIp.php';
 
 class Sesion
 {
@@ -35,7 +36,8 @@ class Sesion
             return true;
         }
         // Cabecera que añaden los balanceadores y CDN cuando terminan el TLS.
-        return strtolower($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+        return ClientIp::isTrustedProxy()
+            && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
     }
 
     public static function iniciar(): void
@@ -111,10 +113,12 @@ class Sesion
 
         try {
             require_once __DIR__ . '/../config/database.php';
-            $stmt = Database::getInstance()->getConnection()
-                ->prepare('SELECT sesiones_desde FROM usuario WHERE id_usuario = :id');
-            $stmt->execute([':id' => (int) $_SESSION['usuario_id']]);
-            $desde = $stmt->fetchColumn();
+            $db = Database::getInstance()->getConnection();
+            $autorizada = self::usuarioPuedeContinuar(
+                $db,
+                (int) $_SESSION['usuario_id'],
+                (int) $_SESSION['iniciada_en']
+            );
         } catch (\Throwable $e) {
             // Si la base no responde, no se echa a nadie: peor sería dejar el
             // panel inservible por un problema de conexión.
@@ -122,11 +126,7 @@ class Sesion
             return;
         }
 
-        if (!$desde) {
-            return;
-        }
-
-        if (strtotime((string) $desde) > (int) $_SESSION['iniciada_en']) {
+        if (!$autorizada) {
             $_SESSION = [];
             if (ini_get('session.use_cookies')) {
                 $p = session_get_cookie_params();
@@ -134,8 +134,18 @@ class Sesion
             }
             session_destroy();
             session_start();
-            $_SESSION['contrasena_cambiada'] = true;
+            $_SESSION['acceso_revocado'] = true;
         }
+    }
+
+    public static function usuarioPuedeContinuar(PDO $db, int $usuarioId, int $sesionIniciada): bool
+    {
+        $stmt = $db->prepare('SELECT activo, sesiones_desde FROM usuario WHERE id_usuario = :id');
+        $stmt->execute([':id' => $usuarioId]);
+        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$usuario || (int) $usuario['activo'] !== 1) return false;
+        $desde = $usuario['sesiones_desde'] ?? null;
+        return !$desde || strtotime((string) $desde) <= $sesionIniciada;
     }
 
     /** Cierra la sesión si lleva demasiado tiempo sin actividad. */

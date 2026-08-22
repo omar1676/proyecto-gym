@@ -13,6 +13,7 @@ $commands = [
     [$php, $root . '/ops/preflight.php'],
     [$php, $root . '/cron/copia_seguridad.php'],
     [$php, $root . '/cron/copia_archivos.php'],
+    [$php, $root . '/ops/schema_gate.php', '--mode=migrate'],
     array_values(array_filter([
         $php,
         $root . '/ops/migrate.php',
