@@ -138,7 +138,8 @@ define('ALERT_ALLOWED_RECIPIENTS', array_values(array_filter(array_map(
     explode(',', (string) ($_ENV['ALERT_ALLOWED_RECIPIENTS'] ?? ''))
 ))));
 define('ALERT_SMTP_TIMEOUT', max(3, min(30, (int) ($_ENV['ALERT_SMTP_TIMEOUT'] ?? 10))));
-define('PRIVATE_PHOTO_DIR', trim((string) ($_ENV['PRIVATE_PHOTO_DIR'] ?? dirname(__DIR__, 2) . '/storage/private/fotos')));
+$privatePhotoDir = trim((string) ($_ENV['PRIVATE_PHOTO_DIR'] ?? ''));
+define('PRIVATE_PHOTO_DIR', $privatePhotoDir !== '' ? $privatePhotoDir : dirname(__DIR__, 2) . '/storage/private/fotos');
 define('TRUSTED_PROXY_IPS', array_values(array_filter(array_map(
     static fn(string $ip): string => trim($ip),
     explode(',', (string) ($_ENV['TRUSTED_PROXY_IPS'] ?? ''))
