@@ -88,8 +88,19 @@ forma segura solo cuando exista un canal humano autorizado.
 ## 7. Restore y validación externa
 
 Descargar backups desde el destino externo a un entorno limpio, verificar hash,
-restaurar DB/archivos y ejecutar `verify_restore`, migrate status y smoke.
+restaurar DB/archivos y ejecutar `verify_restore` pasando el artefacto de DB
+descargado (`--artifact=/ruta/backup_db.sql.gz`), migrate status y smoke.
 Medir desde el inicio de descarga hasta el último smoke correcto.
+
+`BACKUP_INTEGRITY=OK` valida artefacto, sidecars y estructura restaurada.
+`SCHEMA_CURRENCY=OLD` no es corrupción: exige ejecutar las migraciones
+pendientes y repetir health/smoke. Sin `--artifact`, la integridad queda
+`NOT_VERIFIED` y el procedimiento debe detenerse.
+
+Nginx debe instalar `ops/server/nginx-log-format.conf.example` en el contexto
+`http` y usar `gimnera_no_query` en el server block. Así el token inicial de
+recuperación no queda persistido en access logs; la aplicación lo intercambia
+inmediatamente por estado de sesión y redirige a una URL limpia.
 
 El archivo de ficheros restaura las fotos personales bajo `private/fotos/`.
 Después de verificar su manifiesto y hashes, esa carpeta se copia al

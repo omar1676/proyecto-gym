@@ -223,10 +223,14 @@ $estadosRemesa = [
                                     <span class="rounded-full px-3 py-1 text-xs font-bold <?= $et[1] ?>"><?= $et[0] ?></span>
                                 </td>
                                 <td class="px-6 py-3 text-right whitespace-nowrap">
-                                    <a href="index.php?action=admin_remesa_descargar&id=<?= (int) $r['id_remesa'] ?>"
-                                        class="rounded-full bg-[#4f46e5] px-3 py-1 text-xs font-bold text-white hover:brightness-110 transition">
-                                        Descargar XML
-                                    </a>
+                                    <form method="POST" action="index.php?action=admin_remesa_descargar" style="display:inline">
+                                        <?= Csrf::field() ?>
+                                        <input type="hidden" name="id" value="<?= (int) $r['id_remesa'] ?>">
+                                        <button type="submit"
+                                            class="rounded-full bg-[#4f46e5] px-3 py-1 text-xs font-bold text-white hover:brightness-110 transition">
+                                            Descargar XML
+                                        </button>
+                                    </form>
                                     <a href="index.php?action=admin_remesas&remesa=<?= (int) $r['id_remesa'] ?>"
                                         class="rounded-full border border-[#e4e4e7] px-3 py-1 text-xs font-bold text-neutral-500 hover:bg-neutral-50 transition">
                                         Ver recibos

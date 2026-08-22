@@ -90,6 +90,13 @@ $check('primera incidencia exige alerta', $firstAlert['alert_required']);
 $check('incidencia repetida queda suprimida durante cooldown', $duplicate['suppressed_by_cooldown'] && !$duplicate['alert_required']);
 $check('incidencia distinta evita la deduplicación', $changed['alert_required']);
 $check('recuperación genera notificación independiente', $recovered['recovered']);
+$noChannelState = AlertPolicy::nextState([], 'CRITICAL', 'problem-a', $now, false, false);
+$check('sin canal SMTP no se registra intento de entrega', $noChannelState['last_attempted_at_utc'] === null && $noChannelState['last_delivery_result'] === null);
+$failedState = AlertPolicy::nextState([], 'CRITICAL', 'problem-a', $now, true, false);
+$retryTooSoon = AlertPolicy::decide($failedState, 'CRITICAL', 'problem-a', $now + 299, 3600);
+$retryDue = AlertPolicy::decide($failedState, 'CRITICAL', 'problem-a', $now + 301, 3600);
+$check('fallo SMTP respeta retry corto sin tormenta inmediata', !$retryTooSoon['alert_required'] && $retryTooSoon['suppressed_by_cooldown']);
+$check('fallo SMTP vuelve a intentarse tras cinco minutos', $retryDue['alert_required']);
 
 echo "RESUMEN: {$ok} correctas, {$fail} fallidas\n";
 exit($fail ? 1 : 0);

@@ -12,7 +12,6 @@ require_once __DIR__ . '/../../helpers/Marca.php';
 
 if (!isset($errores)) $errores = [];
 
-$token = $_GET['token'] ?? '';
 $marca = Marca::de($gimnasio ?? null);
 
 $e = function ($v): string {
@@ -84,8 +83,6 @@ $e = function ($v): string {
 
                 <form action="index.php?action=password_reset_submit" method="POST" class="space-y-4">
                     <?= Csrf::field() ?>
-                    <input type="hidden" name="token" value="<?= $e($token) ?>">
-
                     <div>
                         <label for="contrasena" class="mb-1.5 block text-xs font-extrabold uppercase tracking-widest text-neutral-500">
                             Nueva contraseña

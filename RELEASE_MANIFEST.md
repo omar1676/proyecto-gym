@@ -2,7 +2,7 @@
 
 ## Identidad
 
-- Versión declarada por la aplicación: `0.12.0-fase21`.
+- Versión declarada por la aplicación: `0.12.1-fase21.1`.
 - Migración más reciente: `migracion_v28.sql`.
 - Último tag histórico de release anotado: `v0.9.0-fase10`.
 - El commit exacto del tag se obtiene con
@@ -10,7 +10,7 @@
   corrección neutral de mensajes; no se ha creado un tag nuevo.
 - Fecha de saneamiento: 22/08/2026 (Europe/Madrid).
 
-F21 no añade funciones de negocio. Cada artefacto se genera desde un commit
+F21.1 no añade funciones de negocio. Cada artefacto se genera desde un commit
 limpio mediante `php ops/build_release.php --output-dir=<directorio>` y se
 acompaña de un manifiesto determinista de hashes por archivo.
 
@@ -54,14 +54,17 @@ reales dentro de la release.
 pero se excluye de la release productiva. La instalación productiva debe usar
 el procedimiento de `DESPLIEGUE.md` y `ops/migrate.php`.
 
-## Evidencia local y contrato de F21
+## Evidencia local y contrato de F21.1
 
 - La evidencia de fases anteriores es histórica y no se reutiliza para declarar
-  F21 aprobada.
-- Suite local F21: 626 assertions correctas, 0 fallidas, 50 scripts, 0 omitidos.
+  F21.1 aprobada.
+- La cifra final de suite, PHP 8.3 y MariaDB 10.11 se registra en el informe
+  operativo de F21.1 a partir de ejecuciones reales; este manifiesto no congela
+  una cifra que pueda quedar desactualizada al añadir un test de gate.
 - Carrera económica intermitente reproducida y corregida: 20/20 repeticiones
   concurrentes correctas después del bloqueo estable por sede.
-- Lint local del árbol completo: 180 archivos PHP, 0 fallos.
+- El total y resultado del lint del árbol final se registran en el informe de
+  F21.1; no se conserva aquí una cifra que cambie al añadir un gate.
 - HTTP, smoke, PHP 8.3 y MariaDB 10.11 se vuelven a ejecutar contra la release
   inmutable antes de activarla; su resultado no se anticipa en este archivo.
 - Migraciones: objetivo `pending=[]`, `checksum_mismatch=[]`, última v28.

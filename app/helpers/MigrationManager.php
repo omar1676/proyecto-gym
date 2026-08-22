@@ -268,6 +268,7 @@ final class MigrationManager
                 'column:log_actividad.metadata_json' => $this->hasColumn('log_actividad', 'metadata_json'),
                 'index:log_actividad.uq_log_event_id' => $this->hasIndex('log_actividad', 'uq_log_event_id'),
                 'index:log_actividad.idx_log_correlation' => $this->hasIndex('log_actividad', 'idx_log_correlation'),
+                'index:log_actividad.idx_log_empresa_origen_fecha' => $this->hasIndex('log_actividad', 'idx_log_empresa_origen_fecha'),
             ],
             default => [],
         };

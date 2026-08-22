@@ -29,8 +29,12 @@ if (($_GET['action'] ?? '') === 'health' || rtrim($requestPath, '/') === '/healt
     http_response_code($health['ok'] ? 200 : 503);
     header('Content-Type: application/json; charset=UTF-8');
     header('Cache-Control: no-store');
-    echo json_encode(['status' => $health['ok'] ? 'ok' : 'unavailable']);
-    exit;
+    $payload = ['status' => $health['ok'] ? 'ok' : 'error'];
+    if (!$health['ok']) {
+        $payload['component'] = $health['component'] ?? 'runtime';
+    }
+    echo json_encode($payload, JSON_UNESCAPED_SLASHES);
+    exit($health['ok'] ? 0 : 1);
 }
 if (($_GET['action'] ?? '') === 'heartbeat' || rtrim($requestPath, '/') === '/heartbeat') {
     header('Content-Type: application/json; charset=UTF-8');

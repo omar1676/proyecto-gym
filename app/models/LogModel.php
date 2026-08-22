@@ -15,6 +15,8 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../helpers/RequestContext.php';
+require_once __DIR__ . '/../helpers/AuditPolicy.php';
+require_once __DIR__ . '/../helpers/AppLogger.php';
 
 class LogModel {
     private $db;
@@ -29,8 +31,8 @@ class LogModel {
      * Registro simple: quién, qué y detalle en texto.
      * Se mantiene por compatibilidad con las llamadas ya existentes.
      */
-    public function registrar(int $idUsuario = null, string $accion = '', string $detalle = ''): void {
-        $this->registrarCambio($idUsuario, $accion, $detalle);
+    public function registrar(int $idUsuario = null, string $accion = '', string $detalle = ''): bool {
+        return $this->registrarCambio($idUsuario, $accion, $detalle);
     }
 
     /**
@@ -57,8 +59,10 @@ class LogModel {
         ?string $reasonCode = null,
         array   $metadata = [],
         string  $actorType = 'usuario',
-        ?string $origin = null
-    ): void {
+        ?string $origin = null,
+        string  $auditMode = AuditPolicy::BEST_EFFORT
+    ): bool {
+        $auditMode = AuditPolicy::normalize($auditMode);
         try {
             if (!in_array($resultado, ['exito', 'fallo'], true)) {
                 $resultado = 'fallo';
@@ -106,9 +110,19 @@ class LogModel {
                 ':id_gimnasio'    => $idGimnasio ?: null,
                 ':id_empresa'     => $empresa,
             ]);
+            return true;
         } catch (\PDOException $e) {
-            // El log nunca debe tumbar la operación que lo genera.
-            error_log('LogModel::registrarCambio error: ' . $e->getMessage());
+            // Ya no se pierde en silencio: el canal técnico recibe un evento
+            // mínimo y sin SQL/datos sensibles. REQUIRED solo puede usarse
+            // cuando el llamador aún puede revertir la operación de negocio.
+            AppLogger::error('audit_write_failed', [
+                'action' => mb_substr($accion, 0, 80),
+                'audit_mode' => $auditMode,
+            ]);
+            if ($auditMode === AuditPolicy::REQUIRED) {
+                throw new AuditUnavailableException('Required audit unavailable.');
+            }
+            return false;
         }
     }
 

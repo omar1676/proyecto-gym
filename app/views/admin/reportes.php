@@ -46,7 +46,8 @@ foreach ($topProductos as $p) {
             </div>
 
             <!-- Filtro de periodo -->
-            <form method="GET" class="mt-8 flex flex-wrap items-end gap-3">
+            <div class="mt-8 flex flex-wrap items-end gap-3">
+            <form method="GET" class="flex flex-wrap items-end gap-3">
                 <input type="hidden" name="action" value="admin_reportes">
                 <div>
                     <label class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">Desde</label>
@@ -62,11 +63,17 @@ foreach ($topProductos as $p) {
                     class="rounded-full bg-[#111318] px-5 py-2.5 text-sm font-bold text-white hover:brightness-110 transition">
                     Aplicar
                 </button>
-                <a href="index.php?action=admin_exportar_ventas_csv&desde=<?= urlencode($desde) ?>&hasta=<?= urlencode($hasta) ?>"
-                    class="rounded-full border border-[#e4e4e7] px-5 py-2.5 text-sm font-bold text-neutral-500 hover:bg-neutral-50 transition">
-                    Exportar ventas CSV
-                </a>
             </form>
+                <form method="POST" action="index.php?action=admin_exportar_ventas_csv" class="inline">
+                    <?= Csrf::field() ?>
+                    <input type="hidden" name="desde" value="<?= htmlspecialchars($desde, ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="hasta" value="<?= htmlspecialchars($hasta, ENT_QUOTES, 'UTF-8') ?>">
+                    <button type="submit"
+                        class="rounded-full border border-[#e4e4e7] px-5 py-2.5 text-sm font-bold text-neutral-500 hover:bg-neutral-50 transition">
+                        Exportar ventas CSV
+                    </button>
+                </form>
+            </div>
 
             <!-- Circuito económico real: no confunde contratos con cobros. -->
             <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">

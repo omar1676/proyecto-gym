@@ -131,7 +131,8 @@ $etiquetasPago = [
             </div>
 
             <!-- Filtro por fechas -->
-            <form method="GET" class="mt-8 flex flex-wrap items-end gap-3">
+            <div class="mt-8 flex flex-wrap items-end gap-3">
+            <form method="GET" class="flex flex-wrap items-end gap-3">
                 <input type="hidden" name="action" value="admin_ventas">
                 <div>
                     <label class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">Desde</label>
@@ -147,13 +148,19 @@ $etiquetasPago = [
                     class="rounded-full bg-[#111318] px-5 py-2.5 text-sm font-bold text-white hover:brightness-110 transition">
                     Filtrar
                 </button>
-                <?php if ($esAdmin): ?>
-                <a href="index.php?action=admin_exportar_ventas_csv&desde=<?= urlencode($desde) ?>&hasta=<?= urlencode($hasta) ?>"
-                    class="rounded-full border border-[#e4e4e7] px-5 py-2.5 text-sm font-bold text-neutral-500 hover:bg-neutral-50 transition">
-                    Exportar CSV
-                </a>
-                <?php endif; ?>
             </form>
+                <?php if ($esAdmin): ?>
+                <form method="POST" action="index.php?action=admin_exportar_ventas_csv" class="inline">
+                    <?= Csrf::field() ?>
+                    <input type="hidden" name="desde" value="<?= htmlspecialchars($desde, ENT_QUOTES, 'UTF-8') ?>">
+                    <input type="hidden" name="hasta" value="<?= htmlspecialchars($hasta, ENT_QUOTES, 'UTF-8') ?>">
+                    <button type="submit"
+                        class="rounded-full border border-[#e4e4e7] px-5 py-2.5 text-sm font-bold text-neutral-500 hover:bg-neutral-50 transition">
+                        Exportar CSV
+                    </button>
+                </form>
+                <?php endif; ?>
+            </div>
 
             <!-- Desglose por método de pago -->
             <?php if (!empty($porMetodo)): ?>

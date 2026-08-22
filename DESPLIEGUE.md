@@ -38,14 +38,17 @@ válido. Hay ejemplos en `ops/server/`.
 4. `php ops/preflight.php`; cualquier pendiente obligatorio detiene.
 5. `php cron/copia_seguridad.php` y `php cron/copia_archivos.php`.
 6. Activar mantenimiento en el balanceador/web si la migración bloquea tablas.
-7. `php ops/migrate.php --confirm-production`; cualquier error detiene.
+7. En la candidata: `php ops/schema_gate.php --mode=migrate`, migraciones,
+   `php ops/status.php` y `php ops/runtime_check.php`; cualquier error detiene.
 8. Cambiar `current` atómicamente a la release nueva.
-9. `php ops/status.php` y `php ops/smoke.php https://dominio`.
+9. Solo después de activar: `php ops/smoke.php https://dominio`. Si falla,
+   restaurar `current` a la release compatible anterior y repetir smoke.
 10. Quitar mantenimiento y observar logs/monitor durante 30 minutos.
 
-`php ops/deploy.php --confirm-production --url=https://dominio` ejecuta las
-comprobaciones, copias, migración y smoke tests. La creación/activación de la
-release sigue a cargo del sistema del servidor porque depende del hosting.
+`php ops/deploy.php --confirm-production` ejecuta sobre la candidata las
+comprobaciones, copias, migración y gate de runtime. La activación atómica y el
+smoke HTTP posterior siguen a cargo del procedimiento del servidor: un smoke
+contra `APP_URL` antes de activar solo probaría por error el `current` antiguo.
 
 ### Migraciones y rollback
 
@@ -85,7 +88,8 @@ php ops/restore.php --database=/backup/backup_db.sql.gz \
   --target=gimnasio_restore_ensayo \
   --files=/backup/backup_files.tar.gz \
   --files-target=/restore/uploads
-php ops/verify_restore.php gimnasio_restore_ensayo
+php ops/verify_restore.php gimnasio_restore_ensayo \
+  --artifact=/backup/backup_db.sql.gz
 ```
 
 En un servidor limpio: instalar runtime, desplegar la misma release, recuperar

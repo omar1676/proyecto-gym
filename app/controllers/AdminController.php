@@ -1575,12 +1575,15 @@ class AdminController
     public function descargarRemesa(): void
     {
         $this->requirePermission('remesas.manage');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
+            $this->irAConError('admin_remesas', 'La sesión ha caducado. Vuelve a intentarlo.');
+        }
 
         // Con "todas las sedes" no hay unos datos bancarios que usar, y antes se
         // cogían los del primer gimnasio de la tabla. Mejor pedir que se elija.
         $this->exigirSedeFijada('admin_remesas');
 
-        $idRemesa = (int) ($_GET['id'] ?? 0);
+        $idRemesa = (int) ($_POST['id'] ?? 0);
         $remesa   = $idRemesa > 0 ? $this->sepaModel->buscarRemesa($idRemesa) : null;
         $acreedor = $this->sepaModel->acreedor();
 
@@ -1922,9 +1925,12 @@ class AdminController
     public function exportarVentasCSV(): void
     {
         $this->requirePermission('informes.export');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Csrf::validarPost()) {
+            $this->irAConError('admin_reportes', 'La sesión ha caducado. Vuelve a intentarlo.');
+        }
 
-        $desde = trim($_GET['desde'] ?? date('Y-m-01'));
-        $hasta = trim($_GET['hasta'] ?? date('Y-m-d'));
+        $desde = trim($_POST['desde'] ?? date('Y-m-01'));
+        $hasta = trim($_POST['hasta'] ?? date('Y-m-d'));
         if (!$this->esFechaValida($desde)) $desde = date('Y-m-01');
         if (!$this->esFechaValida($hasta)) $hasta = date('Y-m-d');
         if ($desde > $hasta) [$desde, $hasta] = [$hasta, $desde];

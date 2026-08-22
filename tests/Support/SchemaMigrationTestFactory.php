@@ -1,6 +1,7 @@
 <?php
 
 require_once dirname(__DIR__, 2) . '/app/helpers/MigrationManager.php';
+require_once __DIR__ . '/TestDatabaseName.php';
 
 final class SchemaMigrationTestFactory
 {
@@ -9,9 +10,8 @@ final class SchemaMigrationTestFactory
         if (APP_ENV !== 'test') {
             throw new RuntimeException('Las pruebas de migración exigen APP_ENV=test.');
         }
-        $purpose = strtolower(preg_replace('/[^a-z0-9]+/i', '_', $purpose) ?: 'schema');
-        $name = substr('gimnera_f20_test_' . $purpose . '_' . bin2hex(random_bytes(5)), 0, 60);
-        if (!preg_match('/test/i', $name) || $name === DB_NAME) {
+        $name = TestDatabaseName::generate(DB_NAME_PRUEBAS, $purpose, bin2hex(random_bytes(6)));
+        if (!TestDatabaseName::isManaged($name) || $name === DB_NAME) {
             throw new RuntimeException('Nombre inseguro para base temporal.');
         }
 
@@ -112,8 +112,8 @@ final class SchemaMigrationTestFactory
     public static function drop(array $fixture): void
     {
         $name = (string) ($fixture['name'] ?? '');
-        if (!preg_match('/^gimnera_f20_test_[a-z0-9_]+$/', $name)) {
-            throw new RuntimeException('Se rechazó borrar una base fuera del patrón F20.');
+        if (!TestDatabaseName::isManaged($name)) {
+            throw new RuntimeException('Se rechazó borrar una base fuera del patrón temporal F21.1.');
         }
         $fixture['db'] = null;
         $fixture['admin']->exec('DROP DATABASE IF EXISTS ' . self::quoted($name));

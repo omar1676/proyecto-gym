@@ -3,7 +3,15 @@
 $envPath = __DIR__ . '/../../.env';
 
 if (!file_exists($envPath)) {
-    die('Archivo .env no encontrado. Copia .env.example a .env y configura tus valores.');
+    if (PHP_SAPI === 'cli') {
+        fwrite(STDERR, "CONFIGURACIÓN NO DISPONIBLE: falta el entorno de la release.\n");
+    } else {
+        http_response_code(503);
+        header('Content-Type: text/plain; charset=UTF-8');
+        header('Cache-Control: no-store');
+        echo 'Servicio temporalmente no disponible.';
+    }
+    exit(1);
 }
 
 $lineas = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);

@@ -282,21 +282,17 @@ function updateMonitorState(string $status, array $checks): array
     $recovered = $decision['recovered'];
     $alertRequired = $decision['alert_required'];
     $notificationDue = $alertRequired || $recovered;
+    $channelConfigured = monitorAlertChannelConfigured();
+    $deliveryAttempted = $notificationDue && $channelConfigured;
     $delivered = false;
-    if ($notificationDue && monitorAlertChannelConfigured()) {
+    if ($deliveryAttempted) {
         $delivered = sendMonitorAlert($status, $checks, $recovered);
         if (!$delivered) AppLogger::error('monitor_alert_delivery_failed', ['status' => $status]);
     }
 
     if ($stateFile !== '') {
         BackupStorage::ensureDirectory(dirname($stateFile));
-        $state = [
-            'status' => $status,
-            'fingerprint' => $fingerprint,
-            'last_seen_at_utc' => gmdate('Y-m-d\TH:i:s\Z'),
-            'last_attempted_at_utc' => $notificationDue ? gmdate('Y-m-d\TH:i:s\Z') : ($previous['last_attempted_at_utc'] ?? null),
-            'last_notified_at_utc' => $delivered ? gmdate('Y-m-d\TH:i:s\Z') : ($previous['last_notified_at_utc'] ?? null),
-        ];
+        $state = AlertPolicy::nextState($previous, $status, $fingerprint, time(), $deliveryAttempted, $delivered);
         file_put_contents($stateFile, json_encode($state, JSON_PRETTY_PRINT) . PHP_EOL, LOCK_EX);
     }
     if ($alertRequired) {
@@ -308,7 +304,7 @@ function updateMonitorState(string $status, array $checks): array
     return [
         'required' => $alertRequired,
         'recovered' => $recovered,
-        'delivery_attempted' => $notificationDue && monitorAlertChannelConfigured(),
+        'delivery_attempted' => $deliveryAttempted,
         'delivered' => $delivered,
         'suppressed_by_cooldown' => $decision['suppressed_by_cooldown'],
     ];

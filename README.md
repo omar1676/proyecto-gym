@@ -1,6 +1,6 @@
 # Proyecto Gym — Centro Deportivo Cleto Reyes
 
-Versión actual: **0.12.0-fase21**. Esta versión añade controles operativos y de privacidad: backups sin colisión, compatibilidad forward-only de esquema, fotos personales privadas, correlation IDs, auditoría común y offboarding con invalidación de sesiones. No conecta DORLET, lectores, controladoras ni biometría.
+Versión actual: **0.12.1-fase21.1**. Es una corrección operativa: fallos de base propagados, health/CLI fiables, reset de contraseña atómico, suite HTTP integrada, restore con integridad separada de actualidad y POST+CSRF para exportaciones sensibles. No conecta DORLET, lectores, controladoras ni biometría.
 
 Panel de gestión para un gimnasio multisede: socios y membresías, venta de productos,
 empleados, remesas SEPA y control de acceso desde el panel.
@@ -44,8 +44,10 @@ php tests/run.php --p0-gate  # gate técnico; excluye y declara los P1 conocidos
 php tests/run.php            # suite completa, incluido trial económico
 ```
 
-`EXIT 0` significa que todos los scripts ejecutados han pasado realmente. La
-suite completa seguirá devolviendo error mientras exista un P1 conocido que
+`EXIT 0` significa que todos los scripts integrados han pasado realmente. El
+runner informa también de scripts de soporte, manuales, legacy, E2E y
+destructivos limitados a DB de test; no confunde "0 omitidos de la lista" con
+cobertura total del repositorio. La suite completa seguirá devolviendo error mientras exista un P1 conocido que
 falle; no se convierte en verde por interpretar únicamente su texto.
 
 Las suites que modifican datos usan exclusivamente `DB_NAME_PRUEBAS` y abortan

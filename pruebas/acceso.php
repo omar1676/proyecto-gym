@@ -16,6 +16,15 @@ require_once dirname(__DIR__) . '/app/config/database.php';
 
 $base = getenv('TEST_BASE_URL') ?: 'http://127.0.0.1:8091/index.php';
 $ok = 0; $fallos = 0;
+$forceFailure = in_array('--force-failure', $argv ?? [], true);
+$cookieFiles = [];
+register_shutdown_function(static function () use (&$cookieFiles): void {
+    foreach (array_unique($cookieFiles) as $file) {
+        if (is_string($file) && str_starts_with(basename($file), 'ck')) {
+            @unlink($file);
+        }
+    }
+});
 
 /**
  * Esta suite provoca fallos de acceso a propósito, y el sistema bloquea por
@@ -110,7 +119,11 @@ function testigoPanel(string $galleta): string {
 }
 
 function galletaNueva(): string {
-    return tempnam(sys_get_temp_dir(), 'ck');
+    global $cookieFiles;
+    $file = tempnam(sys_get_temp_dir(), 'ck');
+    if ($file === false) throw new RuntimeException('No se pudo crear cookie jar temporal.');
+    $cookieFiles[] = $file;
+    return $file;
 }
 
 /** Abre el nivel 1 y devuelve la galleta con la sesión del gimnasio. */
@@ -302,6 +315,14 @@ pedir("$base?action=admin_productos", [
 ], $ckAdmin);
 $stockDespues = (int) Database::getInstance()->getConnection()->query('SELECT stock FROM producto WHERE id_producto = 1')->fetchColumn();
 comprobar('un POST sensible con CSRF incorrecto no cambia stock', $stockAntes === $stockDespues);
+$r = pedir("$base?action=admin_remesa_descargar&id=1", null, $ckAdmin);
+comprobar('descarga de remesa por GET sin CSRF se rechaza',
+    strpos($r['destino'], 'action=admin_remesas') !== false && stripos($r['cuerpo'], 'Content-Type: application/xml') === false,
+    "-> HTTP {$r['estado']} {$r['destino']}");
+$r = pedir("$base?action=admin_exportar_ventas_csv&desde=2026-01-01&hasta=2026-12-31", null, $ckAdmin);
+comprobar('exportación CSV por GET sin CSRF se rechaza',
+    strpos($r['destino'], 'action=admin_reportes') !== false && stripos($r['cuerpo'], 'Content-Type: text/csv') === false,
+    "-> HTTP {$r['estado']} {$r['destino']}");
 
 $ckDireccion = entrarGimnasio(CLETO_EMAIL, CLETO_CLAVE);
 pedir("$base?action=autenticar", ['usuario' => 'empresa', 'contrasena' => 'admin123'], $ckDireccion);
@@ -311,5 +332,9 @@ comprobar('dirección puede abrir importaciones', $r['estado'] === 200);
 $r = pedir("$base?action=logout", ['_csrf' => testigoPanel($ckAdmin)], $ckAdmin);
 $r = pedir("$base?action=admin", null, $ckAdmin);
 comprobar('tras logout no se puede reutilizar el panel', strpos($r['destino'], 'action=login') !== false);
+if ($forceFailure) {
+    comprobar('fallo deliberado del contrato HTTP', false);
+}
 
-echo "\n== RESUMEN: $ok correctas, $fallos fallidas ==\n";
+echo "\nRESUMEN: $ok correctas, $fallos fallidas\n";
+exit($fallos === 0 ? 0 : 1);

@@ -2,6 +2,10 @@
 
 require_once __DIR__ . '/config.php';
 
+final class DatabaseUnavailableException extends RuntimeException
+{
+}
+
 class Database
 {
     private static $instance = null;
@@ -35,8 +39,12 @@ class Database
             // "del día" y los vencimientos se calculan en los dos sitios.
             $this->connection->exec("SET time_zone = '" . self::desfaseHorario() . "'");
         } catch (PDOException $e) {
-            error_log('DB connection error: ' . $e->getMessage());
-            die('Error de conexión a la base de datos. Por favor, inténtalo más tarde.');
+            // Nunca conviertas una caída de infraestructura en una terminación
+            // satisfactoria ni copies DSN/rutas del driver a la respuesta o al
+            // log genérico. La capa que conoce el contexto (HTTP/CLI) decide el
+            // código de estado y el mensaje seguro.
+            error_log('database_connection_failed');
+            throw new DatabaseUnavailableException('Database unavailable.');
         }
     }
 

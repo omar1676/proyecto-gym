@@ -128,6 +128,7 @@ class UserModel {
                  WHERE reset_token = :token
                    AND reset_expira IS NOT NULL
                    AND reset_expira > NOW()
+                   AND activo = 1
                  LIMIT 1'
             );
             $stmt->execute([':token' => hash('sha256', $token)]);
@@ -486,6 +487,89 @@ class UserModel {
             $stmt->execute([':id' => $idUsuario]);
         } catch (\PDOException $e) {
             error_log('UserModel::limpiarTokenReset error: ' . $e->getMessage());
+        }
+    }
+
+    /** Invalida solo el token que originó el intento; no pisa uno posterior. */
+    public function invalidarTokenReset(int $idUsuario, string $token): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE usuario
+                SET reset_token = NULL, reset_expira = NULL
+              WHERE id_usuario = :id AND reset_token = :token'
+        );
+        $stmt->execute([':id' => $idUsuario, ':token' => hash('sha256', $token)]);
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
+     * Consume un token y cambia la contraseña como una sola operación.
+     *
+     * El bloqueo de fila hace que dos POST simultáneos no puedan validar el
+     * mismo token y escribir dos contraseñas diferentes. Solo el ganador
+     * modifica la cuenta; el segundo observa el token ya consumido.
+     *
+     * @return array<string,mixed>|null usuario actualizado o null si el token
+     *         ya no era válido al adquirir el lock.
+     */
+    public function consumirTokenReset(string $token, string $nuevaContrasena): ?array
+    {
+        if ($token === '') {
+            return null;
+        }
+        $hashToken = hash('sha256', $token);
+        $hashPassword = password_hash($nuevaContrasena, PASSWORD_BCRYPT, ['cost' => 12]);
+        $ownTransaction = !$this->db->inTransaction();
+        if ($ownTransaction) {
+            $this->db->beginTransaction();
+        }
+        try {
+            $select = $this->db->prepare(
+                'SELECT * FROM usuario
+                  WHERE reset_token = :token
+                    AND reset_expira IS NOT NULL
+                    AND reset_expira > NOW()
+                    AND activo = 1
+                  LIMIT 1
+                  FOR UPDATE'
+            );
+            $select->execute([':token' => $hashToken]);
+            $user = $select->fetch(PDO::FETCH_ASSOC);
+            if (!$user) {
+                if ($ownTransaction) {
+                    $this->db->rollBack();
+                }
+                return null;
+            }
+
+            $update = $this->db->prepare(
+                'UPDATE usuario
+                    SET contrasena = :password,
+                        sesiones_desde = NOW(),
+                        reset_token = NULL,
+                        reset_expira = NULL
+                  WHERE id_usuario = :id
+                    AND reset_token = :token
+                    AND reset_expira > NOW()
+                    AND activo = 1'
+            );
+            $update->execute([
+                ':password' => $hashPassword,
+                ':id' => (int) $user['id_usuario'],
+                ':token' => $hashToken,
+            ]);
+            if ($update->rowCount() !== 1) {
+                throw new RuntimeException('El token dejó de ser válido durante el consumo.');
+            }
+            if ($ownTransaction) {
+                $this->db->commit();
+            }
+            return $user;
+        } catch (Throwable $e) {
+            if ($ownTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
         }
     }
 

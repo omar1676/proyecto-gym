@@ -33,6 +33,7 @@ require_once __DIR__ . '/../helpers/TenantContext.php';
 require_once __DIR__ . '/../helpers/AppLogger.php';
 require_once __DIR__ . '/../helpers/Mailer.php';
 require_once __DIR__ . '/../models/LogModel.php';
+require_once __DIR__ . '/../services/PasswordResetDeliveryService.php';
 
 class AuthController {
 
@@ -494,16 +495,17 @@ class AuthController {
             ? (new UserModel(null, (int) $gimnasio['id_empresa']))->buscarPorCorreo($correo)
             : null;
         // Solo se envía enlace al personal: un socio no tiene dónde entrar.
-        if ($user && in_array($user['rol'] ?? '', self::ROLES_PANEL, true)) {
-            $token  = bin2hex(random_bytes(32));
-            $expira = date('Y-m-d H:i:s', time() + 1800);
-            if ($this->userModel->guardarTokenReset((int) $user['id_usuario'], $token, $expira)) {
-                $url = APP_URL . '/index.php?action=password_reset&token=' . urlencode($token);
-                $nombreCompleto = trim(($user['nombre'] ?? '') . ' ' . ($user['apellidos'] ?? ''));
-                Mailer::resetContrasena($user['email'], $nombreCompleto, $url);
-            }
+        if ($user && (int) ($user['activo'] ?? 0) === 1 && in_array($user['rol'] ?? '', self::ROLES_PANEL, true)) {
+            (new PasswordResetDeliveryService())->issue(
+                $this->userModel,
+                $user,
+                static fn(string $email, string $name, string $url): bool => Mailer::resetContrasena($email, $name, $url),
+                function (string $result, string $reason) use ($user, $gimnasio): void {
+                    $this->auditAuth('PASSWORD_RESET_DELIVERY', $result, $user, $gimnasio, $reason);
+                }
+            );
         }
-        $this->auditAuth('PASSWORD_RESET_REQUESTED', 'exito', $user ?: null, $gimnasio, 'GENERIC_RESPONSE');
+        $this->auditAuth('PASSWORD_RESET_REQUEST_ACCEPTED', 'exito', $user ?: null, $gimnasio, 'GENERIC_RESPONSE');
 
         // El mensaje es el mismo exista o no la cuenta: si cambiara, serviría
         // para averiguar qué correos están registrados.
@@ -516,7 +518,19 @@ class AuthController {
             $this->redirigirSegunRol();
         }
 
-        $token = trim($_GET['token'] ?? '');
+        $tokenFromLink = trim($_GET['token'] ?? '');
+        if ($tokenFromLink !== '') {
+            if (!$this->userModel->buscarPorTokenReset($tokenFromLink)) {
+                $this->setFlash('errores', ['El enlace ha caducado o no es válido. Solicita uno nuevo.']);
+                $this->redirigir('password_forgot');
+            }
+            // Se retira el secreto de la URL antes de renderizar recursos o un
+            // formulario. El valor permanece solo en la sesión del servidor.
+            $_SESSION['password_reset_token'] = $tokenFromLink;
+            $this->redirigir('password_reset');
+        }
+
+        $token = trim((string) ($_SESSION['password_reset_token'] ?? ''));
         if ($token === '') {
             $this->setFlash('errores', ['Falta el token de recuperación.']);
             $this->redirigir('password_forgot');
@@ -550,18 +564,12 @@ class AuthController {
             $this->redirigir('password_forgot');
         }
 
-        $token      = trim($_POST['token'] ?? '');
+        $token      = trim((string) ($_SESSION['password_reset_token'] ?? ''));
         $contrasena =      $_POST['contrasena'] ?? '';
         $confirmar  =      $_POST['confirmar_contrasena'] ?? '';
 
         if ($token === '') {
             $this->setFlash('errores', ['Falta el token de recuperación.']);
-            $this->redirigir('password_forgot');
-        }
-
-        $user = $this->userModel->buscarPorTokenReset($token);
-        if (!$user) {
-            $this->setFlash('errores', ['El enlace ha caducado o no es válido. Solicita uno nuevo.']);
             $this->redirigir('password_forgot');
         }
 
@@ -571,19 +579,17 @@ class AuthController {
 
         if (!empty($errores)) {
             $this->setFlash('errores', $errores);
-            header('Location: ' . APP_URL . '/index.php?action=password_reset&token=' . urlencode($token));
-            exit;
+            $this->redirigir('password_reset');
         }
 
-        $ok = $this->userModel->cambiarContrasena((int) $user['id_usuario'], $contrasena);
-        $this->userModel->limpiarTokenReset((int) $user['id_usuario']);
-
-        if ($ok) {
+        $user = $this->userModel->consumirTokenReset($token, $contrasena);
+        unset($_SESSION['password_reset_token']);
+        if ($user) {
             $this->auditAuth('PASSWORD_RESET_COMPLETED', 'exito', $user, null, 'PASSWORD_CHANGED');
             $this->setFlash('exito', 'Contraseña actualizada. Ya puedes iniciar sesión.');
             $this->redirigir('login');
         }
-        $this->auditAuth('PASSWORD_RESET_COMPLETED', 'fallo', $user, null, 'UPDATE_FAILED');
+        $this->auditAuth('PASSWORD_RESET_COMPLETED', 'fallo', null, null, 'TOKEN_INVALID_OR_CONSUMED');
         $this->setFlash('errores', ['No se pudo actualizar la contraseña. Inténtalo de nuevo.']);
         $this->redirigir('password_forgot');
     }

@@ -15,10 +15,9 @@
  *      pruebas y que existe. Mejor parar con un mensaje claro que empezar a
  *      borrar en el sitio equivocado.
  *
- * Excepción: pruebas/acceso.php NO usa este arranque. Es una prueba de
- * integración que habla por HTTP con el servidor de desarrollo, y ese servidor
- * usa la base de trabajo; de las dos tablas que limpia (los registros de
- * intentos fallidos) no depende ningún dato del negocio.
+ * pruebas/acceso.php habla por HTTP con un servidor temporal creado por el
+ * runner, pero tanto el cliente como ese servidor reciben la base exclusiva de
+ * la suite Functional. Nunca utiliza la base de trabajo.
  */
 
 putenv('APP_ENV=test');

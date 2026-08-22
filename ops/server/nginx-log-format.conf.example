@@ -1,0 +1,6 @@
+# Instalar dentro del bloque http de Nginx (por ejemplo /etc/nginx/conf.d/).
+# Usa $uri y no $request/$request_uri: los tokens de recuperación que llegan
+# una sola vez por query string no se copian al access log.
+log_format gimnera_no_query '$remote_addr - $remote_user [$time_local] '
+                            '"$request_method $uri $server_protocol" $status $body_bytes_sent '
+                            '"$http_user_agent" rt=$request_time';
