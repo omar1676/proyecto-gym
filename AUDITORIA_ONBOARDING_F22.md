@@ -29,3 +29,15 @@ Clasificación previa al onboarding. No contiene secretos ni datos reales.
   tenant existente sin volver a mostrar claves.
 - No se implementa borrado destructivo de empresas.
 - DORLET, biometría, FitCloud real, SMTP a socios y datos reales quedan fuera.
+
+## Evidencia de cierre
+
+- Suite local final: 68 scripts, 876 assertions, 0 fallos, 0 omitidos, exit 0.
+- Fallo deliberado del runner: 1 assertion fallida, exit global distinto de 0.
+- VPS: PHP 8.3.6, MariaDB 10.11.14 y lint de 208 PHP sin fallos.
+- Suite completa en VPS con usuario temporal limitado a bases de test: 876/876,
+  exit 0 y cero bases temporales residuales.
+- Escala sintética local: 100 tenants en 2.046,42 ms, p95 27,74 ms,
+  1.603 consultas de sesión y 77.188 bytes de payload de filas. No es un
+  benchmark de capacidad productiva.
+- Ninguna prueba utilizó `gimnasio_staging`, datos reales, DORLET o biometría.
