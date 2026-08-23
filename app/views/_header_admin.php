@@ -67,7 +67,7 @@ if ($logoSede !== '' && is_file($rutaPublica . 'gimnasios/' . $logoSede)) {
 <body class="flex min-h-screen flex-col bg-[#f7f7f8] text-neutral-800">
 
 <!-- HEADER -->
-<header class="flex h-[60px] items-center justify-between bg-[#111318] px-4 text-white z-40 relative">
+<header class="admin-header flex h-[60px] items-center justify-between gap-1 bg-[#111318] px-2 sm:px-4 text-white z-40 relative">
 
     <!-- Hamburguesa (móvil) -->
     <button id="btn-menu" type="button" onclick="toggleSidebar()" aria-label="Abrir menú" aria-controls="sidebar-mobile" aria-expanded="false"
@@ -200,7 +200,7 @@ if ($logoSede !== '' && is_file($rutaPublica . 'gimnasios/' . $logoSede)) {
 </div>
 
 <!-- LAYOUT PRINCIPAL -->
-<div class="flex flex-1">
+<div class="admin-layout flex flex-1 min-w-0 w-full">
 
 <!-- SIDEBAR DESKTOP -->
 <aside class="js-aside-desktop hidden lg:block w-[200px] min-h-screen border-r border-[#e4e4e7] bg-white shrink-0">

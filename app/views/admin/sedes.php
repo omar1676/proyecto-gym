@@ -166,6 +166,7 @@ require __DIR__ . '/../_header_admin.php';
 
 <!-- Modal alta / edición de sede -->
 <div id="modal-sede"
+     role="dialog" aria-modal="true" aria-labelledby="modal-sede-titulo" tabindex="-1"
      class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 overflow-y-auto"
      onclick="if(event.target===this) cerrarModalSede()">
 
@@ -267,12 +268,13 @@ require __DIR__ . '/../_header_admin.php';
 
 <!-- Modal: logo y colores de la sede -->
 <div id="modal-marca"
+     role="dialog" aria-modal="true" aria-labelledby="modal-marca-titulo" tabindex="-1"
      class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 overflow-y-auto"
      onclick="if(event.target===this) this.classList.add('hidden')">
 
     <div class="w-full max-w-md rounded-[24px] bg-white p-8 shadow-2xl my-auto">
         <div class="flex items-center justify-between mb-2">
-            <h2 class="text-xl font-extrabold text-neutral-800">Marca de la sede</h2>
+            <h2 id="modal-marca-titulo" class="text-xl font-extrabold text-neutral-800">Marca de la sede</h2>
             <button onclick="document.getElementById('modal-marca').classList.add('hidden')"
                 class="text-neutral-500 hover:text-neutral-700 transition-colors text-2xl leading-none"
                 aria-label="Cerrar">&times;</button>

@@ -163,12 +163,13 @@ $etiquetasRol = [
 
 <!-- Modal alta de empleado -->
 <div id="modal-empleado"
+     role="dialog" aria-modal="true" aria-labelledby="modal-empleado-titulo" tabindex="-1"
      class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 overflow-y-auto"
      onclick="if(event.target===this) this.classList.add('hidden')">
 
     <div class="w-full max-w-lg rounded-[24px] bg-white p-8 shadow-2xl my-auto">
         <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-extrabold text-neutral-800">Nuevo empleado</h2>
+            <h2 id="modal-empleado-titulo" class="text-xl font-extrabold text-neutral-800">Nuevo empleado</h2>
             <button onclick="document.getElementById('modal-empleado').classList.add('hidden')"
                 class="text-neutral-500 hover:text-neutral-700 transition-colors text-2xl leading-none"
                 aria-label="Cerrar">&times;</button>
@@ -265,12 +266,13 @@ $etiquetasRol = [
 
 <!-- Modal edición de empleado -->
 <div id="modal-editar-empleado"
+     role="dialog" aria-modal="true" aria-labelledby="modal-editar-empleado-titulo" tabindex="-1"
      class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 overflow-y-auto"
      onclick="if(event.target===this) this.classList.add('hidden')">
 
     <div class="w-full max-w-lg rounded-[24px] bg-white p-8 shadow-2xl my-auto">
         <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-extrabold text-neutral-800">Editar empleado</h2>
+            <h2 id="modal-editar-empleado-titulo" class="text-xl font-extrabold text-neutral-800">Editar empleado</h2>
             <button onclick="document.getElementById('modal-editar-empleado').classList.add('hidden')"
                 class="text-neutral-500 hover:text-neutral-700 transition-colors text-2xl leading-none"
                 aria-label="Cerrar">&times;</button>

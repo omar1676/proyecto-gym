@@ -129,6 +129,7 @@ require __DIR__ . '/../_header_admin.php';
 
 <!-- Modal alta / edición de modalidad -->
 <div id="modal-tipo"
+     role="dialog" aria-modal="true" aria-labelledby="modal-tipo-titulo" tabindex="-1"
      class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 overflow-y-auto"
      onclick="if(event.target===this) cerrarModalTipo()">
 

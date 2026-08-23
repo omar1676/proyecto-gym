@@ -13,6 +13,7 @@ $suites = [
         'tests/Unit/MockAccessControlProviderTest.php', 'tests/Unit/BackupStorageTest.php',
         'tests/Unit/F21OperationalSafetyTest.php', 'tests/Unit/TestDatabaseNameTest.php',
         'tests/Unit/AuditPolicyTest.php', 'tests/Unit/LogSanitizationTest.php',
+        'tests/Unit/SocioFormStateTest.php',
     ],
     'Integration' => [
         'tests/Integration/IntegrityTest.php', 'tests/Integration/IdempotencyTest.php',
@@ -32,6 +33,7 @@ $suites = [
         'tests/Integration/SchemaCompatibilityTest.php',
         'tests/Integration/MigrationV28StructureTest.php',
         'tests/Integration/MigrationV29StructureTest.php',
+        'tests/Integration/MigrationV30StructureTest.php',
         'tests/Integration/RestoreCurrencyTest.php',
         'tests/Integration/TenantProvisioningTest.php',
         'tests/Integration/PlatformAdminBootstrapTest.php',
@@ -42,6 +44,8 @@ $suites = [
         'tests/Integration/TenantLifecycleGuardTest.php',
         'tests/Integration/TenantLifecycleConcurrencyTest.php',
         'tests/Integration/PlatformAdminBootstrapConcurrencyTest.php',
+        'tests/Integration/SocioProfileF23Test.php',
+        'tests/Integration/SocioProfileConcurrencyTest.php',
     ],
     'Security' => [
         'tests/Security/OutputEncodingTest.php', 'tests/Security/RateLimitTest.php',
@@ -60,6 +64,8 @@ $suites = [
         'tests/Functional/VentaSinSedeTest.php', 'tests/Functional/MigrationViewTest.php',
         'tests/Functional/CashViewTest.php', 'tests/Functional/ExportFormsTest.php',
         'tests/Functional/TenantBrandingTest.php',
+        'tests/Functional/ResponsiveAdminViewsTest.php',
+        'tests/Functional/SocioFormRecoveryHttpTest.php',
         'pruebas/acceso.php',
     ],
 ];
@@ -100,7 +106,10 @@ $omitted = [];
 $assertionsOk = 0;
 $assertionsFailed = 0;
 $createdDatabases = [];
-$runId = substr(bin2hex(random_bytes(6)), 0, 12);
+$forcedRunId = trim((string) getenv('GIMNERA_TEST_RUN_ID'));
+$runId = preg_match('/^[a-f0-9]{12}$/', $forcedRunId) === 1
+    ? $forcedRunId
+    : substr(bin2hex(random_bytes(6)), 0, 12);
 
 /** @return array{output:string,exit:int} */
 function runProcess(array $command, string $cwd, ?array $environment = null): array
@@ -310,7 +319,7 @@ try {
                 $path = $root . '/' . $file;
             }
             echo "\n--- {$display} ---\n";
-            $result = $file === 'pruebas/acceso.php'
+            $result = in_array($file, ['pruebas/acceso.php', 'tests/Functional/SocioFormRecoveryHttpTest.php'], true)
                 ? runHttpAccessTest($php, $path, $root, $suiteDb, $injectAccessFailure)
                 : runProcess([$php, $path], $root);
             echo $result['output'];

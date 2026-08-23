@@ -43,6 +43,12 @@ check(
     $encontroFormulario && stripos($formulario[0], 'display:none') === false
 );
 check('el buscador informa que admite teléfono', strpos($html, 'email, teléfono o DNI') !== false);
+check('edición permite corregir DNI/NIE', strpos($html, 'id="editar-dni"') !== false);
+check('edición envía versión optimista', strpos($html, 'id="editar-profile-version"') !== false);
+check('alta y edición preparan campos DNI accesibles', strpos($html, '<label for="alta-dni"') !== false
+    && strpos($html, '<label for="editar-dni"') !== false
+    && substr_count($html, 'name="dni"') >= 2);
+check('layout de socios puede encogerse sin empujar el viewport', strpos($html, '<main class="flex-1 min-w-0') !== false);
 check('el listado informa total y página actual', strpos($html, 'resultado') !== false && strpos($html, 'Página 1 de') !== false);
 check('las operaciones conservan búsqueda y página', strpos($html, 'name="volver_buscar"') !== false && strpos($html, 'name="volver_pagina"') !== false);
 check('los modales principales declaran semántica dialog', substr_count($html, 'role="dialog"') >= 3 && substr_count($html, 'aria-modal="true"') >= 3);

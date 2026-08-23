@@ -224,7 +224,8 @@ class UserModel {
                     apellidos = :apellidos,
                     telefono  = :telefono,
                     email     = :email,
-                    iban      = :iban
+                    iban      = :iban,
+                    profile_version = profile_version + 1
                  WHERE id_usuario = :id' . $this->filtroSede()
             );
             return $stmt->execute([
@@ -245,7 +246,7 @@ class UserModel {
         $tenantLifecycle = $this->acquireBusinessWrite();
         try {
             $stmt = $this->db->prepare(
-                'UPDATE usuario SET iban = :iban WHERE id_usuario = :id' . $this->filtroSede()
+                'UPDATE usuario SET iban = :iban, profile_version = profile_version + 1 WHERE id_usuario = :id' . $this->filtroSede()
             );
             return $stmt->execute([':iban' => $iban, ':id' => $id]);
         } catch (\PDOException $e) {
@@ -423,6 +424,14 @@ class UserModel {
             'SELECT id_usuario FROM usuario WHERE email = :email AND id_usuario <> :id' . $this->filtroIdentidadEmpresa() . ' LIMIT 1'
         );
         $stmt->execute([':email' => $correo, ':id' => $idUsuario]);
+        return (bool) $stmt->fetch();
+    }
+
+    public function dniExisteOtroUsuario(string $dni, int $idUsuario): bool {
+        $stmt = $this->db->prepare(
+            'SELECT id_usuario FROM usuario WHERE dni = :dni AND id_usuario <> :id' . $this->filtroIdentidadEmpresa() . ' LIMIT 1'
+        );
+        $stmt->execute([':dni' => $dni, ':id' => $idUsuario]);
         return (bool) $stmt->fetch();
     }
 

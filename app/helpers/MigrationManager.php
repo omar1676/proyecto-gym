@@ -287,6 +287,9 @@ final class MigrationManager
                 'index:categoria_producto.uq_categoria_empresa_nombre' => $this->hasIndex('categoria_producto', 'uq_categoria_empresa_nombre'),
                 'fk:categoria_producto.fk_categoria_empresa' => $this->hasForeignKey('categoria_producto', 'fk_categoria_empresa'),
             ],
+            'migracion_v30.sql' => [
+                'column:usuario.profile_version' => $this->hasColumn('usuario', 'profile_version'),
+            ],
             default => [],
         };
     }

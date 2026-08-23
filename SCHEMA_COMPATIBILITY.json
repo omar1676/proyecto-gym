@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "release": "0.13.1-fase22.1",
+  "release": "0.14.0-fase23",
   "minimum_runtime_version": 27,
-  "maximum_runtime_version": 29,
-  "maximum_migrator_version": 29,
-  "notes": "F22.1. El runtime acepta v27-v29; no añade migración. El migrador solo se ejecuta si la base no supera v29."
+  "maximum_runtime_version": 30,
+  "maximum_migrator_version": 30,
+  "notes": "F23. El runtime acepta v27-v30; v30 añade control optimista del perfil de socio. El migrador solo se ejecuta si la base no supera v30."
 }

@@ -22,13 +22,31 @@ $paginaActual = (int) ($paginaActual ?? 1);
 $totalPaginas = (int) ($totalPaginas ?? 1);
 $totalResultados = (int) ($totalResultados ?? count($socios ?? []));
 $porPagina = (int) ($porPagina ?? 50);
+$socioFormState = is_array($socioFormState ?? null) ? $socioFormState : null;
+$formMode = (string) ($socioFormState['mode'] ?? '');
+$formValues = is_array($socioFormState['values'] ?? null) ? $socioFormState['values'] : [];
+$formErrors = is_array($socioFormState['errors'] ?? null) ? $socioFormState['errors'] : [];
+$formValue = static function (string $mode, string $field, string $default = '') use ($formMode, $formValues): string {
+    return $formMode === $mode && array_key_exists($field, $formValues) ? (string) $formValues[$field] : $default;
+};
+$fieldError = static function (string $mode, string $field) use ($formMode, $formErrors): string {
+    return $formMode === $mode ? (string) ($formErrors[$field] ?? '') : '';
+};
+$fieldA11y = static function (string $mode, string $field) use ($fieldError): string {
+    return $fieldError($mode, $field) !== ''
+        ? ' aria-invalid="true" aria-describedby="' . $mode . '-' . $field . '-error"'
+        : '';
+};
+$fieldClass = static function (string $mode, string $field) use ($fieldError): string {
+    return $fieldError($mode, $field) !== '' ? ' border-red-400 ring-1 ring-red-200' : ' border-[#e4e4e7]';
+};
 $urlPagina = static function (int $pagina) use ($busqueda): string {
     $parametros = ['action' => 'admin_socios', 'pagina' => max(1, $pagina)];
     if ($busqueda !== '') $parametros['buscar'] = $busqueda;
     return 'index.php?' . http_build_query($parametros);
 };
 ?>
-    <main class="flex-1 bg-[#f7f7f8] px-5 py-8 lg:px-8">
+    <main class="flex-1 min-w-0 bg-[#f7f7f8] px-4 py-6 sm:px-5 sm:py-8 lg:px-8">
         <section class="mx-auto max-w-6xl">
 
             <div class="flex flex-col gap-3 pt-4 sm:flex-row sm:items-start sm:justify-between">
@@ -180,7 +198,7 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
             </div>
 
             <!-- Tabla de socios -->
-            <div class="mt-6 rounded-[22px] border border-[#e4e4e7] bg-white shadow-sm overflow-hidden">
+            <div class="mt-6 min-w-0 rounded-[22px] border border-[#e4e4e7] bg-white shadow-sm overflow-hidden">
                 <?php if (empty($socios)): ?>
                     <p class="p-6 text-sm text-neutral-500 italic">
                         <?= !empty($busqueda) ? 'No hay socios que coincidan con la búsqueda.' : 'No hay socios registrados todavía.' ?>
@@ -306,8 +324,10 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
                                         <button type="button"
                                             onclick='abrirModalEditarSocio(<?= json_encode([
                                                 "id"        => (int) $socio["id_usuario"],
+                                                "version"   => (int) ($socio["profile_version"] ?? 1),
                                                 "nombre"    => $socio["nombre"],
                                                 "apellidos" => $socio["apellidos"],
+                                                "dni"       => $socio["dni"],
                                                 "email"     => $socio["email"],
                                                 "telefono"  => $socio["telefono"] ?? "",
                                                 "iban"      => $socio["iban"] ?? "",
@@ -370,7 +390,7 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
      class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 overflow-y-auto"
      onclick="if(event.target===this) cerrarModal('modal-nuevo-socio')">
 
-    <div class="w-full max-w-lg rounded-[24px] bg-white p-8 shadow-2xl my-auto">
+    <div class="admin-modal-panel w-full max-w-lg rounded-[24px] bg-white p-8 shadow-2xl my-auto">
 
         <div class="flex items-center justify-between mb-6">
             <h2 id="modal-nuevo-socio-titulo" class="text-xl font-extrabold text-neutral-800">Nuevo socio</h2>
@@ -379,43 +399,55 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
                 aria-label="Cerrar">&times;</button>
         </div>
 
-        <form method="POST" action="index.php?action=admin_socio_registrar" class="space-y-4">
+        <form method="POST" action="index.php?action=admin_socio_registrar" class="space-y-4" novalidate>
             <?= Csrf::field() ?>
             <input type="hidden" name="_operation_id" value="<?= bin2hex(random_bytes(16)) ?>">
             <input type="hidden" name="volver_buscar" value="<?= htmlspecialchars($busqueda, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="volver_pagina" value="<?= $paginaActual ?>">
 
-            <div class="grid grid-cols-2 gap-4">
+            <?php if ($formMode === 'alta' && isset($formErrors['_form'])): ?>
+            <p class="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700" role="alert"><?= htmlspecialchars($formErrors['_form'], ENT_QUOTES, 'UTF-8') ?></p>
+            <?php endif; ?>
+
+            <div class="admin-form-grid grid grid-cols-2 gap-4">
                 <div>
                     <label for="alta-nombre" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
                         Nombre <span class="text-red-400">*</span>
                     </label>
                     <input type="text" id="alta-nombre" name="nombre" required maxlength="100"
-                        class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                        value="<?= htmlspecialchars($formValue('alta', 'nombre'), ENT_QUOTES, 'UTF-8') ?>"<?= $fieldA11y('alta', 'nombre') ?>
+                        class="w-full rounded-xl border<?= $fieldClass('alta', 'nombre') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <?php if ($fieldError('alta', 'nombre')): ?><p id="alta-nombre-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('alta', 'nombre'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
                 </div>
                 <div>
                     <label for="alta-apellidos" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
                         Apellidos <span class="text-red-400">*</span>
                     </label>
                     <input type="text" id="alta-apellidos" name="apellidos" required maxlength="150"
-                        class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                        value="<?= htmlspecialchars($formValue('alta', 'apellidos'), ENT_QUOTES, 'UTF-8') ?>"<?= $fieldA11y('alta', 'apellidos') ?>
+                        class="w-full rounded-xl border<?= $fieldClass('alta', 'apellidos') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <?php if ($fieldError('alta', 'apellidos')): ?><p id="alta-apellidos-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('alta', 'apellidos'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="admin-form-grid grid grid-cols-2 gap-4">
                 <div>
                     <label for="alta-dni" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
-                        DNI <span class="text-red-400">*</span>
+                        DNI/NIE <span class="text-red-400">*</span>
                     </label>
-                    <input type="text" id="alta-dni" name="dni" required maxlength="20"
-                        class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <input type="text" id="alta-dni" name="dni" required maxlength="20" autocomplete="off"
+                        value="<?= htmlspecialchars($formValue('alta', 'dni'), ENT_QUOTES, 'UTF-8') ?>"<?= $fieldA11y('alta', 'dni') ?>
+                        class="w-full rounded-xl border<?= $fieldClass('alta', 'dni') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium uppercase text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <?php if ($fieldError('alta', 'dni')): ?><p id="alta-dni-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('alta', 'dni'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
                 </div>
                 <div>
                     <label for="alta-telefono" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
                         Teléfono
                     </label>
                     <input type="text" id="alta-telefono" name="telefono" maxlength="20"
-                        class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                        value="<?= htmlspecialchars($formValue('alta', 'telefono'), ENT_QUOTES, 'UTF-8') ?>"<?= $fieldA11y('alta', 'telefono') ?>
+                        class="w-full rounded-xl border<?= $fieldClass('alta', 'telefono') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <?php if ($fieldError('alta', 'telefono')): ?><p id="alta-telefono-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('alta', 'telefono'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
                 </div>
             </div>
 
@@ -424,36 +456,42 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
                     Email <span class="text-red-400">*</span>
                 </label>
                 <input type="email" id="alta-email" name="email" required maxlength="255"
-                    class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    value="<?= htmlspecialchars($formValue('alta', 'email'), ENT_QUOTES, 'UTF-8') ?>"<?= $fieldA11y('alta', 'email') ?>
+                    class="w-full rounded-xl border<?= $fieldClass('alta', 'email') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                <?php if ($fieldError('alta', 'email')): ?><p id="alta-email-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('alta', 'email'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="admin-form-grid grid grid-cols-2 gap-4">
                 <div>
                     <label for="alta-usuario" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
                         Usuario <span class="text-red-400">*</span>
                     </label>
                     <input type="text" id="alta-usuario" name="usuario" required maxlength="60"
-                        class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                        value="<?= htmlspecialchars($formValue('alta', 'usuario'), ENT_QUOTES, 'UTF-8') ?>"<?= $fieldA11y('alta', 'usuario') ?>
+                        class="w-full rounded-xl border<?= $fieldClass('alta', 'usuario') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <?php if ($fieldError('alta', 'usuario')): ?><p id="alta-usuario-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('alta', 'usuario'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
                 </div>
                 <div>
                     <label for="alta-contrasena" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
                         Contraseña <span class="text-red-400">*</span>
                     </label>
                     <input type="password" id="alta-contrasena" name="contrasena" required minlength="8"
-                        class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                        autocomplete="new-password"<?= $fieldA11y('alta', 'contrasena') ?>
+                        class="w-full rounded-xl border<?= $fieldClass('alta', 'contrasena') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <?php if ($fieldError('alta', 'contrasena')): ?><p id="alta-contrasena-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('alta', 'contrasena'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4 border-t border-[#e4e4e7] pt-4">
+            <div class="admin-form-grid grid grid-cols-2 gap-4 border-t border-[#e4e4e7] pt-4">
                 <div>
                     <label for="alta-tipo-membresia" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
                         Membresía inicial
                     </label>
                     <select name="id_tipo_membresia" id="alta-tipo-membresia"
                         class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
-                        <option value="0">— Sin membresía —</option>
+                        <option value="0" <?= $formValue('alta', 'id_tipo_membresia', '0') === '0' ? 'selected' : '' ?>>— Sin membresía —</option>
                         <?php foreach ($tipos as $tipo): ?>
-                        <option value="<?= (int) $tipo['id_tipo_membresia'] ?>">
+                        <option value="<?= (int) $tipo['id_tipo_membresia'] ?>" <?= $formValue('alta', 'id_tipo_membresia') === (string) (int) $tipo['id_tipo_membresia'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($tipo['nombre'], ENT_QUOTES, 'UTF-8') ?>
                             (<?= number_format((float) $tipo['precio'], 2, ',', '.') ?> € · <?= (int) $tipo['duracion_meses'] ?> mes<?= (int) $tipo['duracion_meses'] === 1 ? '' : 'es' ?>)
                         </option>
@@ -467,20 +505,22 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
                     <select name="metodo_pago" id="alta-metodo-pago" onchange="alternarIban('alta')"
                         class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
                         <?php foreach ($etiquetasPago as $valor => $etiqueta): ?>
-                        <option value="<?= $valor ?>"><?= $etiqueta ?></option>
+                        <option value="<?= $valor ?>" <?= $formValue('alta', 'metodo_pago', 'efectivo') === $valor ? 'selected' : '' ?>><?= $etiqueta ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
             </div>
 
             <!-- El valor técnico heredado "transferencia" representa domiciliación SEPA. -->
-            <div id="alta-iban-wrap" style="display:none">
+            <div id="alta-iban-wrap" style="display:<?= $formMode === 'alta' && ($formValue('alta', 'metodo_pago') === 'transferencia' || $formValue('alta', 'iban') !== '') ? 'block' : 'none' ?>">
                 <label for="alta-iban" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
                     IBAN para la domiciliación <span class="text-[#dc2626]">*</span>
                 </label>
                 <input type="text" name="iban" id="alta-iban" maxlength="34"
                     placeholder="ES91 2100 0418 4502 0005 1332"
-                    class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium uppercase tracking-wide text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    value="<?= htmlspecialchars($formValue('alta', 'iban'), ENT_QUOTES, 'UTF-8') ?>"<?= $fieldA11y('alta', 'iban') ?>
+                    class="w-full rounded-xl border<?= $fieldClass('alta', 'iban') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium uppercase tracking-wide text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                <?php if ($fieldError('alta', 'iban')): ?><p id="alta-iban-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('alta', 'iban'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
                 <p class="mt-1 text-[11px] text-neutral-500">
                     Se comprueba el dígito de control antes de guardarlo.
                 </p>
@@ -493,9 +533,9 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
                 </label>
                 <select name="id_suplemento" id="alta-suplemento"
                     class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
-                    <option value="0">— Solo cuota base —</option>
+                    <option value="0" <?= $formValue('alta', 'id_suplemento', '0') === '0' ? 'selected' : '' ?>>— Solo cuota base —</option>
                     <?php foreach ($suplementos as $sup): ?>
-                    <option value="<?= (int) $sup['id_suplemento'] ?>">
+                    <option value="<?= (int) $sup['id_suplemento'] ?>" <?= $formValue('alta', 'id_suplemento') === (string) (int) $sup['id_suplemento'] ? 'selected' : '' ?>>
                         <?= htmlspecialchars($sup['nombre'], ENT_QUOTES, 'UTF-8') ?>
                         (+<?= number_format((float) $sup['precio_mensual'], 2, ',', '.') ?> €/mes)
                     </option>
@@ -507,7 +547,7 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
             </div>
             <?php endif; ?>
 
-            <div class="flex gap-3 pt-2">
+            <div class="admin-action-row flex gap-3 pt-2">
                 <button type="submit"
                     class="flex-1 rounded-full bg-[#4f46e5] py-2.5 text-sm font-bold text-white hover:brightness-110 transition-all">
                     Dar de alta
@@ -635,7 +675,7 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
      class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 overflow-y-auto"
      onclick="if(event.target===this) cerrarModal('modal-editar-socio')">
 
-    <div class="w-full max-w-lg rounded-[24px] bg-white p-8 shadow-2xl my-auto">
+    <div class="admin-modal-panel w-full max-w-lg rounded-[24px] bg-white p-8 shadow-2xl my-auto">
 
         <div class="flex items-center justify-between mb-6">
             <h2 id="modal-editar-socio-titulo" class="text-xl font-extrabold text-neutral-800">Editar socio</h2>
@@ -644,44 +684,62 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
                 aria-label="Cerrar">&times;</button>
         </div>
 
-        <form method="POST" action="index.php?action=admin_socio_editar" class="space-y-4">
+        <form method="POST" action="index.php?action=admin_socio_editar" class="space-y-4" novalidate>
             <?= Csrf::field() ?>
             <input type="hidden" name="volver_buscar" value="<?= htmlspecialchars($busqueda, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="volver_pagina" value="<?= $paginaActual ?>">
             <input type="hidden" name="id_socio" id="editar-id-socio" value="0">
+            <input type="hidden" name="profile_version" id="editar-profile-version" value="0">
 
-            <div class="grid grid-cols-2 gap-4">
+            <?php if ($formMode === 'editar' && isset($formErrors['_form'])): ?>
+            <p class="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700" role="alert"><?= htmlspecialchars($formErrors['_form'], ENT_QUOTES, 'UTF-8') ?></p>
+            <?php endif; ?>
+
+            <div class="admin-form-grid grid grid-cols-2 gap-4">
                 <div>
                     <label for="editar-nombre" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
                         Nombre <span class="text-[#dc2626]">*</span>
                     </label>
-                    <input type="text" name="nombre" id="editar-nombre" required maxlength="100"
-                        class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <input type="text" name="nombre" id="editar-nombre" required maxlength="100"<?= $fieldA11y('editar', 'nombre') ?>
+                        class="w-full rounded-xl border<?= $fieldClass('editar', 'nombre') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <?php if ($fieldError('editar', 'nombre')): ?><p id="editar-nombre-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('editar', 'nombre'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
                 </div>
                 <div>
                     <label for="editar-apellidos" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
                         Apellidos <span class="text-[#dc2626]">*</span>
                     </label>
-                    <input type="text" name="apellidos" id="editar-apellidos" required maxlength="150"
-                        class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <input type="text" name="apellidos" id="editar-apellidos" required maxlength="150"<?= $fieldA11y('editar', 'apellidos') ?>
+                        class="w-full rounded-xl border<?= $fieldClass('editar', 'apellidos') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <?php if ($fieldError('editar', 'apellidos')): ?><p id="editar-apellidos-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('editar', 'apellidos'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="admin-form-grid grid grid-cols-2 gap-4">
                 <div>
-                    <label for="editar-email" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
-                        Email <span class="text-[#dc2626]">*</span>
+                    <label for="editar-dni" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
+                        DNI/NIE <span class="text-[#dc2626]">*</span>
                     </label>
-                    <input type="email" name="email" id="editar-email" required maxlength="255"
-                        class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <input type="text" name="dni" id="editar-dni" required maxlength="20" autocomplete="off"<?= $fieldA11y('editar', 'dni') ?>
+                        class="w-full rounded-xl border<?= $fieldClass('editar', 'dni') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium uppercase text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <?php if ($fieldError('editar', 'dni')): ?><p id="editar-dni-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('editar', 'dni'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
                 </div>
                 <div>
                     <label for="editar-telefono" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
                         Teléfono
                     </label>
-                    <input type="text" name="telefono" id="editar-telefono" maxlength="20"
-                        class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <input type="text" name="telefono" id="editar-telefono" maxlength="20"<?= $fieldA11y('editar', 'telefono') ?>
+                        class="w-full rounded-xl border<?= $fieldClass('editar', 'telefono') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <?php if ($fieldError('editar', 'telefono')): ?><p id="editar-telefono-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('editar', 'telefono'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
                 </div>
+            </div>
+
+            <div>
+                <label for="editar-email" class="block text-xs font-extrabold uppercase tracking-widest text-neutral-500 mb-1.5">
+                    Email <span class="text-[#dc2626]">*</span>
+                </label>
+                <input type="email" name="email" id="editar-email" required maxlength="255"<?= $fieldA11y('editar', 'email') ?>
+                    class="w-full rounded-xl border<?= $fieldClass('editar', 'email') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                <?php if ($fieldError('editar', 'email')): ?><p id="editar-email-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('editar', 'email'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
             </div>
 
             <div class="border-t border-[#e4e4e7] pt-4">
@@ -690,13 +748,14 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
                 </label>
                 <input type="text" name="iban" id="editar-iban" maxlength="34"
                     placeholder="ES91 2100 0418 4502 0005 1332"
-                    class="w-full rounded-xl border border-[#e4e4e7] bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium uppercase tracking-wide text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                    <?= $fieldA11y('editar', 'iban') ?> class="w-full rounded-xl border<?= $fieldClass('editar', 'iban') ?> bg-[#f4f4f5] px-4 py-2.5 text-sm font-medium uppercase tracking-wide text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] transition">
+                <?php if ($fieldError('editar', 'iban')): ?><p id="editar-iban-error" data-field-error class="mt-1 text-xs font-bold text-red-600"><?= htmlspecialchars($fieldError('editar', 'iban'), ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
                 <p class="mt-1 text-[11px] text-neutral-500">
                     Déjalo vacío si este socio no paga por domiciliación. Se comprueba el dígito de control.
                 </p>
             </div>
 
-            <div class="flex gap-3 pt-2">
+            <div class="admin-action-row flex gap-3 pt-2">
                 <button type="submit"
                     class="flex-1 rounded-full bg-[#4f46e5] py-2.5 text-sm font-bold text-white hover:brightness-110 transition-all">
                     Guardar cambios
@@ -788,8 +847,10 @@ function alternarIban(prefijo) {
 
 function abrirModalEditarSocio(datos) {
     document.getElementById('editar-id-socio').value  = datos.id;
+    document.getElementById('editar-profile-version').value = datos.version || 1;
     document.getElementById('editar-nombre').value    = datos.nombre;
     document.getElementById('editar-apellidos').value = datos.apellidos;
+    document.getElementById('editar-dni').value       = datos.dni;
     document.getElementById('editar-email').value     = datos.email;
     document.getElementById('editar-telefono').value  = datos.telefono || '';
     document.getElementById('editar-iban').value      = datos.iban || '';
@@ -800,6 +861,27 @@ function abrirModalEditarSocio(datos) {
 
     abrirModal('modal-editar-socio', document.activeElement);
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    var mode = <?= json_encode($formMode, JSON_UNESCAPED_UNICODE) ?>;
+    if (mode === 'alta') {
+        alternarIban('alta');
+        abrirModal('modal-nuevo-socio', document.getElementById('socios-buscar'));
+    } else if (mode === 'editar') {
+        abrirModalEditarSocio({
+            id: <?= json_encode((int) $formValue('editar', 'id_socio', '0')) ?>,
+            version: <?= json_encode((int) $formValue('editar', 'profile_version', '1')) ?>,
+            nombre: <?= json_encode($formValue('editar', 'nombre'), JSON_UNESCAPED_UNICODE) ?>,
+            apellidos: <?= json_encode($formValue('editar', 'apellidos'), JSON_UNESCAPED_UNICODE) ?>,
+            dni: <?= json_encode($formValue('editar', 'dni'), JSON_UNESCAPED_UNICODE) ?>,
+            email: <?= json_encode($formValue('editar', 'email'), JSON_UNESCAPED_UNICODE) ?>,
+            telefono: <?= json_encode($formValue('editar', 'telefono'), JSON_UNESCAPED_UNICODE) ?>,
+            iban: <?= json_encode($formValue('editar', 'iban'), JSON_UNESCAPED_UNICODE) ?>
+        });
+    }
+    var invalid = document.querySelector('#modal-' + (mode === 'alta' ? 'nuevo-socio' : 'editar-socio') + ' [aria-invalid="true"]');
+    if (invalid) window.requestAnimationFrame(function () { invalid.focus(); });
+});
 
 function abrirModalMembresia(idSocio, nombre, ibanGuardado) {
     document.getElementById('membresia-id-socio').value = idSocio;

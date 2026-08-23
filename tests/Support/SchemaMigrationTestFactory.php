@@ -10,7 +10,11 @@ final class SchemaMigrationTestFactory
         if (APP_ENV !== 'test') {
             throw new RuntimeException('Las pruebas de migración exigen APP_ENV=test.');
         }
-        $name = TestDatabaseName::generate(DB_NAME_PRUEBAS, $purpose, bin2hex(random_bytes(6)));
+        $forcedRunId = trim((string) getenv('GIMNERA_TEST_FIXTURE_RUN_ID'));
+        $runId = preg_match('/^[a-f0-9]{12}$/', $forcedRunId) === 1
+            ? $forcedRunId
+            : bin2hex(random_bytes(6));
+        $name = TestDatabaseName::generate(DB_NAME_PRUEBAS, $purpose, $runId);
         if (!TestDatabaseName::isManaged($name) || $name === DB_NAME) {
             throw new RuntimeException('Nombre inseguro para base temporal.');
         }

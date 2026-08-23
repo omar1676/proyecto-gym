@@ -49,7 +49,24 @@ final class InputValidator
 
     public static function dniNie($value): ?string
     {
-        $id = strtoupper(preg_replace('/\s+/', '', (string) $value));
-        return preg_match('/^(?:[XYZ]\d{7}[A-Z]|\d{8}[A-Z])$/', $id) ? $id : null;
+        $id = strtoupper(preg_replace('/[\s-]+/', '', trim((string) $value)));
+        if (!preg_match('/^(?:[XYZ]\d{7}[A-Z]|\d{8}[A-Z])$/', $id)) return null;
+
+        $letras = 'TRWAGMYFPDXBNJZSQVHLCKE';
+        $numero = substr($id, 0, -1);
+        if (preg_match('/^[XYZ]/', $numero)) {
+            $numero = strtr($numero, ['X' => '0', 'Y' => '1', 'Z' => '2']);
+        }
+        $esperada = $letras[(int) $numero % 23];
+        return substr($id, -1) === $esperada ? $id : null;
+    }
+
+    /** Identificador minimizado para auditoría; nunca devuelve el DNI/NIE completo. */
+    public static function maskDniNie($value): string
+    {
+        $id = strtoupper(preg_replace('/[\s-]+/', '', trim((string) $value)));
+        if ($id === '') return '';
+        if (strlen($id) <= 3) return str_repeat('*', strlen($id));
+        return str_repeat('*', strlen($id) - 3) . substr($id, -3);
     }
 }

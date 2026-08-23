@@ -38,10 +38,13 @@ require_once __DIR__ . '/../helpers/Authorization.php';
 require_once __DIR__ . '/../helpers/AppLogger.php';
 require_once __DIR__ . '/../helpers/SafeException.php';
 require_once __DIR__ . '/../helpers/InputValidator.php';
+require_once __DIR__ . '/../helpers/SocioFormState.php';
+require_once __DIR__ . '/../helpers/SocioProfileValidator.php';
 require_once __DIR__ . '/../services/MigrationService.php';
 require_once __DIR__ . '/../services/SocioFinancialService.php';
 require_once __DIR__ . '/../services/AccessEligibilityService.php';
 require_once __DIR__ . '/../services/SocioRegistrationService.php';
+require_once __DIR__ . '/../services/SocioProfileService.php';
 
 class AdminController
 {
@@ -147,6 +150,21 @@ class AdminController
         if ($busqueda !== null && $busqueda !== '') $parametros['buscar'] = $busqueda;
         if ($pagina !== false && (int) $pagina > 1) $parametros['pagina'] = (int) $pagina;
         return $parametros;
+    }
+
+    /** Conserva solo campos allowlisted y nunca la contraseña del formulario. */
+    private function volverSociosConFormulario(
+        string $mode,
+        array $values,
+        array $errors,
+        string $summary,
+        array $navigation
+    ): void {
+        SocioFormState::put(
+            $mode, $values, $errors, $summary,
+            $this->tenant->usuarioId(), (int) $this->tenant->empresaId(), $this->tenant->sedeId()
+        );
+        $this->irA('admin_socios', array_merge($navigation, ['form' => $mode]));
     }
 
     /**
@@ -654,6 +672,12 @@ class AdminController
 
         $mensajeExito = '';
         $errorSocio   = $_GET['err'] ?? '';
+        $socioFormState = SocioFormState::consume(
+            $this->tenant->usuarioId(), (int) $this->tenant->empresaId(), $this->tenant->sedeId()
+        );
+        if ($socioFormState !== null && $socioFormState['summary'] !== '') {
+            $errorSocio = $socioFormState['summary'];
+        }
 
         if (isset($_GET['ok']))            $mensajeExito = 'Socio dado de alta correctamente.';
         if (isset($_GET['ok_membresia']))  $mensajeExito = 'Membresía registrada correctamente.';
@@ -730,45 +754,45 @@ class AdminController
         // Un socio nace en la sede donde se le da de alta: hace falta saber cuál.
         $this->exigirSedeFijada('admin_socios', $navegacion);
 
-        $nombre     = trim($_POST['nombre']    ?? '');
-        $apellidos  = trim($_POST['apellidos'] ?? '');
-        $dni        = trim(strtoupper($_POST['dni']   ?? ''));
-        $email      = trim(strtolower($_POST['email'] ?? ''));
-        $telefono   = trim($_POST['telefono']  ?? '') ?: null;
-        $usuario    = trim($_POST['usuario']   ?? '');
+        $profile = SocioProfileValidator::validate($_POST);
+        $values = $profile['values'];
+        $errors = $profile['errors'];
+        $nombre = (string) $values['nombre'];
+        $apellidos = (string) $values['apellidos'];
+        $dni = (string) $values['dni'];
+        $email = (string) $values['email'];
+        $telefono = $values['telefono'];
+        $usuarioValidado = InputValidator::text($_POST['usuario'] ?? '', 60);
+        $usuario = $usuarioValidado ?? mb_substr(trim((string) ($_POST['usuario'] ?? '')), 0, 60);
         $contrasena = $_POST['contrasena'] ?? '';
-        $idTipo       = (int) ($_POST['id_tipo_membresia'] ?? 0);
-        $metodoPago   = $_POST['metodo_pago'] ?? 'efectivo';
+        $idTipo       = max(0, (int) ($_POST['id_tipo_membresia'] ?? 0));
+        $metodoPago   = in_array($_POST['metodo_pago'] ?? '', ['efectivo','datafono','transferencia'], true)
+            ? (string) $_POST['metodo_pago'] : 'efectivo';
         $idSuplemento = (int) ($_POST['id_suplemento'] ?? 0) ?: null;
-        $iban         = Iban::normalizar($_POST['iban'] ?? '') ?: null;
+        $iban         = $values['iban'];
         $operacionId  = preg_match('/^[a-f0-9]{32}$/', (string) ($_POST['_operation_id'] ?? '')) ? (string) $_POST['_operation_id'] : null;
 
-        $error = '';
-        if ($nombre === '' || $apellidos === '' || $dni === '' || $email === '' || $usuario === '') {
-            $error = 'Nombre, apellidos, DNI, email y usuario son obligatorios.';
-        } elseif (InputValidator::email($email) === null) {
-            $error = 'Correo electrónico no válido.';
-        } elseif ($telefono !== null && InputValidator::phone($telefono) === null) {
-            $error = 'Teléfono no válido.';
-        } elseif (strlen($contrasena) < 8) {
-            $error = 'La contraseña debe tener al menos 8 caracteres.';
-        } elseif ($this->userModel->usuarioExiste($usuario)) {
-            $error = 'Ese nombre de usuario ya está en uso.';
-        } elseif ($this->userModel->correoExiste($email)) {
-            $error = 'Ese correo ya está registrado.';
-        } elseif ($this->userModel->dniExiste($dni)) {
-            $error = 'Ese DNI ya está registrado.';
-        } elseif ($metodoPago === 'transferencia' && $idTipo > 0 && $iban === null) {
-            $error = 'Para cobrar por transferencia hace falta el IBAN.';
-        } elseif ($iban !== null && !Iban::esValido($iban)) {
-            $error = 'El IBAN no es válido. Revisa que esté completo y bien tecleado.';
+        if ($usuarioValidado === null) $errors['usuario'] = 'Introduce un nombre de usuario válido (máximo 60 caracteres).';
+        if (strlen($contrasena) < 8) $errors['contrasena'] = 'La contraseña debe tener al menos 8 caracteres.';
+        if (!isset($errors['usuario']) && $this->userModel->usuarioExiste($usuario)) $errors['usuario'] = 'Ese nombre de usuario ya está en uso.';
+        if (!isset($errors['email']) && $this->userModel->correoExiste($email)) $errors['email'] = 'Ese email ya está registrado.';
+        if (!isset($errors['dni']) && $this->userModel->dniExiste($dni)) $errors['dni'] = 'Ese DNI/NIE ya está registrado.';
+        if ($metodoPago === 'transferencia' && $idTipo > 0 && $iban === null) {
+            $errors['iban'] = $errors['iban'] ?? 'Para cobrar por domiciliación hace falta el IBAN.';
         }
 
-        if ($error !== '') {
-            $this->irAConError('admin_socios', $error, $navegacion);
+        $state = array_merge($values, [
+            'usuario' => $usuario, 'id_tipo_membresia' => $idTipo,
+            'metodo_pago' => $metodoPago, 'id_suplemento' => $idSuplemento ?? 0,
+        ]);
+        if ($errors !== []) {
+            $this->volverSociosConFormulario(
+                'alta', $state, $errors, 'Revisa los campos marcados. No se ha creado ningún socio.', $navegacion
+            );
         }
 
         $servicioAlta = new SocioRegistrationService((int) $this->tenant->empresaId(), (int) $this->tenant->sedeId());
+        $error = '';
         $resultadoAlta = $servicioAlta->registrar([
             'nombre' => $nombre, 'apellidos' => $apellidos, 'dni' => $dni,
             'telefono' => $telefono, 'email' => $email, 'usuario' => $usuario,
@@ -776,7 +800,9 @@ class AdminController
         ], $idTipo > 0 ? $idTipo : null, $metodoPago, $idSuplemento,
             $this->tenant->usuarioId(), $operacionId, $error);
         if ($resultadoAlta === null) {
-            $this->irAConError('admin_socios', $error, $navegacion);
+            $this->volverSociosConFormulario(
+                'alta', $state, ['_form' => $error], $error ?: 'No se pudo dar de alta al socio.', $navegacion
+            );
         }
         $idSocio = (int) $resultadoAlta['id_socio'];
         $vigente = !empty($resultadoAlta['id_membresia']) ? $this->membresiaModel->vigenteDeSocio($idSocio) : null;
@@ -801,53 +827,47 @@ class AdminController
         }
 
         $idSocio   = (int) ($_POST['id_socio'] ?? 0);
-        $nombre    = trim($_POST['nombre']    ?? '');
-        $apellidos = trim($_POST['apellidos'] ?? '');
-        $telefono  = trim($_POST['telefono']  ?? '') ?: null;
-        $email     = trim(strtolower($_POST['email'] ?? ''));
-        $iban      = Iban::normalizar($_POST['iban'] ?? '') ?: null;
+        $expectedVersion = filter_var(
+            $_POST['profile_version'] ?? 0,
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        );
+        $profile = SocioProfileValidator::validate($_POST);
+        $values = $profile['values'];
+        $errors = $profile['errors'];
 
         $socio = $idSocio > 0 ? $this->userModel->buscarPorId($idSocio) : null;
         if (!$socio || ($socio['rol'] ?? '') !== 'socio') {
             $this->irAConError('admin_socios', 'El socio no existe.', $navegacion);
         }
 
-        $error = '';
-        if ($nombre === '' || $apellidos === '' || $email === '') {
-            $error = 'Nombre, apellidos y email son obligatorios.';
-        } elseif (InputValidator::email($email) === null) {
-            $error = 'Correo electrónico no válido.';
-        } elseif ($telefono !== null && InputValidator::phone($telefono) === null) {
-            $error = 'Teléfono no válido.';
-        } elseif ($this->userModel->correoExisteOtroUsuario($email, $idSocio)) {
-            $error = 'Ese correo ya está registrado en otra cuenta.';
-        } elseif ($iban !== null && !Iban::esValido($iban)) {
-            $error = 'El IBAN no es válido. Revisa que esté completo y bien tecleado.';
+        if ($expectedVersion === false) $errors['_form'] = 'La ficha enviada ha caducado. Vuelve a abrirla.';
+        if (!isset($errors['email']) && $this->userModel->correoExisteOtroUsuario((string) $values['email'], $idSocio)) {
+            $errors['email'] = 'Ese email ya está registrado en otra cuenta.';
+        }
+        if (!isset($errors['dni']) && $this->userModel->dniExisteOtroUsuario((string) $values['dni'], $idSocio)) {
+            $errors['dni'] = 'Ese DNI/NIE ya está registrado en otra cuenta.';
+        }
+        $state = array_merge($values, [
+            'id_socio' => $idSocio,
+            'profile_version' => $expectedVersion === false ? 0 : (int) $expectedVersion,
+        ]);
+        if ($errors !== []) {
+            $this->volverSociosConFormulario(
+                'editar', $state, $errors, 'Revisa los campos marcados. No se ha cambiado la ficha.', $navegacion
+            );
         }
 
-        if ($error !== '') {
+        $error = '';
+        $result = (new SocioProfileService(
+            (int) $this->tenant->empresaId(), $this->tenant->sedeId(), $this->tenant->usuarioId()
+        ))->update($idSocio, (int) $expectedVersion, $values, $error);
+        if (($result['status'] ?? '') === 'conflict') {
             $this->irAConError('admin_socios', $error, $navegacion);
         }
-
-        $ibanAnterior = $socio['iban'] ?? null;
-        $ok = $this->userModel->actualizarDatosSocio($idSocio, $nombre, $apellidos, $telefono, $email, $iban);
-
-        if (!$ok) {
-            $this->irAConError('admin_socios', 'No se pudieron guardar los cambios.', $navegacion);
-        }
-
-        $nombreCompleto = trim($nombre . ' ' . $apellidos);
-        $this->registrarLogSobre('Edición de socio', $idSocio, $nombreCompleto);
-
-        // El cambio de cuenta bancaria se registra aparte y enmascarado: el log
-        // lo puede leer cualquier admin y no tiene por qué mostrar el número entero.
-        if ($ibanAnterior !== $iban) {
-            $this->registrarLogSobre(
-                'Cambio de IBAN',
-                $idSocio,
-                $nombreCompleto,
-                $ibanAnterior ? Iban::enmascarar($ibanAnterior) : 'sin IBAN',
-                $iban ? Iban::enmascarar($iban) : 'sin IBAN'
+        if ($result === null) {
+            $this->volverSociosConFormulario(
+                'editar', $state, ['_form' => $error], $error ?: 'No se pudieron guardar los cambios.', $navegacion
             );
         }
 

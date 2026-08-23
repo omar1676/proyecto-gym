@@ -783,7 +783,7 @@ class MembresiaModel
                 $offset = max(0, $offset);
                 $origenUsuarios = "(
                     SELECT u.id_usuario, u.nombre, u.apellidos, u.dni, u.email,
-                           u.telefono, u.iban, u.foto, u.activo, u.created_at
+                           u.telefono, u.iban, u.foto, u.activo, u.created_at, u.profile_version
                     FROM usuario u{$where}
                     ORDER BY u.apellidos ASC, u.nombre ASC, u.id_usuario ASC
                     LIMIT :limite OFFSET :offset
@@ -794,7 +794,7 @@ class MembresiaModel
 
             $sql =
                 "SELECT u.id_usuario, u.nombre, u.apellidos, u.dni, u.email, u.telefono, u.iban,
-                        u.foto, u.activo, u.created_at,
+                        u.foto, u.activo, u.created_at, u.profile_version,
                         sm.nombre_tipo, sm.nombre_suplemento,
                         sm.precio_pagado, sm.precio_suplemento,
                         sm.fecha_inicio, sm.fecha_fin,

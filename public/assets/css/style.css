@@ -9,6 +9,96 @@
  * propias o correcciones puntuales de navegador.
  */
 
+/*
+ * Un hijo ancho (normalmente una tabla) no debe ensanchar el viewport entero.
+ * La tabla conserva su desplazamiento dentro del contenedor local.
+ */
+html,
+body {
+    max-width: 100%;
+}
+
+.admin-layout,
+.admin-layout > main,
+.admin-layout > main > section {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.admin-header .js-logo-admin,
+.admin-header .js-logo-admin > a {
+    min-width: 0;
+}
+
+@media (max-width: 639px) {
+    .admin-header .js-logo-admin {
+        justify-content: flex-start;
+        overflow: hidden;
+    }
+
+    .admin-header .js-logo-admin > a {
+        flex: 0 1 auto;
+        overflow: hidden;
+    }
+
+    .admin-header .js-logo-admin > a img {
+        max-width: 82px;
+    }
+
+    .admin-header .js-logo-admin > a .text-lg {
+        max-width: 74px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .admin-header .js-logo-admin > form {
+        flex: 1 1 88px;
+        min-width: 70px;
+        max-width: 105px;
+    }
+
+    .admin-header .js-logo-admin > form select {
+        width: 100%;
+    }
+
+    [role="dialog"] {
+        padding: 0.75rem !important;
+    }
+
+    [role="dialog"] > .admin-modal-panel,
+    [role="dialog"] > div {
+        max-width: 100%;
+        padding: 1.25rem !important;
+    }
+
+    [role="dialog"] .admin-form-grid,
+    [role="dialog"] .grid.grid-cols-2 {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    [role="dialog"] .admin-action-row,
+    [role="dialog"] form > .flex.gap-3 {
+        flex-direction: column;
+    }
+
+    [role="dialog"] .admin-action-row > *,
+    [role="dialog"] form > .flex.gap-3 > * {
+        flex: 0 0 auto;
+        width: 100%;
+    }
+}
+
+@media (max-width: 359px) {
+    .admin-header .js-logo-admin > a .text-lg {
+        display: none;
+    }
+
+    .admin-header .js-logo-admin > a img {
+        max-width: 64px;
+    }
+}
+
 /* Al imprimir un listado sobran la navegación y los botones. */
 @media print {
     header,

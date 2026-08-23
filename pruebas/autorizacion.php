@@ -17,6 +17,10 @@ comprobarAutorizacion('dirección puede administrar sedes', Authorization::can('
 comprobarAutorizacion('admin no administra sedes', !Authorization::can('admin', 'sedes.manage'));
 comprobarAutorizacion('admin puede gestionar empleados de su ámbito', Authorization::can('admin', 'empleados.manage'));
 comprobarAutorizacion('recepción puede registrar ventas', Authorization::can('recepcion', 'ventas.create'));
+comprobarAutorizacion('dirección puede editar perfil operativo de socios', Authorization::can('direccion', 'socios.edit'));
+comprobarAutorizacion('admin puede editar perfil operativo de socios', Authorization::can('admin', 'socios.edit'));
+comprobarAutorizacion('recepción puede corregir perfil operativo de socios', Authorization::can('recepcion', 'socios.edit'));
+comprobarAutorizacion('socio no puede usar la edición administrativa', !Authorization::can('socio', 'socios.edit'));
 comprobarAutorizacion('recepción no puede anular ventas', !Authorization::can('recepcion', 'ventas.cancel'));
 comprobarAutorizacion('recepción no modifica stock', !Authorization::can('recepcion', 'stock.manage'));
 comprobarAutorizacion('recepción no consulta informes', !Authorization::can('recepcion', 'informes.view'));

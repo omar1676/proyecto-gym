@@ -21,5 +21,10 @@ check('acepta el máximo de DECIMAL(8,2)', InputValidator::money('999999.99') ==
 check('rechaza desbordar DECIMAL(8,2)', InputValidator::money('1000000.00') === null);
 check('rechaza importe enorme', InputValidator::money('999999999999999999999999.99') === null);
 check('rechaza entrada monetaria no numérica', InputValidator::money('29 euros') === null);
+check('valida DNI y normaliza espacios/minúscula', InputValidator::dniNie('12 345 678-z') === '12345678Z');
+check('rechaza DNI con letra de control incorrecta', InputValidator::dniNie('12345678A') === null);
+check('valida NIE y normaliza guion/minúscula', InputValidator::dniNie('x-1234567-l') === 'X1234567L');
+check('rechaza NIE con letra de control incorrecta', InputValidator::dniNie('X1234567A') === null);
+check('enmascara DNI para auditoría', InputValidator::maskDniNie('12345678Z') === '******78Z');
 if (in_array('--force-failure', $argv, true)) check('sonda deliberadamente falsa', false);
 finishTests();
