@@ -1,6 +1,6 @@
 # Gimnera — gestión SaaS multiempresa para gimnasios
 
-Versión candidata: **0.16.0-fase25a-rc1**. Mantiene la base estable de F24.1 y
+Versión candidata: **0.16.0-fase25a-rc2**. Mantiene la base estable de F24.1 y
 añade Training Foundation en una rama aislada: biblioteca global/privada,
 plantillas multidisciplina, planes personalizados por snapshot, asignaciones,
 sesiones y material visual privado. El entrenador sigue diseñando el contenido.

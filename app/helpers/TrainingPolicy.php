@@ -81,6 +81,13 @@ final class TrainingPolicy
         return (int) $filtered;
     }
 
+    public static function booleanFlag(mixed $value, string $field): int
+    {
+        if ($value === true || $value === 1 || $value === '1') return 1;
+        if ($value === false || $value === 0 || $value === '0') return 0;
+        throw new InvalidArgumentException($field . ' no válido.');
+    }
+
     public static function decimal(mixed $value, string $field, int $wholeDigits, int $scale, bool $required = false): ?string
     {
         if (($value === null || trim((string) $value) === '') && !$required) return null;

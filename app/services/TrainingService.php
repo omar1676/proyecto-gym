@@ -163,7 +163,7 @@ final class TrainingService
                 return $id;
             });
         } catch (Throwable $error) {
-            TrainingMediaStorage::delete($stored['storage_key']);
+            TrainingMediaStorage::deleteIfUnreferenced($this->db, $stored['storage_key']);
             throw $error;
         }
     }
@@ -203,6 +203,23 @@ final class TrainingService
         );
         $stmt->execute([':id' => $mediaId, ':company' => $this->companyId]);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    public function planMedia(int $mediaId): ?array
+    {
+        $this->assertPermission($this->role === 'socio' ? 'training.own.view' : 'training.view');
+        $where='pm.id_training_plan_exercise_media=:id AND pm.id_empresa=:company';
+        $params=[':id'=>$mediaId,':company'=>$this->companyId];
+        if($this->role==='admin'){$where.=' AND pm.id_gimnasio=:site';$params[':site']=$this->siteId;}
+        elseif($this->role==='socio'){$where.=' AND pm.id_socio=:member';$params[':member']=$this->actorId;}
+        $stmt=$this->db->prepare(
+            'SELECT pm.* FROM training_plan_exercise_media pm '
+            . 'JOIN training_plan_exercise pe ON pe.id_training_plan_exercise=pm.id_training_plan_exercise '
+            . 'AND pe.id_empresa=pm.id_empresa AND pe.id_gimnasio=pm.id_gimnasio AND pe.id_socio=pm.id_socio '
+            . 'WHERE '.$where.' LIMIT 1'
+        );
+        $stmt->execute($params);
+        return $stmt->fetch(PDO::FETCH_ASSOC)?:null;
     }
 
     /** Crea una plantilla completa o vacía como una sola unidad atómica. */
@@ -415,7 +432,8 @@ final class TrainingService
             $lock = $this->db->prepare('SELECT * FROM training_template WHERE id_training_template=:id AND id_empresa=:company FOR UPDATE');
             $lock->execute([':id' => $templateId, ':company' => $this->companyId]);
             $template = $lock->fetch(PDO::FETCH_ASSOC);
-            if (!$template || $template['status'] === 'ARCHIVED') throw new DomainException('Plantilla no disponible.');
+            if (!$template || $template['status'] !== 'ACTIVE') throw new DomainException('Plantilla no disponible.');
+            $this->assertTemplateExecutable($templateId, (int) $template['days_per_week']);
             $data = $this->planData([
                 'member_id' => (int) $member['id_usuario'],
                 'name' => trim((string)($overrides['name'] ?? '')) !== '' ? $overrides['name'] : $template['name'],
@@ -474,6 +492,15 @@ final class TrainingService
         if (!$plan) return null;
         $plan['disciplines'] = $this->disciplinesFor('training_plan_discipline', 'id_training_plan', $planId);
         $plan['days'] = $this->planDays($planId, (int) $plan['id_gimnasio'], (int) $plan['id_socio']);
+        $history=$this->db->prepare(
+            'SELECT s.id_training_session,s.session_date,s.status,s.completed_at_utc,s.notes,COUNT(se.id_training_session_exercise) result_count '
+            . 'FROM training_session s LEFT JOIN training_session_exercise se '
+            . 'ON se.id_training_session=s.id_training_session AND se.id_empresa=s.id_empresa '
+            . 'WHERE s.id_training_plan=:plan AND s.id_empresa=:company AND s.id_gimnasio=:site AND s.id_socio=:member '
+            . 'GROUP BY s.id_training_session ORDER BY s.session_date DESC,s.id_training_session DESC LIMIT 200'
+        );
+        $history->execute([':plan'=>$planId,':company'=>$this->companyId,':site'=>(int)$plan['id_gimnasio'],':member'=>(int)$plan['id_socio']]);
+        $plan['sessions']=$history->fetchAll(PDO::FETCH_ASSOC);
         return $plan;
     }
 
@@ -484,12 +511,33 @@ final class TrainingService
         $hash = hash('sha256', $idempotencyKey);
         return $this->write(function () use ($planId, $hash): int {
             $plan = $this->planForUpdate($planId);
+            $this->assertPlanExecutable($planId);
             $memberLock = $this->db->prepare('SELECT id_usuario FROM usuario WHERE id_usuario=:member AND id_empresa=:company FOR UPDATE');
             $memberLock->execute([':member' => (int) $plan['id_socio'], ':company' => $this->companyId]);
-            $existingKey = $this->db->prepare('SELECT id_training_assignment FROM training_assignment WHERE id_empresa=:company AND idempotency_key=:key');
+            $existingKey = $this->db->prepare('SELECT id_training_assignment,id_training_plan FROM training_assignment WHERE id_empresa=:company AND idempotency_key=:key');
             $existingKey->execute([':company' => $this->companyId, ':key' => $hash]);
-            $existingId = $existingKey->fetchColumn();
-            if ($existingId !== false) return (int) $existingId;
+            $existing = $existingKey->fetch(PDO::FETCH_ASSOC);
+            if ($existing) {
+                if ((int) $existing['id_training_plan'] !== $planId) throw new DomainException('La clave de idempotencia pertenece a otra asignación.');
+                return (int) $existing['id_training_assignment'];
+            }
+            $current=$this->db->prepare(
+                "SELECT id_training_assignment,id_training_plan FROM training_assignment "
+                . "WHERE id_empresa=:company AND id_socio=:member AND status='ACTIVE' FOR UPDATE"
+            );
+            $current->execute([':company'=>$this->companyId,':member'=>(int)$plan['id_socio']]);
+            $activeAssignment=$current->fetch(PDO::FETCH_ASSOC);
+            if($activeAssignment && (int)$activeAssignment['id_training_plan']===$planId){
+                return (int)$activeAssignment['id_training_assignment'];
+            }
+            if($activeAssignment){
+                $archive=$this->db->prepare(
+                    "UPDATE training_plan SET status='ARCHIVED',version=version+1 "
+                    . "WHERE id_training_plan=:plan AND id_empresa=:company AND status='ACTIVE'"
+                );
+                $archive->execute([':plan'=>(int)$activeAssignment['id_training_plan'],':company'=>$this->companyId]);
+                if($archive->rowCount()!==1)throw new DomainException('El plan principal anterior cambió durante la asignación.');
+            }
             $end = $this->db->prepare("UPDATE training_assignment SET status='ENDED',ended_at_utc=UTC_TIMESTAMP() WHERE id_empresa=:company AND id_socio=:member AND status='ACTIVE'");
             $end->execute([':company' => $this->companyId, ':member' => (int) $plan['id_socio']]);
             $insert = $this->db->prepare(
@@ -581,10 +629,22 @@ final class TrainingService
             $day = $this->db->prepare('SELECT id_training_plan_day FROM training_plan_day WHERE id_training_plan_day=:day AND id_training_plan=:plan AND id_empresa=:company');
             $day->execute([':day' => $dayId, ':plan' => $planId, ':company' => $this->companyId]);
             if (!$day->fetchColumn()) throw new DomainException('Día de plan no disponible.');
-            $existing = $this->db->prepare('SELECT id_training_session FROM training_session WHERE id_empresa=:company AND idempotency_key=:key');
+            $existing = $this->db->prepare('SELECT id_training_session,id_training_plan,id_training_plan_day,session_date FROM training_session WHERE id_empresa=:company AND idempotency_key=:key');
             $existing->execute([':company' => $this->companyId, ':key' => $hash]);
-            $id = $existing->fetchColumn();
-            if ($id !== false) return (int) $id;
+            $prior = $existing->fetch(PDO::FETCH_ASSOC);
+            if ($prior) {
+                if ((int)$prior['id_training_plan'] !== $planId || (int)$prior['id_training_plan_day'] !== $dayId
+                    || (string)$prior['session_date'] !== $date) {
+                    throw new DomainException('La clave de idempotencia pertenece a otra sesión.');
+                }
+                return (int) $prior['id_training_session'];
+            }
+            $active = $this->db->prepare(
+                "SELECT 1 FROM training_assignment WHERE id_training_plan=:plan AND id_empresa=:company "
+                . "AND id_socio=:member AND status='ACTIVE' FOR UPDATE"
+            );
+            $active->execute([':plan'=>$planId, ':company'=>$this->companyId, ':member'=>(int)$plan['id_socio']]);
+            if (!$active->fetchColumn()) throw new DomainException('El plan no está asignado como principal.');
             $stmt = $this->db->prepare(
                 'INSERT INTO training_session
                  (id_training_plan,id_training_plan_day,id_empresa,id_gimnasio,id_socio,session_date,idempotency_key)
@@ -780,16 +840,21 @@ final class TrainingService
         $days=$this->db->prepare('SELECT * FROM training_template_day WHERE id_training_template=:template AND id_empresa=:company ORDER BY day_order');
         $days->execute([':template'=>$templateId,':company'=>$this->companyId]);
         $rows=$days->fetchAll(PDO::FETCH_ASSOC);
-        foreach($rows as &$day){
-            $blocks=$this->db->prepare('SELECT * FROM training_template_block WHERE id_training_template_day=:day AND id_empresa=:company ORDER BY block_order');
-            $blocks->execute([':day'=>$day['id_training_template_day'],':company'=>$this->companyId]);
-            $day['blocks']=$blocks->fetchAll(PDO::FETCH_ASSOC);
-            foreach($day['blocks'] as &$block){
-                $items=$this->db->prepare('SELECT i.*,e.name exercise_name,e.discipline,e.execution_instructions FROM training_template_exercise i JOIN training_exercise e ON e.id_training_exercise=i.id_training_exercise AND e.catalog_scope=i.exercise_catalog_scope WHERE i.id_training_template_block=:block AND i.id_empresa=:company ORDER BY i.item_order');
-                $items->execute([':block'=>$block['id_training_template_block'],':company'=>$this->companyId]);
-                $block['exercises']=$items->fetchAll(PDO::FETCH_ASSOC);
-            }unset($block);
-        }unset($day);
+        if($rows===[])return [];
+        $dayIds=array_map('intval',array_column($rows,'id_training_template_day'));
+        [$dayIn,$dayParams]=$this->inParams($dayIds,'day');
+        $blocks=$this->db->prepare('SELECT * FROM training_template_block WHERE id_training_template_day IN ('.$dayIn.') AND id_empresa=:company ORDER BY id_training_template_day,block_order');
+        $blocks->execute($dayParams+[':company'=>$this->companyId]);$blockRows=$blocks->fetchAll(PDO::FETCH_ASSOC);
+        $itemsByBlock=[];
+        if($blockRows!==[]){
+            $blockIds=array_map('intval',array_column($blockRows,'id_training_template_block'));
+            [$blockIn,$blockParams]=$this->inParams($blockIds,'block');
+            $items=$this->db->prepare('SELECT i.*,e.name exercise_name,e.discipline,e.execution_instructions FROM training_template_exercise i JOIN training_exercise e ON e.id_training_exercise=i.id_training_exercise AND e.catalog_scope=i.exercise_catalog_scope WHERE i.id_training_template_block IN ('.$blockIn.') AND i.id_empresa=:company ORDER BY i.id_training_template_block,i.item_order');
+            $items->execute($blockParams+[':company'=>$this->companyId]);
+            foreach($items->fetchAll(PDO::FETCH_ASSOC) as $item)$itemsByBlock[(int)$item['id_training_template_block']][]=$item;
+        }
+        $blocksByDay=[];foreach($blockRows as $block){$block['exercises']=$itemsByBlock[(int)$block['id_training_template_block']]??[];$blocksByDay[(int)$block['id_training_template_day']][]=$block;}
+        foreach($rows as &$day)$day['blocks']=$blocksByDay[(int)$day['id_training_template_day']]??[];unset($day);
         return $rows;
     }
 
@@ -798,16 +863,65 @@ final class TrainingService
         $days=$this->db->prepare('SELECT * FROM training_plan_day WHERE id_training_plan=:plan AND id_empresa=:company AND id_gimnasio=:site AND id_socio=:member ORDER BY day_order');
         $days->execute([':plan'=>$planId,':company'=>$this->companyId,':site'=>$siteId,':member'=>$memberId]);
         $rows=$days->fetchAll(PDO::FETCH_ASSOC);
-        foreach($rows as &$day){
-            $blocks=$this->db->prepare('SELECT * FROM training_plan_block WHERE id_training_plan_day=:day AND id_empresa=:company ORDER BY block_order');
-            $blocks->execute([':day'=>$day['id_training_plan_day'],':company'=>$this->companyId]);$day['blocks']=$blocks->fetchAll(PDO::FETCH_ASSOC);
-            foreach($day['blocks'] as &$block){$items=$this->db->prepare('SELECT * FROM training_plan_exercise WHERE id_training_plan_block=:block AND id_empresa=:company ORDER BY item_order');$items->execute([':block'=>$block['id_training_plan_block'],':company'=>$this->companyId]);$block['exercises']=$items->fetchAll(PDO::FETCH_ASSOC);}unset($block);
-        }unset($day);return $rows;
+        if($rows===[])return [];
+        $dayIds=array_map('intval',array_column($rows,'id_training_plan_day'));[$dayIn,$dayParams]=$this->inParams($dayIds,'pday');
+        $scope=[':company'=>$this->companyId,':site'=>$siteId,':member'=>$memberId];
+        $blocks=$this->db->prepare('SELECT * FROM training_plan_block WHERE id_training_plan_day IN ('.$dayIn.') AND id_empresa=:company AND id_gimnasio=:site AND id_socio=:member ORDER BY id_training_plan_day,block_order');
+        $blocks->execute($dayParams+$scope);$blockRows=$blocks->fetchAll(PDO::FETCH_ASSOC);
+        $itemsByBlock=[];$mediaByItem=[];
+        if($blockRows!==[]){
+            $blockIds=array_map('intval',array_column($blockRows,'id_training_plan_block'));[$blockIn,$blockParams]=$this->inParams($blockIds,'pblock');
+            $items=$this->db->prepare('SELECT * FROM training_plan_exercise WHERE id_training_plan_block IN ('.$blockIn.') AND id_empresa=:company AND id_gimnasio=:site AND id_socio=:member ORDER BY id_training_plan_block,item_order');
+            $items->execute($blockParams+$scope);$itemRows=$items->fetchAll(PDO::FETCH_ASSOC);
+            if($itemRows!==[]){
+                $itemIds=array_map('intval',array_column($itemRows,'id_training_plan_exercise'));[$itemIn,$itemParams]=$this->inParams($itemIds,'pitem');
+                $media=$this->db->prepare('SELECT * FROM training_plan_exercise_media WHERE id_training_plan_exercise IN ('.$itemIn.') AND id_empresa=:company AND id_gimnasio=:site AND id_socio=:member ORDER BY id_training_plan_exercise,sort_order');
+                $media->execute($itemParams+$scope);foreach($media->fetchAll(PDO::FETCH_ASSOC) as $row)$mediaByItem[(int)$row['id_training_plan_exercise']][]=$row;
+            }
+            foreach($itemRows as $item){$item['media']=$mediaByItem[(int)$item['id_training_plan_exercise']]??[];$itemsByBlock[(int)$item['id_training_plan_block']][]=$item;}
+        }
+        $blocksByDay=[];foreach($blockRows as $block){$block['exercises']=$itemsByBlock[(int)$block['id_training_plan_block']]??[];$blocksByDay[(int)$block['id_training_plan_day']][]=$block;}
+        foreach($rows as &$day)$day['blocks']=$blocksByDay[(int)$day['id_training_plan_day']]??[];unset($day);return $rows;
+    }
+
+    /** @param list<int> $ids @return array{0:string,1:array<string,int>} */
+    private function inParams(array $ids,string $prefix):array
+    {
+        $marks=[];$params=[];foreach($ids as $index=>$id){$key=':'.$prefix.$index;$marks[]=$key;$params[$key]=$id;}
+        return[implode(',',$marks),$params];
     }
 
     private function insertSessionResult(int $sessionId,array $result): void
     {
         $itemId=TrainingPolicy::positiveInt($result['plan_exercise_id']??null,'Ejercicio',PHP_INT_MAX);
+        $typeQuery=$this->db->prepare(
+            'SELECT e.execution_type FROM training_session s '
+            . 'JOIN training_plan_day d ON d.id_training_plan=s.id_training_plan AND d.id_training_plan_day=s.id_training_plan_day '
+            . 'AND d.id_empresa=s.id_empresa AND d.id_gimnasio=s.id_gimnasio AND d.id_socio=s.id_socio '
+            . 'JOIN training_plan_block b ON b.id_training_plan_day=d.id_training_plan_day '
+            . 'AND b.id_empresa=d.id_empresa AND b.id_gimnasio=d.id_gimnasio AND b.id_socio=d.id_socio '
+            . 'JOIN training_plan_exercise e ON e.id_training_plan_block=b.id_training_plan_block '
+            . 'AND e.id_training_plan_exercise=:item AND e.id_empresa=s.id_empresa '
+            . 'AND e.id_gimnasio=s.id_gimnasio AND e.id_socio=s.id_socio '
+            . 'WHERE s.id_training_session=:session AND s.id_empresa=:company FOR UPDATE'
+        );
+        $typeQuery->execute([':item'=>$itemId, ':session'=>$sessionId, ':company'=>$this->companyId]);
+        $executionType=$typeQuery->fetchColumn();
+        if($executionType===false)throw new DomainException('Resultado de ejercicio fuera de la sesión.');
+        $allowedMetrics=match((string)$executionType){
+            'REPS'=>['actual_reps','actual_load_kg'],
+            'TIME'=>['actual_duration_seconds'],
+            'ROUNDS'=>['actual_rounds','actual_duration_seconds'],
+            'DISTANCE'=>['actual_duration_seconds'],
+            'CIRCUIT','TECHNIQUE'=>['actual_rounds','actual_duration_seconds'],
+            default=>[],
+        };
+        foreach(['actual_reps','actual_load_kg','actual_duration_seconds','actual_rounds'] as $metric){
+            if(array_key_exists($metric,$result)&&$result[$metric]!==null&&$result[$metric]!==''&&!in_array($metric,$allowedMetrics,true)){
+                throw new InvalidArgumentException('Métrica real incompatible con el tipo de ejecución.');
+            }
+        }
+        $completed=TrainingPolicy::booleanFlag($result['completed']??0,'Ejercicio completado');
         $stmt=$this->db->prepare(
             'INSERT INTO training_session_exercise
              (id_training_session,id_empresa,id_gimnasio,id_socio,id_training_plan_exercise,completed,actual_reps,actual_load_kg,actual_duration_seconds,actual_rounds,notes)
@@ -822,8 +936,50 @@ final class TrainingService
                   AND e.id_gimnasio=s.id_gimnasio AND e.id_socio=s.id_socio
              WHERE s.id_training_session=:session AND s.id_empresa=:company'
         );
-        $stmt->execute([':completed'=>!empty($result['completed'])?1:0,':reps'=>TrainingPolicy::positiveInt($result['actual_reps']??null,'Repeticiones',10000,false),':load'=>TrainingPolicy::decimal($result['actual_load_kg']??null,'Carga',5,3),':duration'=>TrainingPolicy::positiveInt($result['actual_duration_seconds']??null,'Duración',86400,false),':rounds'=>TrainingPolicy::positiveInt($result['actual_rounds']??null,'Rounds',1000,false),':notes'=>TrainingPolicy::text($result['notes']??'',2000,'Notas',false),':item'=>$itemId,':session'=>$sessionId,':company'=>$this->companyId]);
+        $stmt->execute([':completed'=>$completed,':reps'=>TrainingPolicy::positiveInt($result['actual_reps']??null,'Repeticiones',10000,false),':load'=>TrainingPolicy::decimal($result['actual_load_kg']??null,'Carga',5,3),':duration'=>TrainingPolicy::positiveInt($result['actual_duration_seconds']??null,'Duración',86400,false),':rounds'=>TrainingPolicy::positiveInt($result['actual_rounds']??null,'Rounds',1000,false),':notes'=>TrainingPolicy::text($result['notes']??'',2000,'Notas',false),':item'=>$itemId,':session'=>$sessionId,':company'=>$this->companyId]);
         if($stmt->rowCount()!==1) throw new DomainException('Resultado de ejercicio fuera de la sesión.');
+    }
+
+    private function assertTemplateExecutable(int $templateId,int $expectedDays): void
+    {
+        $stmt=$this->db->prepare(
+            'SELECT COUNT(DISTINCT d.id_training_template_day) day_count, '
+            . 'COUNT(DISTINCT b.id_training_template_block) block_count, '
+            . 'COUNT(i.id_training_template_exercise) item_count, '
+            . 'SUM(NOT EXISTS(SELECT 1 FROM training_template_block bx WHERE bx.id_training_template_day=d.id_training_template_day AND bx.id_empresa=d.id_empresa)) empty_days, '
+            . 'SUM(NOT EXISTS(SELECT 1 FROM training_template_exercise ix WHERE ix.id_training_template_block=b.id_training_template_block AND ix.id_empresa=b.id_empresa)) empty_blocks '
+            . 'FROM training_template_day d '
+            . 'LEFT JOIN training_template_block b ON b.id_training_template_day=d.id_training_template_day AND b.id_empresa=d.id_empresa '
+            . 'LEFT JOIN training_template_exercise i ON i.id_training_template_block=b.id_training_template_block AND i.id_empresa=b.id_empresa '
+            . 'WHERE d.id_training_template=:template AND d.id_empresa=:company'
+        );
+        $stmt->execute([':template'=>$templateId, ':company'=>$this->companyId]);
+        $row=$stmt->fetch(PDO::FETCH_ASSOC)?:[];
+        if((int)($row['day_count']??0)!==$expectedDays || (int)($row['block_count']??0)<1
+            || (int)($row['item_count']??0)<1 || (int)($row['empty_days']??0)>0 || (int)($row['empty_blocks']??0)>0){
+            throw new DomainException('La plantilla no tiene una estructura completa y ejecutable.');
+        }
+    }
+
+    private function assertPlanExecutable(int $planId): void
+    {
+        $stmt=$this->db->prepare(
+            'SELECT COUNT(DISTINCT d.id_training_plan_day) day_count, '
+            . 'COUNT(DISTINCT b.id_training_plan_block) block_count, '
+            . 'COUNT(i.id_training_plan_exercise) item_count, '
+            . 'SUM(NOT EXISTS(SELECT 1 FROM training_plan_block bx WHERE bx.id_training_plan_day=d.id_training_plan_day AND bx.id_empresa=d.id_empresa)) empty_days, '
+            . 'SUM(NOT EXISTS(SELECT 1 FROM training_plan_exercise ix WHERE ix.id_training_plan_block=b.id_training_plan_block AND ix.id_empresa=b.id_empresa)) empty_blocks '
+            . 'FROM training_plan_day d '
+            . 'LEFT JOIN training_plan_block b ON b.id_training_plan_day=d.id_training_plan_day AND b.id_empresa=d.id_empresa '
+            . 'LEFT JOIN training_plan_exercise i ON i.id_training_plan_block=b.id_training_plan_block AND i.id_empresa=b.id_empresa '
+            . 'WHERE d.id_training_plan=:plan AND d.id_empresa=:company'
+        );
+        $stmt->execute([':plan'=>$planId, ':company'=>$this->companyId]);
+        $row=$stmt->fetch(PDO::FETCH_ASSOC)?:[];
+        if((int)($row['day_count']??0)<1 || (int)($row['block_count']??0)<1 || (int)($row['item_count']??0)<1
+            || (int)($row['empty_days']??0)>0 || (int)($row['empty_blocks']??0)>0){
+            throw new DomainException('El plan no tiene una estructura completa y ejecutable.');
+        }
     }
 
     private function member(int $memberId,bool $requireActive=true): array

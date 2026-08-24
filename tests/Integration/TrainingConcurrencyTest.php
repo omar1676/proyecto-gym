@@ -22,9 +22,11 @@ try{
     $demo=DemoGymFactory::create($db);$company=(int)$demo['empresa'];$site=(int)$demo['sedes'][0];$actor=(int)$demo['direccion'];$member=(int)$demo['socios'][0];
     $service=new TrainingService($db,$company,$site,'direccion',$actor);
     $exercise=$service->createExercise(['name'=>'Press concurrente','discipline'=>'STRENGTH','difficulty'=>'INTERMEDIO','execution_type'=>'REPS']);
+    $exerciseTwo=$service->createExercise(['name'=>'Remo concurrente','discipline'=>'STRENGTH','difficulty'=>'INTERMEDIO','execution_type'=>'REPS']);
     $template=$service->createTemplate(['name'=>'Plantilla carrera','objective'=>'FUERZA','level'=>'INTERMEDIO','days_per_week'=>1,'status'=>'ACTIVE','disciplines'=>['STRENGTH']],[
         ['name'=>'Día 1','day_order'=>1,'blocks'=>[['name'=>'Fuerza','block_type'=>'STRENGTH','block_order'=>1,'exercises'=>[
             ['exercise_id'=>$exercise,'execution_type'=>'REPS','item_order'=>1,'sets_count'=>4,'reps_count'=>8,'load_kg'=>'70','rest_seconds'=>120],
+            ['exercise_id'=>$exerciseTwo,'execution_type'=>'REPS','item_order'=>2,'sets_count'=>4,'reps_count'=>8,'load_kg'=>'60','rest_seconds'=>120],
         ]]]],
     ]);
     $plan=$service->createPlanFromTemplate($template,$member,['start_date'=>'2026-08-24']);
@@ -44,6 +46,22 @@ try{
     $ids=array_unique(array_map(fn($r)=>(int)($r['data']['id']??0),$assignments));
     check('ambos reintentos observan el mismo resultado',count($ids)===1&&reset($ids)>0);
     check('workers no filtran detalles internos',count(array_filter(array_merge($updates,$assignments),fn($r)=>preg_match('/password|SQLSTATE|Fatal error|Uncaught/i',$r['stderr'])))===0);
+
+    $current=$service->plan($plan);$block=(int)$current['days'][0]['blocks'][0]['id_training_plan_block'];
+    $ordered=array_map(static fn(array $row):int=>(int)$row['id_training_plan_exercise'],$current['days'][0]['blocks'][0]['exercises']);
+    $barrierReorder=sys_get_temp_dir().'/gimnera-f25a-reorder-'.bin2hex(random_bytes(8));$barriers[]=$barrierReorder;
+    $reorders=f25aTrainingWorkers('reorder',$barrierReorder,[$company,$site,$actor,$block,$plan,(int)$current['version']],[implode(',',$ordered),implode(',',array_reverse($ordered))]);
+    check('reorder concurrente deja un único ganador',count(array_filter($reorders,fn($r)=>$r['exit']===0&&!empty($r['data']['success'])))===1);
+    $afterOrder=array_map(static fn(array $row):int=>(int)$row['id_training_plan_exercise'],$service->plan($plan)['days'][0]['blocks'][0]['exercises']);
+    $a=$afterOrder;$b=$ordered;sort($a);sort($b);
+    check('reorder concurrente conserva exactamente el conjunto',$a===$b);
+
+    $after=$service->plan($plan);$day=(int)$after['days'][0]['id_training_plan_day'];$resultItem=(int)$after['days'][0]['blocks'][0]['exercises'][0]['id_training_plan_exercise'];
+    $session=$service->createSession($plan,$day,'2026-08-30','post-f25a-concurrent-finish-01');
+    $barrierFinish=sys_get_temp_dir().'/gimnera-f25a-finish-'.bin2hex(random_bytes(8));$barriers[]=$barrierFinish;
+    $finishes=f25aTrainingWorkers('finish',$barrierFinish,[$company,$site,$actor,$session,1,$resultItem],[8,9]);
+    check('doble completado concurrente deja un único ganador',count(array_filter($finishes,fn($r)=>$r['exit']===0&&!empty($r['data']['success'])))===1);
+    check('doble completado no duplica resultado',(int)$db->query("SELECT COUNT(*) FROM training_session_exercise WHERE id_training_session={$session}")->fetchColumn()===1);
 }catch(Throwable $error){check('concurrencia Training completa',false);fwrite(STDERR,get_class($error).': '.$error->getMessage()."\n");}
 finally{foreach($barriers as $barrier)@unlink($barrier);if($demo!==null)DemoGymFactory::cleanup($db);}
 finishTests();

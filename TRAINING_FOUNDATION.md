@@ -34,7 +34,11 @@ biblioteca global/privada
 - Una plantilla se clona como snapshot. Sus cambios posteriores no modifican
   planes existentes.
 - Existe un único plan principal activo por socio y empresa. Las asignaciones
-  anteriores permanecen como histórico.
+  anteriores permanecen como histórico y el plan sustituido pasa a
+  `ARCHIVED` sin perder sus sesiones.
+- Solo una plantilla `ACTIVE`, completa y con el número de días declarado
+  puede clonarse. Solo un plan con días, bloques y ejercicios completos puede
+  asignarse, y únicamente el plan principal asignado admite nuevas sesiones.
 - La ejecución de una sesión nunca se infiere de un acceso físico.
 - Las ediciones de ejercicios, planes, orden y sesiones usan versiones
   optimistas para rechazar pérdidas silenciosas.
@@ -58,6 +62,12 @@ JPEG, PNG y WebP cuyo MIME real, extensión y dimensiones coincidan. El servidor
 genera el nombre; el acceso se hace mediante una ruta autorizada con cabeceras
 privadas y `nosniff`.
 
+Los ficheros son inmutables mientras exista una referencia en biblioteca o en
+un snapshot de plan. El borrado físico únicamente acepta medios sin referencias
+en ambas estructuras. El plan sirve su propia metadata autorizada, de modo que
+retirar la referencia de biblioteca no rompe el histórico. No existe borrado
+de medios expuesto a usuarios en F25A.
+
 Los vídeos son referencias HTTPS autorizadas, no binarios en MariaDB. Cada
 medio admite fuente, licencia, atribución y texto alternativo. No se incorpora
 contenido descargado de Internet en esta fase.
@@ -76,8 +86,9 @@ Esto no constituye una declaración de cumplimiento legal.
 La migración forward-only es `migracion_v33.sql`. Añade el esquema sin modificar
 v1-v32. El schema gate verifica tablas, índices y relaciones contractuales.
 
-La suite F25A cubre validación de todas las modalidades, snapshot, asignación e
-idempotencia, sesiones, concurrencia multi-proceso, catálogo global/privado,
-IDOR multiempresa/multisede, roles, medios hostiles, vistas y carga sintética.
+La suite F25A cubre validación de todas las modalidades, forma contractual en
+MariaDB, snapshot, asignación e idempotencia, sesiones, concurrencia
+multi-proceso, catálogo global/privado, IDOR multiempresa/multisede, roles,
+medios hostiles, vistas, histórico y carga sintética sin N+1 en planes grandes.
 Las pruebas destructivas solo pueden ejecutarse con `APP_ENV=test` y una base
 aislada.

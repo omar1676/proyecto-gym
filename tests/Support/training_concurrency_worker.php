@@ -21,6 +21,17 @@ try{
         ]);
         echo json_encode(['success'=>true],JSON_THROW_ON_ERROR);exit(0);
     }
+    if($mode==='reorder'){
+        $ids=array_map('intval',explode(',',(string)$argv[9]));
+        $service->reorderPlanExercises((int)$argv[6],$ids,(int)$argv[7],(int)$argv[8]);
+        echo json_encode(['success'=>true],JSON_THROW_ON_ERROR);exit(0);
+    }
+    if($mode==='finish'){
+        $service->finishSession((int)$argv[6],(int)$argv[7],'COMPLETED',[[
+            'plan_exercise_id'=>(int)$argv[8],'completed'=>1,'actual_reps'=>(int)$argv[9],
+        ]]);
+        echo json_encode(['success'=>true],JSON_THROW_ON_ERROR);exit(0);
+    }
     exit(2);
 }catch(Throwable $error){
     echo json_encode(['success'=>false,'error'=>get_class($error)],JSON_THROW_ON_ERROR);exit(1);

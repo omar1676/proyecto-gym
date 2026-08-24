@@ -60,6 +60,9 @@ $suites = [
         'tests/Integration/RetentionAuditFailureTest.php',
         'tests/Integration/TrainingFoundationTest.php',
         'tests/Integration/TrainingConcurrencyTest.php',
+        'tests/Integration/TrainingHostileIntegrityTest.php',
+        'tests/Integration/TrainingExecutionSessionTest.php',
+        'tests/Integration/MigrationV33ContractTest.php',
     ],
     'Security' => [
         'tests/Security/OutputEncodingTest.php', 'tests/Security/RateLimitTest.php',

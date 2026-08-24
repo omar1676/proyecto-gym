@@ -163,6 +163,7 @@ $rutas = [
     'training_exercise_clone'        => ['training', 'cloneExercise'],
     'training_media_add'             => ['training', 'addMedia'],
     'training_media'                 => ['training', 'media'],
+    'training_plan_media'            => ['training', 'planMedia'],
     'training_templates'             => ['training', 'templates'],
     'training_template_create'       => ['training', 'createTemplate'],
     'training_template_day_add'      => ['training', 'addTemplateDay'],

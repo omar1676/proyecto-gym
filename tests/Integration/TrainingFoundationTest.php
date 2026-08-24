@@ -122,6 +122,9 @@ try {
     check('solo existe un plan principal por socio', $assignmentB > $assignmentA && (int)$db->query(
         "SELECT COUNT(*) FROM training_assignment WHERE id_empresa={$company} AND id_socio={$member} AND status='ACTIVE'"
     )->fetchColumn() === 1);
+    check('plan principal sustituido pasa a histórico sin borrarse',(string)$db->query(
+        "SELECT status FROM training_plan WHERE id_training_plan={$plan}"
+    )->fetchColumn()==='ARCHIVED' && $service->plan($plan)!==null);
 
     $planTwoRow = $service->plan($planTwo);
     $item = $planTwoRow['days'][0]['blocks'][0]['exercises'][0];
@@ -158,6 +161,7 @@ try {
     check('sesión completa conserva resultado opcional', (int)$db->query(
         "SELECT COUNT(*) FROM training_session_exercise WHERE id_training_session={$session} AND completed=1"
     )->fetchColumn() === 1);
+    check('historial de sesión queda visible en el plan',count($service->plan($planTwo)['sessions'])===1);
     $doubleFinish=false;
     try { $service->finishSession($session,1,'COMPLETED'); } catch (DomainException) { $doubleFinish=true; }
     check('doble finalización queda rechazada', $doubleFinish);

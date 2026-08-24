@@ -64,8 +64,18 @@ final class TrainingMediaStorage
         return ['path' => $path, 'mime_type' => $mime, 'size_bytes' => (int) filesize($path)];
     }
 
-    public static function delete(string $storageKey): bool
+    /**
+     * El fichero es inmutable mientras cualquier biblioteca o snapshot de plan
+     * lo referencie. Esta es la única vía de borrado físico permitida.
+     */
+    public static function deleteIfUnreferenced(PDO $db, string $storageKey): bool
     {
+        if (!preg_match('/^training_[a-f0-9]{48}\.(?:jpg|png|webp)$/', $storageKey)) return false;
+        foreach (['training_exercise_media', 'training_plan_exercise_media'] as $table) {
+            $stmt = $db->prepare('SELECT COUNT(*) FROM ' . $table . ' WHERE storage_key=:key');
+            $stmt->execute([':key' => $storageKey]);
+            if ((int) $stmt->fetchColumn() > 0) return false;
+        }
         $resolved = self::resolve($storageKey);
         return $resolved === null || @unlink($resolved['path']);
     }

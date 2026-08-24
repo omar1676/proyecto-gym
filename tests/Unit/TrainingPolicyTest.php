@@ -42,6 +42,11 @@ foreach ($hostile as $index => [$type,$input]) {
 check('carga se conserva como decimal textual', TrainingPolicy::decimal('70.1','Carga',5,3,true) === '70.100');
 check('taxonomía multidisciplina conserva valores únicos', TrainingPolicy::disciplines(['MMA','GYM','MMA']) === ['MMA','GYM']);
 check('slug normaliza texto humano', TrainingPolicy::slug('Combinación Técnica 1') === 'combinacion-tecnica-1');
+check('booleano de formulario acepta exclusivamente 0/1', TrainingPolicy::booleanFlag('1','Completado') === 1
+    && TrainingPolicy::booleanFlag('0','Completado') === 0);
+$badBoolean=false;
+try { TrainingPolicy::booleanFlag('yes','Completado'); } catch (InvalidArgumentException) { $badBoolean=true; }
+check('booleano textual ambiguo queda rechazado', $badBoolean);
 
 $clinicalRejected = false;
 try { TrainingPolicy::text("Nota\0oculta", 100, 'Notas'); } catch (InvalidArgumentException) { $clinicalRejected = true; }

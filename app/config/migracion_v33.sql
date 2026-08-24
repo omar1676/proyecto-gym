@@ -170,6 +170,14 @@ CREATE TABLE `training_template_exercise` (
         (`load_kg` IS NULL OR `load_kg` >= 0) AND
         (`rest_seconds` IS NULL OR `rest_seconds` >= 0) AND
         (`transition_seconds` IS NULL OR `transition_seconds` >= 0)
+    ),
+    CONSTRAINT `chk_training_template_execution_shape` CHECK (
+        (`execution_type`='REPS' AND `sets_count` IS NOT NULL AND `reps_count` IS NOT NULL AND `duration_seconds` IS NULL AND `rounds_count` IS NULL AND `distance_value` IS NULL AND `work_seconds` IS NULL)
+        OR (`execution_type`='TIME' AND `sets_count` IS NOT NULL AND `duration_seconds` IS NOT NULL AND `rounds_count` IS NULL AND `distance_value` IS NULL AND `work_seconds` IS NULL)
+        OR (`execution_type`='ROUNDS' AND `rounds_count` IS NOT NULL AND `round_duration_seconds` IS NOT NULL AND `sets_count` IS NULL AND `duration_seconds` IS NULL AND `distance_value` IS NULL AND `work_seconds` IS NULL)
+        OR (`execution_type`='DISTANCE' AND `sets_count` IS NOT NULL AND `distance_value` IS NOT NULL AND `distance_unit` IS NOT NULL AND `duration_seconds` IS NULL AND `rounds_count` IS NULL AND `work_seconds` IS NULL)
+        OR (`execution_type`='CIRCUIT' AND (`work_seconds` IS NOT NULL OR `reps_count` IS NOT NULL) AND `transition_seconds` IS NOT NULL AND `sets_count` IS NULL AND `duration_seconds` IS NULL AND `rounds_count` IS NULL AND `distance_value` IS NULL)
+        OR (`execution_type`='TECHNIQUE' AND (`duration_seconds` IS NOT NULL OR (`rounds_count` IS NOT NULL AND `round_duration_seconds` IS NOT NULL)) AND `sets_count` IS NULL AND `distance_value` IS NULL AND `work_seconds` IS NULL)
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -299,6 +307,14 @@ CREATE TABLE `training_plan_exercise` (
         (`load_kg` IS NULL OR `load_kg` >= 0) AND
         (`rest_seconds` IS NULL OR `rest_seconds` >= 0) AND
         (`transition_seconds` IS NULL OR `transition_seconds` >= 0)
+    ),
+    CONSTRAINT `chk_training_plan_execution_shape` CHECK (
+        (`execution_type`='REPS' AND `sets_count` IS NOT NULL AND `reps_count` IS NOT NULL AND `duration_seconds` IS NULL AND `rounds_count` IS NULL AND `distance_value` IS NULL AND `work_seconds` IS NULL)
+        OR (`execution_type`='TIME' AND `sets_count` IS NOT NULL AND `duration_seconds` IS NOT NULL AND `rounds_count` IS NULL AND `distance_value` IS NULL AND `work_seconds` IS NULL)
+        OR (`execution_type`='ROUNDS' AND `rounds_count` IS NOT NULL AND `round_duration_seconds` IS NOT NULL AND `sets_count` IS NULL AND `duration_seconds` IS NULL AND `distance_value` IS NULL AND `work_seconds` IS NULL)
+        OR (`execution_type`='DISTANCE' AND `sets_count` IS NOT NULL AND `distance_value` IS NOT NULL AND `distance_unit` IS NOT NULL AND `duration_seconds` IS NULL AND `rounds_count` IS NULL AND `work_seconds` IS NULL)
+        OR (`execution_type`='CIRCUIT' AND (`work_seconds` IS NOT NULL OR `reps_count` IS NOT NULL) AND `transition_seconds` IS NOT NULL AND `sets_count` IS NULL AND `duration_seconds` IS NULL AND `rounds_count` IS NULL AND `distance_value` IS NULL)
+        OR (`execution_type`='TECHNIQUE' AND (`duration_seconds` IS NOT NULL OR (`rounds_count` IS NOT NULL AND `round_duration_seconds` IS NOT NULL)) AND `sets_count` IS NULL AND `distance_value` IS NULL AND `work_seconds` IS NULL)
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

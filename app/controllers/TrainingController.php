@@ -75,6 +75,20 @@ final class TrainingController
         readfile($file['path']);exit;
     }
 
+    public function planMedia(): void
+    {
+        $permission=$this->tenant->rol()==='socio'?'training.own.view':'training.view';
+        $this->requirePermission($permission);
+        $row=$this->service()->planMedia($this->positiveQuery('id',0));
+        if(!$row||$row['media_type']!=='IMAGE'||empty($row['storage_key']))$this->deny(404);
+        $file=TrainingMediaStorage::resolve((string)$row['storage_key']);
+        if(!$file)$this->deny(404);
+        header('Content-Type: '.$file['mime_type']);header('Content-Length: '.(string)$file['size_bytes']);
+        header('Content-Disposition: inline; filename="training-plan-image.'.pathinfo((string)$row['storage_key'],PATHINFO_EXTENSION).'"');
+        header('Cache-Control: private, no-store, max-age=0');header('X-Content-Type-Options: nosniff');
+        readfile($file['path']);exit;
+    }
+
     public function templates(): void
     {
         $this->requirePermission('training.view');$service=$this->service();$templates=$service->listTemplates();

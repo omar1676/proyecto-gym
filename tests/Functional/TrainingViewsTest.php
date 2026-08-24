@@ -31,6 +31,9 @@ check('RBAC no crea rol entrenador improvisado',!Authorization::can('recepcion',
 
 $controller=(string)file_get_contents($root.'/app/controllers/TrainingController.php');$router=(string)file_get_contents($root.'/public/index.php');
 check('router publica solo acciones Training explícitas',str_contains($router,"'training_library'")&&str_contains($router,"'training_plan_assign'"));
+check('snapshot visual tiene endpoint privado propio',str_contains($router,"'training_plan_media'")
+    && str_contains($sources['training_plans.php'],'action=training_plan_media'));
+check('vista de plan permite revisar historial ya persistido',str_contains($sources['training_plans.php'],'Historial de sesiones'));
 check('controlador no acepta empresa desde navegador',!preg_match('/\$_(?:POST|GET)\[[\'\"](?:empresa_id|id_empresa)[\'\"]\]/',$controller));
 check('errores técnicos no se muestran al usuario',str_contains($controller,'training_plan_create_failed')&&str_contains($controller,'No se pudo crear el plan.'));
 

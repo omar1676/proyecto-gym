@@ -92,6 +92,16 @@ try {
         catch(InvalidArgumentException){$rejected=true;}finally{@unlink($tmp);}
         check('upload hostil queda rechazado #'.($index+1),$rejected);
     }
+    $huge=tempnam(sys_get_temp_dir(),'f25a_huge_');$handle=fopen($huge,'wb');ftruncate($handle,TRAINING_MEDIA_MAX_BYTES+1);fclose($handle);$hugeRejected=false;
+    try{TrainingMediaStorage::storeUploadedImage(['error'=>UPLOAD_ERR_OK,'tmp_name'=>$huge,'name'=>'enorme.png']);}catch(InvalidArgumentException){$hugeRejected=true;}finally{@unlink($huge);}
+    check('upload superior al máximo queda rechazado',$hugeRejected);
+    $unicode=tempnam(sys_get_temp_dir(),'f25a_unicode_');copy($png,$unicode);
+    $unicodeStored=TrainingMediaStorage::storeUploadedImage(['error'=>UPLOAD_ERR_OK,'tmp_name'=>$unicode,'name'=>'técnica-ñ.png']);$storedKeys[]=$unicodeStored['storage_key'];@unlink($unicode);
+    check('nombre Unicode nunca llega al nombre físico',preg_match('/^training_[a-f0-9]{48}\.png$/',$unicodeStored['storage_key'])===1);
+    $nullName=false;try{TrainingMediaStorage::storeUploadedImage(['error'=>UPLOAD_ERR_OK,'tmp_name'=>$png,'name'=>"foto.png\0.php"]);}catch(InvalidArgumentException){$nullName=true;}
+    check('nombre con byte nulo queda rechazado',$nullName);
+    $storageSource=(string)file_get_contents(dirname(__DIR__,2).'/app/helpers/TrainingMediaStorage.php');
+    check('runtime real exige subida HTTP auténtica',str_contains($storageSource,"is_uploaded_file(\$tmp) && APP_ENV !== 'test'"));
     @unlink($png);
     $badVideo=false;try{TrainingMediaStorage::validateVideoReference('http://example.invalid/video');}catch(InvalidArgumentException){$badVideo=true;}
     check('referencia de vídeo exige HTTPS', $badVideo);
@@ -104,8 +114,8 @@ try {
 }catch(Throwable $error){
     check('seguridad Training completa',false);fwrite(STDERR,get_class($error).': '.$error->getMessage()."\n");
 }finally{
-    foreach($storedKeys as $key)TrainingMediaStorage::delete($key);
     if($demo!==null)DemoGymFactory::cleanup($db);
+    foreach($storedKeys as $key)TrainingMediaStorage::deleteIfUnreferenced($db,$key);
 }
 
 finishTests();
