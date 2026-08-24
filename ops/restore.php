@@ -1,5 +1,6 @@
 <?php
 require_once dirname(__DIR__) . '/app/config/config.php';
+require_once dirname(__DIR__) . '/app/helpers/SqlDumpImporter.php';
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 
 $options = getopt('', ['database:', 'target:', 'files::', 'files-target::', 'recreate', 'existing-empty']);
@@ -25,7 +26,7 @@ try {
         $admin->exec('CREATE DATABASE `' . $target . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
     }
     $db = new PDO($dsn . ';dbname=' . $target, DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false]);
-    importSql($db, $backup);
+    SqlDumpImporter::import($db, $backup);
     $tables = (int) $db->query('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()')->fetchColumn();
     if ($tables < 5) throw new RuntimeException('La restauración produjo un número de tablas no válido.');
 
@@ -47,23 +48,4 @@ try {
 } catch (Throwable $e) {
     fwrite(STDERR, 'RESTAURACIÓN DETENIDA: ' . $e->getMessage() . PHP_EOL);
     exit(1);
-}
-
-function importSql(PDO $db, string $file): void
-{
-    $gz = str_ends_with(strtolower($file), '.gz');
-    $handle = $gz ? @gzopen($file, 'rb') : @fopen($file, 'rb');
-    if (!$handle) throw new RuntimeException('No se pudo abrir el dump.');
-    $statement = '';
-    while (($line = $gz ? gzgets($handle) : fgets($handle)) !== false) {
-        $trim = ltrim($line);
-        if ($statement === '' && ($trim === '' || str_starts_with($trim, '--') || str_starts_with($trim, '#'))) continue;
-        $statement .= $line;
-        if (preg_match('/;\s*$/', $line)) {
-            $db->exec($statement);
-            $statement = '';
-        }
-    }
-    $gz ? gzclose($handle) : fclose($handle);
-    if (trim($statement) !== '') $db->exec($statement);
 }
