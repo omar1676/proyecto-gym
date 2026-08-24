@@ -28,6 +28,7 @@ class Menu
         'log'        => 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 0 2-2h2a2 2 0 0 0 2 2m-6 9l2 2 4-4',
         'migraciones'=> 'M12 3v12m0 0-4-4m4 4 4-4M5 19h14',
         'empresas'   => 'M3 21h18M5 21V7l7-4 7 4v14M9 10h.01M15 10h.01M9 14h.01M15 14h.01',
+        'retention'  => 'M4 19v-7a8 8 0 0 1 16 0v7M8 19v-5m8 5v-8M9 7l3-3 3 3',
         'salir'      => 'M10 17 15 12 10 7M15 12H3m8-9h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6',
     ];
 
@@ -49,16 +50,17 @@ class Menu
         $historial  = ['admin_log',        'log',        'Historial',      'log'];
         $migraciones= ['admin_importaciones','migraciones','Importaciones','migraciones'];
         $empresas    = ['admin_empresas','empresas','Empresas','empresas'];
+        $retention   = ['retention', 'retention', 'Atención socios', 'retention'];
 
         switch ($rol) {
             case 'superadmin':
                 return [$empresas, $inicio, $ventas, $caja, $productos, $socios, $membresias, $remesas,
                         ['admin_sedes', 'sedes', 'Sedes', 'sedes'], $personal, $reportes, $historial, $migraciones];
             case 'direccion':
-                return [$inicio, $ventas, $caja, $productos, $socios, $membresias, $remesas,
+                return [$inicio, $ventas, $caja, $productos, $socios, $retention, $membresias, $remesas,
                         ['admin_sedes', 'sedes', 'Sedes', 'sedes'], $personal, $reportes, $historial, $migraciones];
             case 'admin':
-                return [$inicio, $ventas, $caja, $productos, $socios, $membresias, $remesas,
+                return [$inicio, $ventas, $caja, $productos, $socios, $retention, $membresias, $remesas,
                         $personal, $reportes, $historial];
             case 'recepcion':
                 // Mostrador: cobrar y atender socios.

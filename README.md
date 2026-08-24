@@ -1,10 +1,9 @@
 # Gimnera — gestión SaaS multiempresa para gimnasios
 
-Versión actual: **0.14.0-fase23**. Conserva el onboarding y las protecciones
-multiempresa de F22.1, corrige el responsive del panel y hace segura la
-corrección de datos del socio: validación compartida de DNI/NIE e IBAN,
-recuperación del formulario sin secretos, edición atómica y control de
-concurrencia. No conecta DORLET, lectores, controladoras ni biometría.
+Versión actual: **0.15.0-fase24**. Añade Retention Engine V1: detección
+determinista y explicable de caídas de asistencia sobre eventos genéricos,
+con aislamiento multiempresa/multisede, cooldown, retorno y revisión manual.
+No envía mensajes, no conecta DORLET, lectores, controladoras ni biometría.
 
 Panel de gestión para un gimnasio multisede: socios y membresías, venta de productos,
 empleados, remesas SEPA y control de acceso desde el panel.
@@ -68,3 +67,6 @@ compartido, el correo saliente y las copias de seguridad.
 procedencia y las rotaciones de secretos pendientes. Los archivos históricos,
 dumps y configuraciones reales no forman parte del repositorio ni de la
 release.
+
+`RETENTION_ENGINE.md` documenta las reglas, límites, permisos y operación del
+motor de retención determinista.

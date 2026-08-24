@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "release": "0.14.0-fase23",
+  "release": "0.15.0-fase24",
   "minimum_runtime_version": 27,
-  "maximum_runtime_version": 30,
-  "maximum_migrator_version": 30,
-  "notes": "F23. El runtime acepta v27-v30; v30 añade control optimista del perfil de socio. El migrador solo se ejecuta si la base no supera v30."
+  "maximum_runtime_version": 31,
+  "maximum_migrator_version": 31,
+  "notes": "F24. El runtime acepta v27-v31; v31 añade eventos genéricos y el motor de retención determinista. El migrador solo se ejecuta si la base no supera v31."
 }

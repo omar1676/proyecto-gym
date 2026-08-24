@@ -52,6 +52,7 @@ $valid = $run([PHP_BINARY, $root . '/ops/runtime_check.php'], $validEnvironment)
 $check('runtime correcto devuelve exit cero', $valid['exit'] === 0);
 
 $invalidCredential = $validEnvironment;
+$invalidCredential['DB_USER'] = 'gimnera_invalid_' . bin2hex(random_bytes(4));
 $invalidCredential['DB_PASS'] = 'F21.1-synthetic-invalid-credential';
 $credentialFailure = $run([PHP_BINARY, $root . '/ops/runtime_check.php'], $invalidCredential);
 $check('credencial sintética inválida devuelve exit distinto de cero', $credentialFailure['exit'] !== 0);

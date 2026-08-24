@@ -23,11 +23,11 @@ try {
 
     $before = RestoreVerifier::verify($fixture['db'], dirname(__DIR__, 2) . '/app/config', $artifact);
     check('backup antiguo válido no se presenta como corrupción', $before['BACKUP_INTEGRITY'] === 'OK');
-    check('verificador separa esquema v27 de actual v30', $before['SCHEMA_AT_BACKUP'] === 27 && $before['CURRENT_SCHEMA'] === 30);
+    check('verificador separa esquema v27 de actual v31', $before['SCHEMA_AT_BACKUP'] === 27 && $before['CURRENT_SCHEMA'] === 31);
     check('verificador exige migración sin invalidar integridad', $before['SCHEMA_CURRENCY'] === 'OLD' && $before['MIGRATION_REQUIRED'] === 'YES');
 
     $currentManager = new MigrationManager($fixture['db']);
-    check('migración posterior del restore aplica v28, v29 y v30', $currentManager->migratePending() === ['migracion_v28.sql', 'migracion_v29.sql', 'migracion_v30.sql']);
+    check('migración posterior del restore aplica v28-v31', $currentManager->migratePending() === ['migracion_v28.sql', 'migracion_v29.sql', 'migracion_v30.sql', 'migracion_v31.sql']);
     $after = RestoreVerifier::verify($fixture['db'], dirname(__DIR__, 2) . '/app/config', $artifact);
     check('restore migrado conserva integridad y queda current', $after['BACKUP_INTEGRITY'] === 'OK'
         && $after['SCHEMA_CURRENCY'] === 'CURRENT'

@@ -13,6 +13,7 @@ final class Authorization
             'auditoria.view', 'remesas.manage', 'mandatos.create', 'config.manage',
             'migrations.manage', 'caja.view', 'caja.operate', 'caja.adjust',
             'access.view', 'access.manage', 'access.sync', 'access.audit',
+            'retention.view', 'retention.review',
         ],
         'admin' => [
             'dashboard.view', 'socios.view', 'socios.create', 'socios.edit',
@@ -22,6 +23,7 @@ final class Authorization
             'auditoria.view', 'remesas.manage', 'mandatos.create',
             'caja.view', 'caja.operate', 'caja.adjust',
             'access.view', 'access.audit',
+            'retention.view', 'retention.review',
         ],
         'recepcion' => [
             'dashboard.view', 'socios.view', 'socios.create', 'socios.edit',

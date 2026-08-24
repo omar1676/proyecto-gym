@@ -290,6 +290,24 @@ final class MigrationManager
             'migracion_v30.sql' => [
                 'column:usuario.profile_version' => $this->hasColumn('usuario', 'profile_version'),
             ],
+            'migracion_v31.sql' => array_merge(
+                $this->tableChecks([
+                    'retention_config', 'retention_activity_mapping', 'attendance_event',
+                    'retention_run', 'retention_detection', 'retention_action',
+                ]),
+                [
+                    'index:tipo_membresia.uq_tipo_membresia_scope' => $this->hasIndex('tipo_membresia', 'uq_tipo_membresia_scope'),
+                    'index:usuario.uq_usuario_company_scope' => $this->hasIndex('usuario', 'uq_usuario_company_scope'),
+                    'index:attendance_event.uq_attendance_idempotency' => $this->hasIndex('attendance_event', 'uq_attendance_idempotency'),
+                    'index:attendance_event.uq_attendance_external' => $this->hasIndex('attendance_event', 'uq_attendance_external'),
+                    'index:retention_run.uq_retention_run_daily' => $this->hasIndex('retention_run', 'uq_retention_run_daily'),
+                    'index:retention_detection.uq_retention_detection_daily' => $this->hasIndex('retention_detection', 'uq_retention_detection_daily'),
+                    'index:retention_action.uq_retention_action_idempotency' => $this->hasIndex('retention_action', 'uq_retention_action_idempotency'),
+                    'fk:attendance_event.fk_attendance_member_scope' => $this->hasForeignKey('attendance_event', 'fk_attendance_member_scope'),
+                    'fk:retention_detection.fk_retention_detection_member_scope' => $this->hasForeignKey('retention_detection', 'fk_retention_detection_member_scope'),
+                    'fk:retention_action.fk_retention_action_detection_scope' => $this->hasForeignKey('retention_action', 'fk_retention_action_detection_scope'),
+                ]
+            ),
             default => [],
         };
     }

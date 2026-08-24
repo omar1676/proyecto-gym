@@ -14,6 +14,7 @@ $suites = [
         'tests/Unit/F21OperationalSafetyTest.php', 'tests/Unit/TestDatabaseNameTest.php',
         'tests/Unit/AuditPolicyTest.php', 'tests/Unit/LogSanitizationTest.php',
         'tests/Unit/SocioFormStateTest.php',
+        'tests/Unit/RetentionPolicyTest.php',
     ],
     'Integration' => [
         'tests/Integration/IntegrityTest.php', 'tests/Integration/IdempotencyTest.php',
@@ -46,6 +47,12 @@ $suites = [
         'tests/Integration/PlatformAdminBootstrapConcurrencyTest.php',
         'tests/Integration/SocioProfileF23Test.php',
         'tests/Integration/SocioProfileConcurrencyTest.php',
+        'tests/Integration/MigrationV31StructureTest.php',
+        'tests/Integration/RetentionEngineTest.php',
+        'tests/Integration/RetentionConcurrencyTest.php',
+        'tests/Integration/RetentionMultiTenantScaleTest.php',
+        'tests/Integration/AttendanceTimezoneTest.php',
+        'tests/Integration/RetentionAuditFailureTest.php',
     ],
     'Security' => [
         'tests/Security/OutputEncodingTest.php', 'tests/Security/RateLimitTest.php',
@@ -54,6 +61,7 @@ $suites = [
         'tests/Security/StagingSafetyTest.php', 'pruebas/multiempresa.php',
         'tests/Security/PrivacyRoutesTest.php', 'tests/Security/InfrastructureFailureTest.php',
         'tests/Security/TenantOnboardingIsolationTest.php',
+        'tests/Security/RetentionSecurityTest.php',
         'pruebas/multisede.php', 'pruebas/autorizacion.php',
     ],
     'Functional' => [
@@ -66,7 +74,11 @@ $suites = [
         'tests/Functional/TenantBrandingTest.php',
         'tests/Functional/ResponsiveAdminViewsTest.php',
         'tests/Functional/SocioFormRecoveryHttpTest.php',
+        'tests/Functional/RetentionViewTest.php',
         'pruebas/acceso.php',
+    ],
+    'Performance' => [
+        'tests/Performance/RetentionPerformanceTest.php',
     ],
 ];
 

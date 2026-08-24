@@ -16,6 +16,7 @@ require_once __DIR__ . '/../app/controllers/AuthController.php';
 require_once __DIR__ . '/../app/controllers/AdminController.php';
 require_once __DIR__ . '/../app/controllers/MediaController.php';
 require_once __DIR__ . '/../app/controllers/PlatformController.php';
+require_once __DIR__ . '/../app/controllers/RetentionController.php';
 require_once __DIR__ . '/../app/helpers/SecurityHeaders.php';
 require_once __DIR__ . '/../app/helpers/ErrorHandler.php';
 require_once __DIR__ . '/../app/helpers/RequestContext.php';
@@ -149,6 +150,10 @@ $rutas = [
     'admin_membresia_contratar' => ['admin', 'contratarMembresia'],
     'admin_membresias'          => ['admin', 'mostrarMembresias'],
 
+    /* Retention V1: detección y revisión, nunca envío de mensajes */
+    'retention'                 => ['retention', 'index'],
+    'retention_action'          => ['retention', 'act'],
+
     /* Importaciones masivas (solo dirección/superadmin) */
     'admin_importaciones'             => ['admin', 'mostrarImportaciones'],
     'admin_importacion_subir'         => ['admin', 'subirImportacion'],
@@ -193,6 +198,7 @@ $ctrl = match ($controlador) {
     'auth' => new AuthController(),
     'media' => new MediaController(),
     'platform' => new PlatformController(),
+    'retention' => new RetentionController(),
     default => new AdminController(),
 };
 $ctrl->$metodo();

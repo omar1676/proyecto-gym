@@ -25,6 +25,12 @@ final class DemoGymFactory
         $stmt->execute([':nombre' => self::COMPANY_NAME]);
         $empresaIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
         foreach ($empresaIds as $empresaId) {
+            $db->exec("DELETE FROM retention_action WHERE id_empresa = {$empresaId}");
+            $db->exec("DELETE FROM retention_detection WHERE id_empresa = {$empresaId}");
+            $db->exec("DELETE FROM retention_run WHERE id_empresa = {$empresaId}");
+            $db->exec("DELETE FROM attendance_event WHERE id_empresa = {$empresaId}");
+            $db->exec("DELETE FROM retention_activity_mapping WHERE id_empresa = {$empresaId}");
+            $db->exec("DELETE FROM retention_config WHERE id_empresa = {$empresaId}");
             $db->exec("DELETE FROM caja_movimiento WHERE id_empresa = {$empresaId}");
             $db->exec(
                 "DELETE vl FROM venta_linea vl INNER JOIN venta v ON v.id_venta = vl.id_venta "
