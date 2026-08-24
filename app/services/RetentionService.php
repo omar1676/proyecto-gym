@@ -3,6 +3,7 @@
 require_once dirname(__DIR__) . '/helpers/AuditPolicy.php';
 require_once dirname(__DIR__) . '/helpers/RequestContext.php';
 require_once dirname(__DIR__) . '/helpers/RetentionPolicy.php';
+require_once dirname(__DIR__) . '/helpers/RetentionPresentation.php';
 require_once dirname(__DIR__) . '/helpers/TenantLifecyclePolicy.php';
 require_once dirname(__DIR__) . '/models/LogModel.php';
 
@@ -10,10 +11,16 @@ require_once dirname(__DIR__) . '/models/LogModel.php';
 final class RetentionService
 {
     private LogModel $audit;
+    private ?string $companyNameCache = null;
 
     public function __construct(private PDO $db, private int $companyId, private ?int $siteId = null)
     {
         if ($companyId <= 0) throw new InvalidArgumentException('Retention exige una empresa válida.');
+        if ($siteId !== null) {
+            $site = $this->db->prepare('SELECT 1 FROM gimnasio WHERE id_gimnasio=:site AND id_empresa=:company AND activo=1');
+            $site->execute([':site'=>$siteId, ':company'=>$companyId]);
+            if (!$site->fetchColumn()) throw new DomainException('La sede no pertenece al contexto autorizado.');
+        }
         $this->audit = new LogModel($companyId, $db);
     }
 
@@ -64,7 +71,7 @@ final class RetentionService
             $lockHeld = true;
 
             $existing = $this->findRun($date->format('Y-m-d'));
-            if ($existing && $existing['status'] === 'COMPLETED') {
+            if ($existing && $existing['status'] === 'COMPLETED' && $this->snapshotComplete($existing)) {
                 return $this->runResult($existing, true);
             }
             if ($existing && $existing['status'] === 'RUNNING'
@@ -96,6 +103,8 @@ final class RetentionService
             }
 
             $this->db->beginTransaction();
+            $deleteSnapshots = $this->db->prepare('DELETE FROM retention_member_snapshot WHERE id_retention_run=:run');
+            $deleteSnapshots->execute([':run'=>$runId]);
             $returned = $this->markReturns($date, $config);
             $windows = RetentionPolicy::windows($date, $config);
             $candidates = $this->candidateStats($windows);
@@ -110,6 +119,7 @@ final class RetentionService
                     default => 'normal',
                 };
                 $counts[$bucket]++;
+                $this->storeSnapshot($runId, $date, $candidate, $classification);
                 if (in_array($classification['state'], [RetentionPolicy::ATTENTION, RetentionPolicy::HIGH_ATTENTION], true)) {
                     $this->createDetection($runId, $date, $candidate, $classification, $config);
                 }
@@ -178,10 +188,13 @@ final class RetentionService
         $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         foreach ($rows as &$row) {
-            $row['explanation'] = sprintf(
-                'Frecuencia habitual: %.2f visitas/semana. Últimos %d días: %d visita%s (%.2f/semana). Caída aproximada: %.0f%%.',
-                (float)$row['baseline_weekly_rate'], (int)$config['recent_days'], (int)$row['recent_visits'],
-                (int)$row['recent_visits'] === 1 ? '' : 's', (float)$row['recent_weekly_rate'], (float)$row['drop_pct']
+            $row['display_state'] = (string)$row['level'];
+            $row['state_label'] = RetentionPresentation::label((string)$row['level']);
+            $row['activity_label'] = RetentionPresentation::activity((string)$row['activity_family']);
+            $row['workflow_label'] = RetentionPresentation::workflow((string)$row['status']);
+            $row['explanation'] = RetentionPresentation::explanation($row, (int)$config['recent_days']);
+            $row['last_attendance_label'] = RetentionPresentation::relativeDate(
+                $row['last_attendance_utc'] ?: null, (string)$config['timezone']
             );
             $row['suggested_message'] = RetentionPolicy::suggestedMessage(
                 $config, (string)$row['activity_family'], (string)$row['nombre'],
@@ -195,43 +208,220 @@ final class RetentionService
     /** @return array<string,int|null> */
     public function metrics(): array
     {
-        $sql = "SELECT SUM(status='OPEN' OR status='REVIEWED' OR status='POSTPONED' OR status='CONTACTED') total,
-                       SUM(status='REVIEWED') reviewed,
-                       SUM(status='DISMISSED') dismissed,
-                       SUM(status='CONTACTED') contacted,
-                       SUM(status='RETURNED') returned
-                  FROM retention_detection WHERE id_empresa=:company";
-        $params = [':company'=>$this->companyId];
+        $runId = $this->latestRunId();
+        $fields=['total','reviewed','dismissed','contacted','returned','evaluated','insufficient','normal','attention','high_attention'];
+        $result=array_fill_keys($fields,0);
+        if ($runId === null) return $result;
+        $sql="SELECT COUNT(*) evaluated,
+                    SUM(s.state='INSUFFICIENT_DATA') insufficient,SUM(s.state='NORMAL') normal,
+                    SUM(s.state='ATTENTION') attention,SUM(s.state='HIGH_ATTENTION') high_attention,
+                    SUM(s.state IN ('ATTENTION','HIGH_ATTENTION') AND d.status IN ('OPEN','REVIEWED','POSTPONED','CONTACTED')) total,
+                    SUM(d.status='REVIEWED') reviewed,SUM(d.status='DISMISSED') dismissed,
+                    SUM(d.status='CONTACTED') contacted,SUM(d.status='RETURNED') returned
+                FROM retention_member_snapshot s
+                LEFT JOIN (
+                    SELECT id_empresa,id_socio,MAX(id_retention_detection) id_retention_detection
+                      FROM retention_detection WHERE id_empresa=:detection_company GROUP BY id_empresa,id_socio
+                ) latest ON latest.id_empresa=s.id_empresa AND latest.id_socio=s.id_socio
+                LEFT JOIN retention_detection d ON d.id_retention_detection=latest.id_retention_detection
+               WHERE s.id_empresa=:company AND s.id_retention_run=:run";
+        $params=[':detection_company'=>$this->companyId,':company'=>$this->companyId,':run'=>$runId];
+        if($this->siteId!==null){$sql.=' AND s.id_gimnasio=:site';$params[':site']=$this->siteId;}
+        $stmt=$this->db->prepare($sql);$stmt->execute($params);$row=$stmt->fetch(PDO::FETCH_ASSOC)?:[];
+        foreach($fields as $field)$result[$field]=(int)($row[$field]??0);
+        return $result;
+    }
+
+    /** @return list<array{id_gimnasio:int,nombre:string}> */
+    public function sites(): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id_gimnasio,nombre FROM gimnasio WHERE id_empresa=:company AND activo=1 ORDER BY nombre,id_gimnasio'
+        );
+        $stmt->execute([':company'=>$this->companyId]);
+        return array_map(static fn(array $row): array => [
+            'id_gimnasio'=>(int)$row['id_gimnasio'], 'nombre'=>(string)$row['nombre'],
+        ], $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /** @return array{items:list<array<string,mixed>>,pagination:array<string,int>} */
+    public function cases(array $filters = [], int $page = 1, int $perPage = 20): array
+    {
+        [$page,$perPage,$offset] = $this->pagination($page,$perPage);
+        $runId = $this->latestRunId();
+        if ($runId === null) return ['items'=>[], 'pagination'=>$this->paginationResult(0,$page,$perPage)];
+        $state = $this->filterValue((string)($filters['state'] ?? 'attention'), [
+            'attention','high','partial','returned','normal','insufficient','all',
+        ], 'attention');
+        $activity = $this->filterValue(strtoupper((string)($filters['activity'] ?? '')), ['GYM','BOXEO','TATAMI','GENERAL'], '');
+        $workflow = $this->filterValue(strtolower((string)($filters['workflow'] ?? '')), [
+            'pending','reviewed','postponed','contacted','dismissed','returned',
+        ], '');
+
+        $params = [':company'=>$this->companyId, ':run'=>$runId, ':detection_company'=>$this->companyId];
+        $where = ['s.id_empresa=:company', 's.id_retention_run=:run'];
         if ($this->siteId !== null) {
-            $sql .= ' AND id_gimnasio=:site';
+            $where[] = 's.id_gimnasio=:site';
             $params[':site'] = $this->siteId;
         }
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
-        $result = [
-            'total'=>(int)($row['total'] ?? 0), 'reviewed'=>(int)($row['reviewed'] ?? 0),
-            'dismissed'=>(int)($row['dismissed'] ?? 0), 'contacted'=>(int)($row['contacted'] ?? 0),
-            'returned'=>(int)($row['returned'] ?? 0),
-        ];
-        $result += ['evaluated'=>null,'insufficient'=>null,'normal'=>null,'attention'=>null,'high_attention'=>null];
-        if ($this->siteId === null) {
-            $last = $this->db->prepare(
-                "SELECT evaluated_count,insufficient_count,normal_count,attention_count,high_attention_count
-                   FROM retention_run WHERE id_empresa=:company AND status='COMPLETED'
-                   ORDER BY evaluation_date DESC,id_retention_run DESC LIMIT 1"
-            );
-            $last->execute([':company'=>$this->companyId]);
-            $run = $last->fetch(PDO::FETCH_ASSOC);
-            if ($run) {
-                $result['evaluated'] = (int)$run['evaluated_count'];
-                $result['insufficient'] = (int)$run['insufficient_count'];
-                $result['normal'] = (int)$run['normal_count'];
-                $result['attention'] = (int)$run['attention_count'];
-                $result['high_attention'] = (int)$run['high_attention_count'];
-            }
+        $where[] = match ($state) {
+            'attention' => "s.state IN ('ATTENTION','HIGH_ATTENTION') AND d.status IN ('OPEN','REVIEWED','POSTPONED','CONTACTED')",
+            'high' => "s.state='HIGH_ATTENTION' AND d.status IN ('OPEN','REVIEWED','POSTPONED','CONTACTED')",
+            'partial' => "s.state='ATTENTION' AND d.status IN ('OPEN','REVIEWED','POSTPONED','CONTACTED')",
+            'returned' => "d.status='RETURNED'",
+            'normal' => "s.state='NORMAL'",
+            'insufficient' => "s.state='INSUFFICIENT_DATA'",
+            default => '1=1',
+        };
+        if ($activity !== '') {
+            $where[] = 's.activity_family=:activity';
+            $params[':activity'] = $activity;
         }
-        return $result;
+        if ($workflow !== '') {
+            $workflowStatus = match ($workflow) {
+                'pending'=>'OPEN','reviewed'=>'REVIEWED','postponed'=>'POSTPONED',
+                'contacted'=>'CONTACTED','dismissed'=>'DISMISSED','returned'=>'RETURNED',
+            };
+            $where[] = 'd.status=:workflow';
+            $params[':workflow'] = $workflowStatus;
+        }
+        $detectionJoin = "LEFT JOIN (
+                SELECT id_empresa,id_socio,MAX(id_retention_detection) id_retention_detection
+                  FROM retention_detection WHERE id_empresa=:detection_company GROUP BY id_empresa,id_socio
+            ) latest_detection ON latest_detection.id_empresa=s.id_empresa AND latest_detection.id_socio=s.id_socio
+            LEFT JOIN retention_detection d ON d.id_retention_detection=latest_detection.id_retention_detection";
+        $from = "FROM retention_member_snapshot s
+            {$detectionJoin}
+            JOIN usuario u ON u.id_usuario=s.id_socio AND u.id_empresa=s.id_empresa
+            JOIN gimnasio g ON g.id_gimnasio=s.id_gimnasio AND g.id_empresa=s.id_empresa";
+        $whereSql = implode(' AND ', $where);
+        $count = $this->db->prepare("SELECT COUNT(*) {$from} WHERE {$whereSql}");
+        $count->execute($params);
+        $total = (int)$count->fetchColumn();
+
+        $sql = "SELECT s.*,u.nombre,u.apellidos,g.nombre sede_nombre,
+                       d.id_retention_detection,d.status workflow_status,d.version,d.detected_at_utc,
+                       d.contacted_at_utc,d.returned_at_utc,d.days_to_return,d.next_review_at,
+                       CASE WHEN d.status='RETURNED' THEN 'RETURNED' ELSE s.state END display_state
+                  {$from} WHERE {$whereSql}
+                 ORDER BY FIELD(CASE WHEN d.status='RETURNED' THEN 'RETURNED' ELSE s.state END,
+                                'HIGH_ATTENTION','ATTENTION','RETURNED','NORMAL','INSUFFICIENT_DATA'),
+                          s.drop_pct DESC,COALESCE(d.detected_at_utc,s.created_at_utc) ASC,s.id_socio
+                 LIMIT :limit OFFSET :offset";
+        $stmt = $this->db->prepare($sql);
+        foreach ($params as $key=>$value) $stmt->bindValue($key,$value,is_int($value)?PDO::PARAM_INT:PDO::PARAM_STR);
+        $stmt->bindValue(':limit',$perPage,PDO::PARAM_INT);
+        $stmt->bindValue(':offset',$offset,PDO::PARAM_INT);
+        $stmt->execute();
+        return [
+            'items'=>$this->decorateCases($stmt->fetchAll(PDO::FETCH_ASSOC)),
+            'pagination'=>$this->paginationResult($total,$page,$perPage),
+        ];
+    }
+
+    /** @return array{items:list<array<string,mixed>>,pagination:array<string,int>,query:string} */
+    public function search(string $query, int $page = 1, int $perPage = 20): array
+    {
+        [$page,$perPage,$offset] = $this->pagination($page,$perPage);
+        $query = trim(preg_replace('/[\x00-\x1F\x7F]/u', ' ', $query) ?? '');
+        if (mb_strlen($query) > 100) $query = mb_substr($query,0,100);
+        if ($query === '') return ['items'=>[], 'pagination'=>$this->paginationResult(0,$page,$perPage), 'query'=>''];
+        $needle = mb_strtolower($query,'UTF-8');
+        $runId = $this->latestRunId() ?? 0;
+        $params = [
+            ':company'=>$this->companyId, ':run'=>$runId, ':needle'=>$needle,
+            ':detection_company'=>$this->companyId,
+        ];
+        $scope = "u.id_empresa=:company AND u.rol='socio' AND u.activo=1 AND u.anonimizado_en IS NULL
+                  AND LOCATE(:needle,LOWER(CONCAT_WS(' ',u.nombre,u.apellidos,COALESCE(u.telefono,''))))>0";
+        if ($this->siteId !== null) {
+            $scope .= ' AND u.id_gimnasio=:site';
+            $params[':site'] = $this->siteId;
+        }
+        $snapshotJoin = "LEFT JOIN retention_member_snapshot s
+                ON s.id_empresa=u.id_empresa AND s.id_socio=u.id_usuario AND s.id_retention_run=:run
+            LEFT JOIN (
+                SELECT id_empresa,id_socio,MAX(id_retention_detection) id_retention_detection
+                  FROM retention_detection WHERE id_empresa=:detection_company GROUP BY id_empresa,id_socio
+            ) latest_detection ON latest_detection.id_empresa=u.id_empresa AND latest_detection.id_socio=u.id_usuario
+            LEFT JOIN retention_detection d ON d.id_retention_detection=latest_detection.id_retention_detection
+            JOIN gimnasio g ON g.id_gimnasio=u.id_gimnasio AND g.id_empresa=u.id_empresa";
+        $count = $this->db->prepare("SELECT COUNT(*) FROM usuario u {$snapshotJoin} WHERE {$scope}");
+        $count->execute($params);
+        $total = (int)$count->fetchColumn();
+        $sql = "SELECT u.id_usuario id_socio,u.nombre,u.apellidos,u.id_gimnasio,g.nombre sede_nombre,
+                       s.id_retention_run,s.state,s.activity_family,s.baseline_visits,s.recent_visits,
+                       s.baseline_weekly_rate,s.recent_weekly_rate,s.drop_pct,s.last_attendance_utc,
+                       d.id_retention_detection,d.status workflow_status,d.version,d.detected_at_utc,
+                       d.contacted_at_utc,d.returned_at_utc,d.days_to_return,d.next_review_at,
+                       CASE WHEN d.status='RETURNED' THEN 'RETURNED' ELSE COALESCE(s.state,'NOT_EVALUATED') END display_state
+                  FROM usuario u {$snapshotJoin} WHERE {$scope}
+                 ORDER BY u.apellidos,u.nombre,u.id_usuario LIMIT :limit OFFSET :offset";
+        $stmt = $this->db->prepare($sql);
+        foreach ($params as $key=>$value) $stmt->bindValue($key,$value,is_int($value)?PDO::PARAM_INT:PDO::PARAM_STR);
+        $stmt->bindValue(':limit',$perPage,PDO::PARAM_INT);
+        $stmt->bindValue(':offset',$offset,PDO::PARAM_INT);
+        $stmt->execute();
+        return [
+            'items'=>$this->decorateCases($stmt->fetchAll(PDO::FETCH_ASSOC)),
+            'pagination'=>$this->paginationResult($total,$page,$perPage),
+            'query'=>$query,
+        ];
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function recentVisits(int $limit = 10): array
+    {
+        return $this->attendanceHistory([],1,max(1,min(20,$limit)))['items'];
+    }
+
+    /** @return array{items:list<array<string,mixed>>,pagination:array<string,int>,filters:array<string,mixed>} */
+    public function attendanceHistory(array $filters = [], int $page = 1, int $perPage = 20): array
+    {
+        [$page,$perPage,$offset] = $this->pagination($page,$perPage);
+        $activity = $this->filterValue(strtoupper((string)($filters['activity'] ?? '')), ['GYM','BOXEO','TATAMI','GENERAL'], '');
+        $fromDate = $this->validDate((string)($filters['from'] ?? ''));
+        $toDate = $this->validDate((string)($filters['to'] ?? ''));
+        if ($fromDate !== '' && $toDate !== '' && $fromDate > $toDate) {
+            throw new InvalidArgumentException('El rango de fechas no es válido.');
+        }
+        $query = trim(preg_replace('/[\x00-\x1F\x7F]/u',' ',(string)($filters['member'] ?? '')) ?? '');
+        if (mb_strlen($query)>100) $query=mb_substr($query,0,100);
+        $params = [':company'=>$this->companyId];
+        $where = ['v.id_empresa=:company'];
+        if ($this->siteId !== null) {
+            $where[]='v.id_gimnasio=:site';
+            $params[':site']=$this->siteId;
+        }
+        if ($fromDate!=='') { $where[]='v.local_date>=:from_date'; $params[':from_date']=$fromDate; }
+        if ($toDate!=='') { $where[]='v.local_date<=:to_date'; $params[':to_date']=$toDate; }
+        if ($activity!=='') { $where[]='v.activity_family=:activity'; $params[':activity']=$activity; }
+        if ($query!=='') { $where[]="LOCATE(:member,LOWER(CONCAT_WS(' ',u.nombre,u.apellidos)))>0"; $params[':member']=mb_strtolower($query,'UTF-8'); }
+        $from = "FROM attendance_daily_visit v
+            JOIN usuario u ON u.id_usuario=v.id_socio AND u.id_empresa=v.id_empresa
+            JOIN gimnasio g ON g.id_gimnasio=v.id_gimnasio AND g.id_empresa=u.id_empresa";
+        $whereSql=implode(' AND ',$where);
+        $count=$this->db->prepare("SELECT COUNT(*) {$from} WHERE {$whereSql}");
+        $count->execute($params);
+        $total=(int)$count->fetchColumn();
+        $stmt=$this->db->prepare("SELECT v.*,u.nombre,u.apellidos,g.nombre sede_nombre {$from}
+            WHERE {$whereSql} ORDER BY v.occurred_at_utc DESC,v.id_socio DESC LIMIT :limit OFFSET :offset");
+        foreach($params as $key=>$value) $stmt->bindValue($key,$value,is_int($value)?PDO::PARAM_INT:PDO::PARAM_STR);
+        $stmt->bindValue(':limit',$perPage,PDO::PARAM_INT);
+        $stmt->bindValue(':offset',$offset,PDO::PARAM_INT);
+        $stmt->execute();
+        $config=$this->config();
+        $items=$stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach($items as &$item){
+            $item['activity_label']=RetentionPresentation::activity((string)$item['activity_family']);
+            $item['local_datetime']=RetentionPresentation::localDateTime((string)$item['occurred_at_utc'],(string)$config['timezone']);
+            $item['relative_datetime']=RetentionPresentation::relativeDate((string)$item['occurred_at_utc'],(string)$config['timezone']);
+        }
+        unset($item);
+        return [
+            'items'=>$items,'pagination'=>$this->paginationResult($total,$page,$perPage),
+            'filters'=>['activity'=>$activity,'from'=>$fromDate,'to'=>$toDate,'member'=>$query],
+        ];
     }
 
     public function act(int $detectionId, int $actorId, string $action, string $idempotencyKey, int $version, ?string $reason = null, int $postponeDays = 7): bool
@@ -333,6 +523,113 @@ final class RetentionService
         } finally {
             $lifecycle->release();
         }
+    }
+
+    private function snapshotComplete(array $run): bool
+    {
+        $expected=(int)($run['evaluated_count']??0);
+        $stmt=$this->db->prepare('SELECT COUNT(*) FROM retention_member_snapshot WHERE id_retention_run=:run AND id_empresa=:company');
+        $stmt->execute([':run'=>(int)$run['id_retention_run'],':company'=>$this->companyId]);
+        return (int)$stmt->fetchColumn()===$expected;
+    }
+
+    private function storeSnapshot(int $runId,DateTimeImmutable $date,array $candidate,array $classification): void
+    {
+        $family=RetentionPolicy::activityFamily($candidate['mapped_families']??null,$candidate['membership_names']??null);
+        $stmt=$this->db->prepare(
+            'INSERT INTO retention_member_snapshot
+             (id_retention_run,id_empresa,id_gimnasio,id_socio,evaluation_date,state,activity_family,
+              baseline_visits,recent_visits,baseline_weekly_rate,recent_weekly_rate,drop_pct,reason_code,
+              last_attendance_utc,created_at_utc)
+             VALUES (:run,:company,:site,:member,:date,:state,:family,:baseline_visits,:recent_visits,
+                     :baseline_rate,:recent_rate,:drop,:reason,:last_attendance,:created)'
+        );
+        $stmt->execute([
+            ':run'=>$runId,':company'=>$this->companyId,':site'=>(int)$candidate['id_gimnasio'],
+            ':member'=>(int)$candidate['id_usuario'],':date'=>$date->format('Y-m-d'),
+            ':state'=>(string)$classification['state'],':family'=>$family,
+            ':baseline_visits'=>(int)$candidate['baseline_visits'],':recent_visits'=>(int)$candidate['recent_visits'],
+            ':baseline_rate'=>number_format((float)$classification['baseline_rate'],2,'.',''),
+            ':recent_rate'=>number_format((float)$classification['recent_rate'],2,'.',''),
+            ':drop'=>number_format((float)$classification['drop_pct'],2,'.',''),
+            ':reason'=>(string)$classification['reason_code'],':last_attendance'=>$candidate['last_attendance_utc']?:null,
+            ':created'=>gmdate('Y-m-d H:i:s'),
+        ]);
+    }
+
+    private function latestRunId(): ?int
+    {
+        $stmt=$this->db->prepare(
+            "SELECT id_retention_run FROM retention_run WHERE id_empresa=:company AND status='COMPLETED'
+              ORDER BY evaluation_date DESC,id_retention_run DESC LIMIT 1"
+        );
+        $stmt->execute([':company'=>$this->companyId]);
+        $value=$stmt->fetchColumn();
+        return $value===false?null:(int)$value;
+    }
+
+    /** @param list<array<string,mixed>> $rows @return list<array<string,mixed>> */
+    private function decorateCases(array $rows): array
+    {
+        $config=$this->config();
+        $timezone=(string)$config['timezone'];
+        if($this->companyNameCache===null){
+            $stmt=$this->db->prepare('SELECT COALESCE(NULLIF(nombre_comercial,\'\'),nombre) FROM empresa WHERE id_empresa=:company');
+            $stmt->execute([':company'=>$this->companyId]);
+            $this->companyNameCache=(string)($stmt->fetchColumn()?:'Gimnera');
+        }
+        foreach($rows as &$row){
+            $state=(string)($row['display_state']??$row['state']??'NOT_EVALUATED');
+            $family=(string)($row['activity_family']??'GENERAL');
+            $row['display_state']=$state;
+            $row['state_label']=RetentionPresentation::label($state);
+            $row['activity_label']=RetentionPresentation::activity($family);
+            $row['workflow_label']=RetentionPresentation::workflow($row['workflow_status']??null);
+            $row['explanation']=RetentionPresentation::explanation($row,(int)$config['recent_days']);
+            $row['last_attendance_label']=RetentionPresentation::relativeDate(
+                !empty($row['last_attendance_utc'])?(string)$row['last_attendance_utc']:null,$timezone
+            );
+            $row['detected_label']=RetentionPresentation::localDateTime(
+                !empty($row['detected_at_utc'])?(string)$row['detected_at_utc']:null,$timezone,'d/m/Y'
+            );
+            $row['returned_label']=RetentionPresentation::localDateTime(
+                !empty($row['returned_at_utc'])?(string)$row['returned_at_utc']:null,$timezone,'d/m/Y'
+            );
+            $row['suggested_message']=in_array($state,['ATTENTION','HIGH_ATTENTION'],true)
+                ? RetentionPolicy::suggestedMessage($config,$family,(string)$row['nombre'],$this->companyNameCache)
+                : null;
+        }
+        unset($row);
+        return $rows;
+    }
+
+    /** @return array{0:int,1:int,2:int} */
+    private function pagination(int $page,int $perPage): array
+    {
+        $page=max(1,min(10000,$page));
+        $perPage=max(1,min(50,$perPage));
+        return [$page,$perPage,($page-1)*$perPage];
+    }
+
+    /** @return array{total:int,page:int,per_page:int,pages:int} */
+    private function paginationResult(int $total,int $page,int $perPage): array
+    {
+        return ['total'=>$total,'page'=>$page,'per_page'=>$perPage,'pages'=>max(1,(int)ceil($total/$perPage))];
+    }
+
+    /** @param list<string> $allowed */
+    private function filterValue(string $value,array $allowed,string $default): string
+    {
+        return in_array($value,$allowed,true)?$value:$default;
+    }
+
+    private function validDate(string $value): string
+    {
+        $value=trim($value);
+        if($value==='') return '';
+        $date=DateTimeImmutable::createFromFormat('!Y-m-d',$value);
+        if(!$date||$date->format('Y-m-d')!==$value) throw new InvalidArgumentException('Fecha de filtro no válida.');
+        return $value;
     }
 
     private function ensureConfig(): void

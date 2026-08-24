@@ -116,6 +116,9 @@ try {
     check('job clasifica dos normales', $result['normal'] === 2);
     check('job clasifica dos sin histórico suficiente', $result['insufficient'] === 2);
     check('job genera una atención y una atención alta', $result['attention'] === 1 && $result['high_attention'] === 1);
+    check('job persiste un snapshot por socio evaluado', (int)$db->query(
+        "SELECT COUNT(*) FROM retention_member_snapshot WHERE id_empresa={$company}"
+    )->fetchColumn() === 6);
     $rerun = $service->run('2026-08-20');
     check('repetir job diario reutiliza resultado sin duplicar', $rerun['reused'] === true
         && (int)$db->query("SELECT COUNT(*) FROM retention_detection WHERE id_empresa={$company}")->fetchColumn() === 2);
@@ -127,8 +130,8 @@ try {
     sort($expectedInboxMembers);
     check('bandeja contiene únicamente B y C', count($inbox) === 2 && $inboxMembers === $expectedInboxMembers);
     check('bandeja minimiza PII', !array_key_exists('dni', $inbox[0]) && !array_key_exists('iban', $inbox[0]) && !array_key_exists('email', $inbox[0]));
-    check('explicación muestra baseline, reciente y caída', str_contains($inbox[0]['explanation'], 'Frecuencia habitual')
-        && str_contains($inbox[0]['explanation'], 'Caída aproximada'));
+    check('explicación usa lenguaje humano y comparación propia', str_contains($inbox[0]['explanation'], 'frecuencia habitual')
+        && !preg_match('/anomal|churn|riesgo de baja/iu',$inbox[0]['explanation']));
     check('preview no contiene contenido económico', !preg_match('/cuota|dinero|impag|renovaci/iu', $inbox[0]['suggested_message']));
 
     $attention = array_values(array_filter($inbox, fn(array $row): bool => $row['level'] === 'ATTENTION'))[0];

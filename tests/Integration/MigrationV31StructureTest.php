@@ -14,7 +14,7 @@ try {
         $track->execute([basename($file), hash_file('sha256', $file), 'f24-test-v30']);
     }
     check('v30 no contiene tablas Retention', !SchemaMigrationTestFactory::tableExists($fixture['db'], 'attendance_event'));
-    check('v31 se ejecuta realmente', $manager->migratePending() === ['migracion_v31.sql']);
+    check('v31 y su proyección posterior se ejecutan realmente', $manager->migratePending() === ['migracion_v31.sql','migracion_v32.sql']);
     foreach (['retention_config','retention_activity_mapping','attendance_event','retention_run','retention_detection','retention_action'] as $table) {
         check("v31 crea {$table}", SchemaMigrationTestFactory::tableExists($fixture['db'], $table));
     }
@@ -26,7 +26,7 @@ try {
     ] as [$table,$index]) {
         check("v31 crea índice {$index}", SchemaMigrationTestFactory::indexExists($fixture['db'], $table, $index));
     }
-    check('segunda ejecución no reaplica v31', $manager->migratePending() === []);
+    check('segunda ejecución no reaplica v31/v32', $manager->migratePending() === []);
     $fixture['db']->exec('ALTER TABLE attendance_event DROP INDEX uq_attendance_external');
     $status = $manager->status();
     check('schema gate detecta v31 incompleta', (bool)array_filter(

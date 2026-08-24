@@ -4,6 +4,9 @@ require_once dirname(__DIR__) . '/bootstrap.php';
 require_once dirname(__DIR__, 2) . '/app/helpers/SocioFormState.php';
 require_once dirname(__DIR__, 2) . '/app/helpers/SocioProfileValidator.php';
 
+$sessionDir=sys_get_temp_dir().'/gimnera_f241_form_'.bin2hex(random_bytes(5));
+if(!mkdir($sessionDir,0700,true)&&!is_dir($sessionDir)) throw new RuntimeException('No se pudo crear sesión temporal.');
+session_save_path($sessionDir);
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 $_SESSION = [];
 
@@ -35,4 +38,7 @@ check('flash se consume una sola vez', SocioFormState::consume(10, 20, 30) === n
 SocioFormState::put('alta', ['nombre'=>'Tenant A'], [], 'x', 10, 20, 30);
 check('flash no cruza sede/tenant', SocioFormState::consume(10, 21, 30) === null);
 
+session_write_close();
+foreach(glob($sessionDir.'/*')?:[] as $file) if(is_file($file)) unlink($file);
+rmdir($sessionDir);
 finishTests();

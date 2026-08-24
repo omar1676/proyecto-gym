@@ -19,7 +19,7 @@ try {
         "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='usuario' AND column_name='profile_version'"
     )->fetchColumn() === 0);
     check('v30 se ejecuta realmente antes de las posteriores', $manager->migratePending() === [
-        'migracion_v30.sql', 'migracion_v31.sql',
+        'migracion_v30.sql', 'migracion_v31.sql', 'migracion_v32.sql',
     ]);
     check('v30 crea profile_version NOT NULL', (string) $fixture['db']->query(
         "SELECT CONCAT(IS_NULLABLE,':',COLUMN_DEFAULT,':',COLUMN_TYPE) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='usuario' AND column_name='profile_version'"

@@ -74,3 +74,19 @@ La migración v31 es forward-only. F23 declara como máximo schema v30 y debe
 rechazar un runtime con v31. El rollback de código a F23 no es compatible tras
 aplicar v31; se requiere restaurar el backup predeploy o una release que declare
 compatibilidad con v31. Nunca ejecutar el migrador antiguo contra schema v31.
+
+## Proyección UX (F24.1)
+
+La migración v32 añade `retention_member_snapshot`, una proyección diaria de
+todos los socios evaluados. No contiene una segunda fórmula: el job persiste el
+resultado exacto de `RetentionPolicy` para poder contar, buscar, filtrar y
+paginar sin recalcular miles de historiales en cada petición web.
+
+La interfaz representa una entrada como visita única por socio y fecha local.
+Si existen varios eventos ese día, muestra el más reciente y solo conserva la
+familia de actividad cuando todos los eventos del día coinciden. Búsquedas y
+listados se limitan siempre a empresa y, cuando corresponde, sede.
+
+v32 es forward-only. Una release anterior cuyo máximo sea v31 debe rechazar el
+schema v32; el rollback requiere una release compatible con v32 o restauración
+del backup predeploy.

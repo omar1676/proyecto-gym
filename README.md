@@ -1,6 +1,7 @@
 # Gimnera — gestión SaaS multiempresa para gimnasios
 
-Versión actual: **0.15.0-fase24**. Añade Retention Engine V1: detección
+Versión actual: **0.15.1-fase24.1**. Mantiene Retention Engine V1 y añade su
+dashboard operativo con lenguaje humano, búsqueda, filtros e historial paginado. La detección
 determinista y explicable de caídas de asistencia sobre eventos genéricos,
 con aislamiento multiempresa/multisede, cooldown, retorno y revisión manual.
 No envía mensajes, no conecta DORLET, lectores, controladoras ni biometría.

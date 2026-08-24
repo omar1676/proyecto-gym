@@ -62,6 +62,9 @@ try {
     } catch (DomainException) { $crossSite = true; }
     check('IDOR de otra sede queda rechazado', $crossSite);
     check('bandeja de otra sede queda vacía', (new RetentionService($db, $companyA, $siteA2))->inbox() === []);
+    check('contadores e historial de otra sede quedan aislados',
+        (new RetentionService($db,$companyA,$siteA2))->metrics()['total']===0
+        &&(new RetentionService($db,$companyA,$siteA2))->attendanceHistory([],1,50)['items']===[]);
 
     $foreignActor = false;
     try {
@@ -107,6 +110,7 @@ try {
     $sqliLookup = $db->prepare('SELECT COUNT(*) FROM attendance_event WHERE id_empresa=:company AND external_reference=:reference');
     $sqliLookup->execute([':company'=>$companyA, ':reference'=>$sqliReference]);
     check('referencia SQLi sintética se trata como dato y crea solo su evento', $sqliEvent['created'] && (int)$sqliLookup->fetchColumn() === 1);
+    check('búsqueda SQLi se trata como texto y no amplía ámbito', $serviceA->search("' OR 1=1 --",1,50)['pagination']['total']===0);
 
     check('dirección puede ver y revisar Retention', Authorization::can('direccion','retention.view') && Authorization::can('direccion','retention.review'));
     check('admin puede ver solo dentro de su sede', Authorization::can('admin','retention.view'));
@@ -116,6 +120,8 @@ try {
     $controller = (string)file_get_contents(dirname(__DIR__,2) . '/app/controllers/RetentionController.php');
     $router = (string)file_get_contents(dirname(__DIR__,2) . '/public/index.php');
     check('acción web exige POST y CSRF', str_contains($controller, "REQUEST_METHOD'] !== 'POST'") && str_contains($controller, 'Csrf::validarPost'));
+    check('fechas hostiles no exponen error técnico',str_contains($controller,'catch (InvalidArgumentException $error)')
+        &&str_contains($controller,'Se muestra el historial sin filtros')===false);
     check('no existe endpoint web de ingesta manipulable', !str_contains($router, 'attendance_event') && !str_contains($router, 'attendance_record'));
 
     $db->exec("UPDATE empresa SET estado='inactiva' WHERE id_empresa={$companyA}");

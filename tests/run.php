@@ -14,7 +14,7 @@ $suites = [
         'tests/Unit/F21OperationalSafetyTest.php', 'tests/Unit/TestDatabaseNameTest.php',
         'tests/Unit/AuditPolicyTest.php', 'tests/Unit/LogSanitizationTest.php',
         'tests/Unit/SocioFormStateTest.php',
-        'tests/Unit/RetentionPolicyTest.php',
+        'tests/Unit/RetentionPolicyTest.php', 'tests/Unit/RetentionPresentationTest.php',
     ],
     'Integration' => [
         'tests/Integration/IntegrityTest.php', 'tests/Integration/IdempotencyTest.php',
@@ -48,7 +48,9 @@ $suites = [
         'tests/Integration/SocioProfileF23Test.php',
         'tests/Integration/SocioProfileConcurrencyTest.php',
         'tests/Integration/MigrationV31StructureTest.php',
+        'tests/Integration/MigrationV32StructureTest.php',
         'tests/Integration/RetentionEngineTest.php',
+        'tests/Integration/RetentionDashboardTest.php',
         'tests/Integration/RetentionConcurrencyTest.php',
         'tests/Integration/RetentionMultiTenantScaleTest.php',
         'tests/Integration/AttendanceTimezoneTest.php',

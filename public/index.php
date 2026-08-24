@@ -152,6 +152,8 @@ $rutas = [
 
     /* Retention V1: detección y revisión, nunca envío de mensajes */
     'retention'                 => ['retention', 'index'],
+    'retention_cases'           => ['retention', 'cases'],
+    'retention_history'         => ['retention', 'history'],
     'retention_action'          => ['retention', 'act'],
 
     /* Importaciones masivas (solo dirección/superadmin) */

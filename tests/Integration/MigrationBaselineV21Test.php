@@ -10,15 +10,15 @@ try {
     $manager->baselineExisting();
     $afterBaseline = $manager->status();
     check('baseline v21 solo registra hasta v22', $afterBaseline['pending'] === [
-        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql', 'migracion_v28.sql', 'migracion_v29.sql', 'migracion_v30.sql', 'migracion_v31.sql',
+        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql', 'migracion_v28.sql', 'migracion_v29.sql', 'migracion_v30.sql', 'migracion_v31.sql', 'migracion_v32.sql',
     ]);
     check('baseline v21 no inventa estructuras v24', !SchemaMigrationTestFactory::tableExists($db, 'migration_batch'));
     check('baseline v21 no inventa estructuras v25', !SchemaMigrationTestFactory::tableExists($db, 'obligacion_pago'));
     check('baseline v21 no inventa estructuras v26', !SchemaMigrationTestFactory::tableExists($db, 'access_sync_job'));
 
     $applied = $manager->migratePending();
-    check('v23-v31 se ejecutan realmente y en orden', $applied === [
-        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql', 'migracion_v28.sql', 'migracion_v29.sql', 'migracion_v30.sql', 'migracion_v31.sql',
+    check('v23-v32 se ejecutan realmente y en orden', $applied === [
+        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql', 'migracion_v28.sql', 'migracion_v29.sql', 'migracion_v30.sql', 'migracion_v31.sql', 'migracion_v32.sql',
     ]);
     foreach ([
         'migration_batch', 'obligacion_pago', 'cobro', 'access_identity_map',
@@ -34,6 +34,7 @@ try {
         && (int) $db->query("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='usuario' AND column_name='profile_version'")->fetchColumn() === 1);
     check('v31 crea contrato Retention completo', SchemaMigrationTestFactory::tableExists($db, 'attendance_event')
         && SchemaMigrationTestFactory::tableExists($db, 'retention_detection'));
+    check('v32 crea proyección UX de Retention', SchemaMigrationTestFactory::tableExists($db, 'retention_member_snapshot'));
     $status = $manager->status();
     check('legacy v21 termina sin migraciones pendientes', $status['pending'] === []);
     check('legacy v21 termina sin checksum mismatch', $status['checksum_mismatch'] === []);

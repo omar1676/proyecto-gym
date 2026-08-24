@@ -1,92 +1,40 @@
 <?php
 require __DIR__ . '/../_header_admin.php';
-$escape = static fn($value): string => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+$escape=static fn($value):string=>htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8');
+$siteQuery=$selectedSite!==null?'&site='.(int)$selectedSite:'';
 ?>
-<main class="flex-1 bg-[#f7f7f8] px-4 py-8 sm:px-6 lg:px-8">
-    <section class="mx-auto max-w-6xl">
-        <div class="mb-7 pt-4">
-            <p class="text-xs font-extrabold uppercase tracking-[0.18em] text-indigo-600">Retention V1</p>
-            <h1 class="mt-2 text-2xl font-extrabold tracking-tight text-[#111318] sm:text-3xl">Socios que podrían necesitar atención</h1>
-            <p class="mt-2 max-w-3xl text-sm text-neutral-600">Se compara cada socio únicamente con su propio historial. Una detección no significa que vaya a darse de baja.</p>
+<main class="flex-1 min-w-0 bg-[#f7f7f8] px-3 py-6 sm:px-6 lg:px-8">
+<section class="mx-auto max-w-6xl">
+    <header class="pt-2 sm:pt-4">
+        <p class="text-xs font-extrabold uppercase tracking-[0.18em] text-indigo-600">Retención</p>
+        <h1 class="mt-2 text-2xl font-extrabold tracking-tight text-[#111318] sm:text-3xl">Actividad y atención a socios</h1>
+        <p class="mt-2 max-w-3xl text-sm text-neutral-600">Compara a cada socio únicamente con su propia rutina. No predice bajas ni envía mensajes.</p>
+    </header>
+
+    <?php if(!empty($_GET['ok'])):?><div role="status" class="mt-5 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-900"><?=$escape($_GET['ok'])?></div><?php endif;?>
+    <?php if(!empty($_GET['err'])):?><div role="alert" class="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-900"><?=$escape($_GET['err'])?></div><?php endif;?>
+
+    <section aria-labelledby="resumen-retention" class="mt-6">
+        <h2 id="resumen-retention" class="sr-only">Resumen de retención</h2>
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <a href="<?=APP_URL?>/index.php?action=retention_cases&amp;state=attention<?=$siteQuery?>" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"><p class="text-xs font-extrabold uppercase tracking-wide text-amber-900">Necesitan atención</p><p class="mt-2 text-3xl font-extrabold text-neutral-950"><?=(int)$metrics['total']?></p></a>
+            <a href="<?=APP_URL?>/index.php?action=retention_cases&amp;state=returned<?=$siteQuery?>" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"><p class="text-xs font-extrabold uppercase tracking-wide text-emerald-900">Han vuelto</p><p class="mt-2 text-3xl font-extrabold text-neutral-950"><?=(int)$metrics['returned']?></p></a>
+            <a href="<?=APP_URL?>/index.php?action=retention_cases&amp;state=normal<?=$siteQuery?>" class="rounded-2xl border border-blue-200 bg-blue-50 p-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"><p class="text-xs font-extrabold uppercase tracking-wide text-blue-900">Siguen su rutina</p><p class="mt-2 text-3xl font-extrabold text-neutral-950"><?=(int)$metrics['normal']?></p></a>
+            <a href="<?=APP_URL?>/index.php?action=retention_cases&amp;state=insufficient<?=$siteQuery?>" class="rounded-2xl border border-neutral-200 bg-white p-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"><p class="text-xs font-extrabold uppercase tracking-wide text-neutral-600">Conociendo su rutina</p><p class="mt-2 text-3xl font-extrabold text-neutral-950"><?=(int)$metrics['insufficient']?></p></a>
         </div>
-
-        <?php if (!empty($_GET['ok'])): ?>
-            <div class="mb-5 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800"><?= $escape($_GET['ok']) ?></div>
-        <?php endif; ?>
-        <?php if (!empty($_GET['err'])): ?>
-            <div class="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800"><?= $escape($_GET['err']) ?></div>
-        <?php endif; ?>
-
-        <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            <article class="rounded-2xl border border-neutral-200 bg-white p-4"><p class="text-xs font-bold uppercase text-neutral-500">En bandeja</p><p class="mt-2 text-2xl font-extrabold"><?= (int)$metrics['total'] ?></p></article>
-            <article class="rounded-2xl border border-neutral-200 bg-white p-4"><p class="text-xs font-bold uppercase text-neutral-500">Revisados</p><p class="mt-2 text-2xl font-extrabold"><?= (int)$metrics['reviewed'] ?></p></article>
-            <article class="rounded-2xl border border-neutral-200 bg-white p-4"><p class="text-xs font-bold uppercase text-neutral-500">Descartados</p><p class="mt-2 text-2xl font-extrabold"><?= (int)$metrics['dismissed'] ?></p></article>
-            <article class="rounded-2xl border border-neutral-200 bg-white p-4"><p class="text-xs font-bold uppercase text-neutral-500">Contactados</p><p class="mt-2 text-2xl font-extrabold"><?= (int)$metrics['contacted'] ?></p></article>
-            <article class="rounded-2xl border border-neutral-200 bg-white p-4"><p class="text-xs font-bold uppercase text-neutral-500">Regresaron</p><p class="mt-2 text-2xl font-extrabold"><?= (int)$metrics['returned'] ?></p></article>
-        </div>
-
-        <?php if ($metrics['evaluated'] !== null): ?>
-        <p class="mb-5 text-xs text-neutral-500">Última ejecución: <?= (int)$metrics['evaluated'] ?> evaluados · <?= (int)$metrics['insufficient'] ?> sin histórico suficiente · <?= (int)$metrics['normal'] ?> normales · <?= (int)$metrics['attention'] ?> atención · <?= (int)$metrics['high_attention'] ?> atención alta.</p>
-        <?php endif; ?>
-
-        <?php if ($detections === []): ?>
-            <div class="rounded-3xl border border-dashed border-neutral-300 bg-white px-6 py-14 text-center">
-                <h2 class="text-lg font-extrabold text-neutral-800">No hay casos pendientes</h2>
-                <p class="mt-2 text-sm text-neutral-500">La bandeja se llenará cuando el job encuentre una caída explicable con histórico suficiente.</p>
-            </div>
-        <?php else: ?>
-            <div class="space-y-4">
-            <?php foreach ($detections as $item): ?>
-                <article class="rounded-3xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
-                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h2 class="text-lg font-extrabold text-neutral-900"><?= $escape(trim($item['nombre'].' '.$item['apellidos'])) ?></h2>
-                                <span class="rounded-full px-3 py-1 text-xs font-extrabold <?= $item['level']==='HIGH_ATTENTION' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800' ?>">
-                                    <?= $item['level']==='HIGH_ATTENTION' ? 'Atención alta' : 'Atención' ?>
-                                </span>
-                                <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700"><?= $escape($item['activity_family']==='GENERAL' ? 'Actividad general' : $item['activity_family']) ?></span>
-                            </div>
-                            <p class="mt-1 text-xs text-neutral-500"><?= $escape($item['sede_nombre']) ?> · última asistencia <?= $item['last_attendance_utc'] ? $escape(date('d/m/Y', strtotime($item['last_attendance_utc']))) : 'sin fecha' ?></p>
-                            <p class="mt-4 max-w-3xl text-sm leading-6 text-neutral-700"><?= $escape($item['explanation']) ?></p>
-                            <?php if (!empty($item['contacted_at_utc'])): ?><p class="mt-2 text-xs font-semibold text-neutral-500">Último contacto manual: <?= $escape(date('d/m/Y H:i', strtotime($item['contacted_at_utc']))) ?></p><?php endif; ?>
-                        </div>
-                    </div>
-
-                    <div class="mt-5 rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
-                        <p class="text-xs font-extrabold uppercase tracking-wider text-indigo-700">Previsualización — no enviado</p>
-                        <p class="mt-2 text-sm leading-6 text-neutral-700"><?= $escape($item['suggested_message']) ?></p>
-                    </div>
-
-                    <div class="mt-5 flex flex-wrap gap-2">
-                        <?php foreach ([
-                            ['REVIEW','Revisado'], ['POSTPONE','Posponer 7 días'], ['CONTACT_MANUAL','Marcar contacto manual']
-                        ] as [$action,$label]): ?>
-                        <form method="POST" action="<?= APP_URL ?>/index.php?action=retention_action">
-                            <?= Csrf::field() ?>
-                            <input type="hidden" name="detection_id" value="<?= (int)$item['id_retention_detection'] ?>">
-                            <input type="hidden" name="version" value="<?= (int)$item['version'] ?>">
-                            <input type="hidden" name="retention_action" value="<?= $escape($action) ?>">
-                            <input type="hidden" name="postpone_days" value="7">
-                            <input type="hidden" name="idempotency_key" value="<?= $escape(RequestContext::newId()) ?>">
-                            <button class="rounded-full border border-neutral-300 px-4 py-2 text-xs font-bold text-neutral-700 hover:bg-neutral-50" type="submit"><?= $escape($label) ?></button>
-                        </form>
-                        <?php endforeach; ?>
-                        <form method="POST" action="<?= APP_URL ?>/index.php?action=retention_action" class="flex flex-wrap gap-2">
-                            <?= Csrf::field() ?>
-                            <input type="hidden" name="detection_id" value="<?= (int)$item['id_retention_detection'] ?>">
-                            <input type="hidden" name="version" value="<?= (int)$item['version'] ?>">
-                            <input type="hidden" name="retention_action" value="DISMISS">
-                            <input type="hidden" name="idempotency_key" value="<?= $escape(RequestContext::newId()) ?>">
-                            <label class="sr-only" for="reason-<?= (int)$item['id_retention_detection'] ?>">Motivo opcional</label>
-                            <input id="reason-<?= (int)$item['id_retention_detection'] ?>" name="reason" maxlength="255" placeholder="Motivo opcional" class="rounded-full border border-neutral-300 px-4 py-2 text-xs">
-                            <button class="rounded-full border border-neutral-300 px-4 py-2 text-xs font-bold text-neutral-700 hover:bg-neutral-50" type="submit">Descartar</button>
-                        </form>
-                    </div>
-                </article>
-            <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
     </section>
-</main>
-<?php require __DIR__ . '/../_footer.php'; ?>
+
+    <section aria-labelledby="atencion-title" class="mt-8">
+        <div class="flex flex-wrap items-end justify-between gap-3"><div><h2 id="atencion-title" class="text-xl font-extrabold text-neutral-950">Necesitan tu atención</h2><p class="mt-1 text-sm text-neutral-600">Primero quienes llevan más tiempo sin venir; después, quienes vienen bastante menos.</p></div><a href="<?=APP_URL?>/index.php?action=retention_cases&amp;state=attention<?=$siteQuery?>" class="inline-flex min-h-11 items-center rounded-full border border-neutral-300 bg-white px-5 text-sm font-bold text-neutral-800 hover:bg-neutral-50">Ver todos</a></div>
+        <?php if($detections===[]):?><div class="mt-4 rounded-3xl border border-dashed border-neutral-300 bg-white px-6 py-12 text-center"><h3 class="font-extrabold text-neutral-800">No hay casos pendientes</h3><p class="mt-2 text-sm text-neutral-500">Cuando exista una caída explicable con historial suficiente aparecerá aquí.</p></div><?php else:?><div class="mt-4 space-y-4"><?php $returnTo='retention'; foreach($detections as $item) require __DIR__.'/retention_case_card.php';?></div><?php endif;?>
+    </section>
+
+    <?php if($returned!==[]):?><section aria-labelledby="returned-title" class="mt-9"><div class="flex items-end justify-between gap-3"><div><h2 id="returned-title" class="text-xl font-extrabold text-neutral-950">Han vuelto a entrenar</h2><p class="mt-1 text-sm text-neutral-600">Regresos observados después de una detección. No implica causalidad.</p></div><a href="<?=APP_URL?>/index.php?action=retention_cases&amp;state=returned<?=$siteQuery?>" class="text-sm font-bold text-indigo-700 hover:underline">Ver todos</a></div><div class="mt-4 grid gap-3 md:grid-cols-2"><?php foreach($returned as $item):?><article class="rounded-2xl border border-emerald-200 bg-white p-4"><p class="font-extrabold text-neutral-950"><?=$escape(trim($item['nombre'].' '.$item['apellidos']))?></p><p class="mt-1 text-sm font-semibold text-emerald-800">Ha vuelto a entrenar</p><p class="mt-2 text-sm text-neutral-600">Regreso: <?=$escape($item['returned_label'])?><?php if($item['days_to_return']!==null):?> · <?=(int)$item['days_to_return']?> día<?=((int)$item['days_to_return']===1?'':'s')?> después<?php endif;?></p><p class="mt-1 text-xs text-neutral-500"><?=$escape($item['activity_label'])?> · <?=$escape($item['sede_nombre'])?></p></article><?php endforeach;?></div></section><?php endif;?>
+
+    <section aria-labelledby="entradas-title" class="mt-9 rounded-3xl border border-neutral-200 bg-white p-4 sm:p-6"><div class="flex flex-wrap items-end justify-between gap-3"><div><h2 id="entradas-title" class="text-xl font-extrabold text-neutral-950">Últimas entradas</h2><p class="mt-1 text-sm text-neutral-600">Una visita por socio y día; reintentos del lector no cuentan varias veces.</p></div><a href="<?=APP_URL?>/index.php?action=retention_history<?=$siteQuery?>" class="inline-flex min-h-11 items-center rounded-full border border-neutral-300 px-5 text-sm font-bold text-neutral-800">Ver historial</a></div><?php if($recentVisits===[]):?><p class="mt-5 rounded-2xl bg-neutral-50 px-4 py-8 text-center text-sm text-neutral-500">Todavía no hay entradas en este ámbito.</p><?php else:?><ol class="mt-4 divide-y divide-neutral-100"><?php foreach($recentVisits as $visit):?><li class="grid gap-1 py-3 sm:grid-cols-[110px_1fr_auto] sm:items-center"><time class="text-sm font-extrabold text-neutral-800"><?=$escape($visit['relative_datetime'])?></time><span class="text-sm font-semibold text-neutral-900"><?=$escape(trim($visit['nombre'].' '.$visit['apellidos']))?></span><span class="text-xs font-bold text-neutral-500"><?=$escape($visit['activity_label'])?><?php if(count($sites)>1):?> · <?=$escape($visit['sede_nombre'])?><?php endif;?></span></li><?php endforeach;?></ol><?php endif;?></section>
+
+    <section aria-labelledby="buscar-title" class="mt-9 rounded-3xl border border-neutral-200 bg-white p-4 sm:p-6"><h2 id="buscar-title" class="text-xl font-extrabold text-neutral-950">Buscar socio</h2><p class="mt-1 text-sm text-neutral-600">Busca por nombre, apellidos o teléfono. El resultado no muestra datos personales innecesarios.</p><form method="GET" action="<?=APP_URL?>/index.php" role="search" class="mt-4 flex flex-col gap-3 sm:flex-row"><input type="hidden" name="action" value="retention"><?php if($selectedSite!==null):?><input type="hidden" name="site" value="<?=(int)$selectedSite?>"><?php endif;?><label class="sr-only" for="retention-search">Nombre, apellidos o teléfono</label><input id="retention-search" name="q" maxlength="100" value="<?=$escape($search['query'])?>" placeholder="Ej. Elena Demo" class="min-h-11 min-w-0 flex-1 rounded-xl border border-neutral-300 px-4 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"><button class="min-h-11 rounded-xl bg-[#111318] px-6 text-sm font-bold text-white" type="submit">Buscar</button></form>
+    <?php if($search['query']!==''):?><div class="mt-5"><p class="text-sm font-bold text-neutral-700"><?=(int)$search['pagination']['total']?> resultado<?=((int)$search['pagination']['total']===1?'':'s')?> para “<?=$escape($search['query'])?>”</p><?php if($search['items']===[]):?><p class="mt-3 rounded-xl bg-neutral-50 p-4 text-sm text-neutral-500">No se encontró ningún socio en tu empresa y sede autorizada.</p><?php else:?><div class="mt-3 grid gap-3 md:grid-cols-2"><?php foreach($search['items'] as $item):?><article class="rounded-2xl border border-neutral-200 p-4"><div class="flex flex-wrap items-center justify-between gap-2"><h3 class="font-extrabold text-neutral-950"><?=$escape(trim($item['nombre'].' '.$item['apellidos']))?></h3><span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-800"><?=$escape($item['state_label'])?></span></div><p class="mt-2 text-sm text-neutral-600"><?=$escape($item['activity_label'])?> · Habitual: <?=number_format((float)($item['baseline_weekly_rate']??0),1,',','')?> visitas/semana</p><p class="mt-1 text-sm text-neutral-600">Última visita: <?=$escape($item['last_attendance_label'])?></p><p class="mt-2 text-sm text-neutral-700"><?=$escape($item['explanation'])?></p></article><?php endforeach;?></div><?php if((int)$search['pagination']['pages']>1):?><?php $searchBase=['action'=>'retention','q'=>$search['query']];if($selectedSite!==null)$searchBase['site']=$selectedSite;?><nav aria-label="Páginas de resultados de socios" class="mt-4 flex items-center justify-between gap-3"><span class="text-xs text-neutral-500">Página <?=(int)$search['pagination']['page']?> de <?=(int)$search['pagination']['pages']?></span><div class="flex gap-2"><?php if((int)$search['pagination']['page']>1):?><a class="inline-flex min-h-11 items-center rounded-xl border border-neutral-300 px-4 text-sm font-bold" href="<?=APP_URL?>/index.php?<?=$escape(http_build_query($searchBase+['search_page'=>(int)$search['pagination']['page']-1]))?>">Anterior</a><?php endif;?><?php if((int)$search['pagination']['page']<(int)$search['pagination']['pages']):?><a class="inline-flex min-h-11 items-center rounded-xl border border-neutral-300 px-4 text-sm font-bold" href="<?=APP_URL?>/index.php?<?=$escape(http_build_query($searchBase+['search_page'=>(int)$search['pagination']['page']+1]))?>">Siguiente</a><?php endif;?></div></nav><?php endif;?><?php endif;?></div><?php endif;?></section>
+</section></main>
+</div>
+<?php require __DIR__.'/../_footer.php';?>

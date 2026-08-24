@@ -26,6 +26,7 @@ final class DemoGymFactory
         $empresaIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
         foreach ($empresaIds as $empresaId) {
             $db->exec("DELETE FROM retention_action WHERE id_empresa = {$empresaId}");
+            $db->exec("DELETE FROM retention_member_snapshot WHERE id_empresa = {$empresaId}");
             $db->exec("DELETE FROM retention_detection WHERE id_empresa = {$empresaId}");
             $db->exec("DELETE FROM retention_run WHERE id_empresa = {$empresaId}");
             $db->exec("DELETE FROM attendance_event WHERE id_empresa = {$empresaId}");

@@ -62,6 +62,7 @@ try {
     if ($companyIds !== []) {
         $ids = implode(',',array_map('intval',$companyIds));
         $db->exec("DELETE FROM retention_action WHERE id_empresa IN ({$ids})");
+        $db->exec("DELETE FROM retention_member_snapshot WHERE id_empresa IN ({$ids})");
         $db->exec("DELETE FROM retention_detection WHERE id_empresa IN ({$ids})");
         $db->exec("DELETE FROM retention_run WHERE id_empresa IN ({$ids})");
         $db->exec("DELETE FROM attendance_event WHERE id_empresa IN ({$ids})");

@@ -308,6 +308,18 @@ final class MigrationManager
                     'fk:retention_action.fk_retention_action_detection_scope' => $this->hasForeignKey('retention_action', 'fk_retention_action_detection_scope'),
                 ]
             ),
+            'migracion_v32.sql' => array_merge(
+                $this->tableChecks(['retention_member_snapshot','attendance_daily_visit']),
+                [
+                    'index:retention_member_snapshot.uq_retention_snapshot_run_member' => $this->hasIndex('retention_member_snapshot', 'uq_retention_snapshot_run_member'),
+                    'index:retention_member_snapshot.idx_retention_snapshot_dashboard' => $this->hasIndex('retention_member_snapshot', 'idx_retention_snapshot_dashboard'),
+                    'index:attendance_event.idx_attendance_recent_daily' => $this->hasIndex('attendance_event', 'idx_attendance_recent_daily'),
+                    'index:attendance_daily_visit.idx_attendance_daily_recent' => $this->hasIndex('attendance_daily_visit', 'idx_attendance_daily_recent'),
+                    'trigger:trg_attendance_daily_after_insert' => $this->hasTrigger('trg_attendance_daily_after_insert'),
+                    'fk:retention_member_snapshot.fk_retention_snapshot_member_scope' => $this->hasForeignKey('retention_member_snapshot', 'fk_retention_snapshot_member_scope'),
+                    'fk:retention_member_snapshot.fk_retention_snapshot_site_scope' => $this->hasForeignKey('retention_member_snapshot', 'fk_retention_snapshot_site_scope'),
+                ]
+            ),
             default => [],
         };
     }
@@ -398,6 +410,15 @@ final class MigrationManager
         );
         $stmt->execute([':table' => $table, ':constraint' => $constraint]);
         return (int) $stmt->fetchColumn() > 0;
+    }
+
+    private function hasTrigger(string $trigger): bool
+    {
+        $stmt=$this->db->prepare(
+            'SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema=DATABASE() AND trigger_name=:trigger'
+        );
+        $stmt->execute([':trigger'=>$trigger]);
+        return (int)$stmt->fetchColumn()===1;
     }
 
     private function trackingRows(): array
