@@ -40,7 +40,7 @@ $clavesEntorno = [
     'ALERT_SMTP_HOST', 'ALERT_SMTP_PORT', 'ALERT_SMTP_USER', 'ALERT_SMTP_PASSWORD',
     'ALERT_SMTP_SECURITY', 'ALERT_FROM', 'ALERT_FROM_NAME', 'ALERT_TO',
     'ALERT_ALLOWED_RECIPIENTS', 'ALERT_SMTP_TIMEOUT',
-    'PRIVATE_PHOTO_DIR', 'TRUSTED_PROXY_IPS',
+    'PRIVATE_PHOTO_DIR', 'TRAINING_MEDIA_DIR', 'TRAINING_MEDIA_MAX_BYTES', 'TRUSTED_PROXY_IPS',
     'IMPORT_DIR', 'IMPORT_MAX_BYTES', 'IMPORT_MAX_ROWS', 'IMPORT_RETENTION_DAYS',
     'ACCESS_CONTROL_MODE', 'ACCESS_CONTROL_PROVIDER', 'ACCESS_CONTROL_ACTIVE_CONFIRM',
     'ACCESS_CONTROL_MAX_ATTEMPTS', 'ACCESS_CONTROL_BACKOFF_SECONDS',
@@ -148,6 +148,9 @@ define('ALERT_ALLOWED_RECIPIENTS', array_values(array_filter(array_map(
 define('ALERT_SMTP_TIMEOUT', max(3, min(30, (int) ($_ENV['ALERT_SMTP_TIMEOUT'] ?? 10))));
 $privatePhotoDir = trim((string) ($_ENV['PRIVATE_PHOTO_DIR'] ?? ''));
 define('PRIVATE_PHOTO_DIR', $privatePhotoDir !== '' ? $privatePhotoDir : dirname(__DIR__, 2) . '/storage/private/fotos');
+$trainingMediaDir = trim((string) ($_ENV['TRAINING_MEDIA_DIR'] ?? ''));
+define('TRAINING_MEDIA_DIR', $trainingMediaDir !== '' ? $trainingMediaDir : dirname(__DIR__, 2) . '/storage/private/training');
+define('TRAINING_MEDIA_MAX_BYTES', max(1024, min(20971520, (int) ($_ENV['TRAINING_MEDIA_MAX_BYTES'] ?? 5242880))));
 define('TRUSTED_PROXY_IPS', array_values(array_filter(array_map(
     static fn(string $ip): string => trim($ip),
     explode(',', (string) ($_ENV['TRUSTED_PROXY_IPS'] ?? ''))

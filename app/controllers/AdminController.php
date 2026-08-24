@@ -45,6 +45,7 @@ require_once __DIR__ . '/../services/SocioFinancialService.php';
 require_once __DIR__ . '/../services/AccessEligibilityService.php';
 require_once __DIR__ . '/../services/SocioRegistrationService.php';
 require_once __DIR__ . '/../services/SocioProfileService.php';
+require_once __DIR__ . '/../services/TrainingService.php';
 
 class AdminController
 {
@@ -730,6 +731,7 @@ class AdminController
         $fichaFinanciera = null;
         $historialFinanciero = [];
         $accesoFicha = null;
+        $trainingSummary = null;
         $detalleSocioId = filter_var($_GET['detalle'] ?? 0, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]) ?: 0;
         if ($puedeVerDetalleEconomico && $detalleSocioId > 0) {
             $socioDetalle = $this->userModel->buscarPorId((int) $detalleSocioId);
@@ -737,6 +739,16 @@ class AdminController
                 $fichaFinanciera = $this->financialService->estado((int) $detalleSocioId);
                 $historialFinanciero = $this->financialService->historial((int) $detalleSocioId, 100);
                 $accesoFicha = $this->accessEligibility->evaluar((int) $detalleSocioId);
+                if (Authorization::can($this->tenant->rol(), 'training.view')) {
+                    $training = new TrainingService(
+                        Database::getInstance()->getConnection(),
+                        (int)$this->tenant->empresaId(),
+                        $this->tenant->sedeId(),
+                        $this->tenant->rol(),
+                        $this->tenant->usuarioId()
+                    );
+                    $trainingSummary = $training->memberSummary((int)$detalleSocioId);
+                }
             }
         }
 

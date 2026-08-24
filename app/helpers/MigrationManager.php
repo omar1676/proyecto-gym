@@ -320,6 +320,26 @@ final class MigrationManager
                     'fk:retention_member_snapshot.fk_retention_snapshot_site_scope' => $this->hasForeignKey('retention_member_snapshot', 'fk_retention_snapshot_site_scope'),
                 ]
             ),
+            'migracion_v33.sql' => array_merge(
+                $this->tableChecks([
+                    'training_exercise', 'training_exercise_media',
+                    'training_template', 'training_template_discipline',
+                    'training_template_day', 'training_template_block', 'training_template_exercise',
+                    'training_plan', 'training_plan_discipline', 'training_plan_day',
+                    'training_plan_block', 'training_plan_exercise', 'training_plan_exercise_media',
+                    'training_assignment', 'training_session', 'training_session_exercise',
+                ]),
+                [
+                    'index:training_exercise.uq_training_exercise_scope_slug' => $this->hasIndex('training_exercise', 'uq_training_exercise_scope_slug'),
+                    'index:training_template.uq_training_template_company_slug' => $this->hasIndex('training_template', 'uq_training_template_company_slug'),
+                    'index:training_plan.idx_training_plan_member' => $this->hasIndex('training_plan', 'idx_training_plan_member'),
+                    'index:training_assignment.uq_training_assignment_active_member' => $this->hasIndex('training_assignment', 'uq_training_assignment_active_member'),
+                    'index:training_session.uq_training_session_idempotency' => $this->hasIndex('training_session', 'uq_training_session_idempotency'),
+                    'fk:training_plan.fk_training_plan_member_scope' => $this->hasForeignKey('training_plan', 'fk_training_plan_member_scope'),
+                    'fk:training_assignment.fk_training_assignment_plan_scope' => $this->hasForeignKey('training_assignment', 'fk_training_assignment_plan_scope'),
+                    'fk:training_session_exercise.fk_training_session_exercise_plan_scope' => $this->hasForeignKey('training_session_exercise', 'fk_training_session_exercise_plan_scope'),
+                ]
+            ),
             default => [],
         };
     }
