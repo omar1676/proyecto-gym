@@ -94,6 +94,44 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
             </section>
             <?php endif; ?>
 
+            <?php if ($accesoFicha && $socioDetalle):
+                $policyVersion=(int)($accesoFicha['version'] ?? 0);
+                $canTemporary=Authorization::can($this->tenant->rol(), 'access.temporary');
+                $canSuspend=Authorization::can($this->tenant->rol(), 'access.suspend');
+                $canDeny=Authorization::can($this->tenant->rol(), 'access.deny');
+                $canPermanent=Authorization::can($this->tenant->rol(), 'access.permanent');
+                $canRestore=Authorization::can($this->tenant->rol(), 'access.restore');
+            ?>
+            <section class="mt-6 rounded-[22px] border border-[#e4e4e7] bg-white p-6 shadow-sm" aria-label="Política de acceso del socio">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div><p class="text-xs font-extrabold uppercase tracking-widest text-neutral-500">Acceso lógico</p><h2 class="mt-1 text-lg font-extrabold text-neutral-800"><?= htmlspecialchars(trim($socioDetalle['nombre'].' '.$socioDetalle['apellidos']),ENT_QUOTES,'UTF-8') ?></h2></div>
+                    <div class="text-right"><span class="inline-flex rounded-full px-3 py-1 text-xs font-extrabold <?= $accesoFicha['estado']==='PERMITIDO'?'bg-green-100 text-green-800':'bg-red-100 text-red-800' ?>"><?= htmlspecialchars($accesoFicha['estado'],ENT_QUOTES,'UTF-8') ?></span><p class="mt-1 text-xs text-neutral-500"><?= htmlspecialchars($accesoFicha['reason_code'],ENT_QUOTES,'UTF-8') ?></p></div>
+                </div>
+                <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="rounded-xl bg-neutral-100 p-3"><p class="text-xs font-bold text-neutral-500">Política</p><p class="font-bold"><?= htmlspecialchars((string)($accesoFicha['policy_state'] ?? 'BASE_MEMBRESIA'),ENT_QUOTES,'UTF-8') ?></p></div>
+                    <div class="rounded-xl bg-neutral-100 p-3"><p class="text-xs font-bold text-neutral-500">Sincronización proveedor</p><p class="font-bold"><?= htmlspecialchars((string)($accesoFicha['provider_sync_state'] ?? 'DISABLED'),ENT_QUOTES,'UTF-8') ?></p><p class="text-[11px] text-neutral-500">Modo: <?= htmlspecialchars((string)($accesoFicha['provider_mode'] ?? 'disabled'),ENT_QUOTES,'UTF-8') ?> · no confirma estado físico</p></div>
+                    <div class="rounded-xl bg-neutral-100 p-3"><p class="text-xs font-bold text-neutral-500">Inicio UTC</p><p class="font-bold"><?= htmlspecialchars((string)($accesoFicha['starts_at_utc'] ?? '—'),ENT_QUOTES,'UTF-8') ?></p></div>
+                    <div class="rounded-xl bg-neutral-100 p-3"><p class="text-xs font-bold text-neutral-500">Caducidad UTC</p><p class="font-bold"><?= htmlspecialchars((string)($accesoFicha['expires_at_utc'] ?? '—'),ENT_QUOTES,'UTF-8') ?></p></div>
+                </div>
+                <?php if($canTemporary||$canSuspend||$canDeny||$canPermanent||$canRestore): ?>
+                <form id="access-policy-form" method="POST" action="index.php?action=admin_access_change" class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" onsubmit="return confirmarCambioAcceso(this)">
+                    <?= Csrf::field() ?><input type="hidden" name="id_socio" value="<?= (int)$socioDetalle['id_usuario'] ?>"><input type="hidden" name="policy_version" value="<?= $policyVersion ?>"><input type="hidden" name="_operation_id" value="<?= bin2hex(random_bytes(16)) ?>">
+                    <div><label for="access-operation" class="block text-xs font-bold text-neutral-500">Operación</label><select id="access-operation" name="operacion" required class="mt-1 w-full rounded-xl border px-3 py-2 text-sm">
+                        <?php if($canTemporary): ?><option value="temporary">Conceder temporal</option><?php if(($accesoFicha['policy_state']??'')==='TEMPORARY'): ?><option value="extend">Ampliar temporal</option><?php endif; ?><?php endif; ?>
+                        <?php if($canSuspend): ?><option value="suspend">Suspender</option><?php endif; ?><?php if($canDeny): ?><option value="deny">Denegar</option><?php endif; ?><?php if($canPermanent): ?><option value="permanent">Bloqueo permanente</option><?php endif; ?><?php if($canRestore): ?><option value="restore">Restaurar</option><?php endif; ?>
+                    </select></div>
+                    <div><label for="access-reason" class="block text-xs font-bold text-neutral-500">Motivo</label><select id="access-reason" name="reason_code" required class="mt-1 w-full rounded-xl border px-3 py-2 text-sm"><option value="TEMPORARY_VISIT">Visita temporal</option><option value="MANUAL_EXCEPTION">Excepción manual</option><option value="POLICY_REVIEW">Revisión de política</option><option value="POLICY_DENIED">Denegación</option><option value="SAFETY_BLOCK">Bloqueo de seguridad</option><option value="MANUAL_RESTORE">Restauración manual</option></select></div>
+                    <div><label for="access-starts" class="block text-xs font-bold text-neutral-500">Inicio (Madrid)</label><input id="access-starts" type="datetime-local" name="starts_at" class="mt-1 w-full rounded-xl border px-3 py-2 text-sm"></div>
+                    <div><label for="access-expires" class="block text-xs font-bold text-neutral-500">Caducidad (Madrid)</label><div class="mt-1 flex gap-1" aria-label="Duraciones rápidas"><button type="button" onclick="fijarTemporal(1)" class="rounded-full border px-2 py-1 text-xs">1 día</button><button type="button" onclick="fijarTemporal(2)" class="rounded-full border px-2 py-1 text-xs">2 días</button><button type="button" onclick="fijarTemporal(3)" class="rounded-full border px-2 py-1 text-xs">3 días</button></div><input id="access-expires" type="datetime-local" name="expires_at" class="mt-2 w-full rounded-xl border px-3 py-2 text-sm"><p id="access-expiry-preview" class="mt-1 text-[11px] font-bold text-red-700" aria-live="polite"></p></div>
+                    <div><label for="access-suspend-until" class="block text-xs font-bold text-neutral-500">Suspender hasta (opcional)</label><input id="access-suspend-until" type="datetime-local" name="suspended_until" class="mt-1 w-full rounded-xl border px-3 py-2 text-sm"></div>
+                    <div class="sm:col-span-2"><label for="access-note" class="block text-xs font-bold text-neutral-500">Nota operativa</label><input id="access-note" name="reason_note" maxlength="255" class="mt-1 w-full rounded-xl border px-3 py-2 text-sm"></div>
+                    <div class="flex items-end"><button type="submit" class="w-full rounded-full bg-[#111318] px-4 py-2 text-sm font-bold text-white">Aplicar</button></div>
+                </form>
+                <?php endif; ?>
+                <?php if($historialAcceso): ?><details class="mt-5"><summary class="cursor-pointer text-sm font-bold text-indigo-700">Historial de acceso (<?= count($historialAcceso) ?>)</summary><ol class="mt-3 divide-y"><?php foreach($historialAcceso as $event): ?><li class="py-2 text-xs"><strong><?= htmlspecialchars($event['action'],ENT_QUOTES,'UTF-8') ?></strong> · <?= htmlspecialchars((string)$event['previous_state'],ENT_QUOTES,'UTF-8') ?> → <?= htmlspecialchars($event['new_state'],ENT_QUOTES,'UTF-8') ?> · <?= htmlspecialchars($event['created_at_utc'],ENT_QUOTES,'UTF-8') ?> UTC</li><?php endforeach; ?></ol></details><?php endif; ?>
+            </section>
+            <?php endif; ?>
+
             <?php if ($mensajeExito !== ''): ?>
             <div class="mt-5 rounded-[14px] border border-[#bbf7d0] bg-[#f0fdf4] px-5 py-3 text-sm font-bold text-[#111318]">
                 <?= htmlspecialchars($mensajeExito, ENT_QUOTES, 'UTF-8') ?>
@@ -345,8 +383,8 @@ $urlPagina = static function (int $pagina) use ($busqueda): string {
                                             class="rounded-full bg-[#4f46e5] px-3 py-1 text-xs font-bold text-white hover:brightness-125 transition">
                                             <?= $estado === 'prueba' ? 'Confirmar pago' : ($estado === 'activa' ? 'Renovar' : 'Dar membresía') ?>
                                         </button>
-                                        <?php if ($puedeVerDetalleEconomico): ?>
-                                        <a href="index.php?<?= htmlspecialchars(http_build_query(array_filter(['action'=>'admin_socios','buscar'=>$busqueda,'pagina'=>$paginaActual,'detalle'=>(int)$socio['id_usuario']], static fn($v)=>$v!=='')), ENT_QUOTES, 'UTF-8') ?>" class="ml-1 inline-flex rounded-full border border-[#e4e4e7] px-3 py-1 text-xs font-bold text-neutral-600 hover:bg-neutral-50">Economía</a>
+                                        <?php if ($puedeVerDetalleEconomico || $puedeVerDetalleAcceso): ?>
+                                        <a href="index.php?<?= htmlspecialchars(http_build_query(array_filter(['action'=>'admin_socios','buscar'=>$busqueda,'pagina'=>$paginaActual,'detalle'=>(int)$socio['id_usuario']], static fn($v)=>$v!=='')), ENT_QUOTES, 'UTF-8') ?>" class="ml-1 inline-flex rounded-full border border-[#e4e4e7] px-3 py-1 text-xs font-bold text-neutral-600 hover:bg-neutral-50"><?= $puedeVerDetalleEconomico ? 'Economía / acceso' : 'Acceso' ?></a>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -908,6 +946,32 @@ function abrirModalMembresia(idSocio, nombre, ibanGuardado) {
     alternarIban('membresia');
     calcularTotalMembresia();
     abrirModal('modal-membresia', document.activeElement);
+}
+
+function fechaLocalInput(fecha) {
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    return fecha.getFullYear() + '-' + p(fecha.getMonth() + 1) + '-' + p(fecha.getDate())
+        + 'T' + p(fecha.getHours()) + ':' + p(fecha.getMinutes());
+}
+
+function fijarTemporal(dias) {
+    var inicio = new Date();
+    inicio.setSeconds(0, 0);
+    var fin = new Date(inicio.getTime() + dias * 86400000);
+    var inicioCampo = document.getElementById('access-starts');
+    var finCampo = document.getElementById('access-expires');
+    if (inicioCampo) inicioCampo.value = fechaLocalInput(inicio);
+    if (finCampo) finCampo.value = fechaLocalInput(fin);
+    var aviso = document.getElementById('access-expiry-preview');
+    if (aviso) aviso.textContent = 'Se denegará automáticamente el ' + fin.toLocaleString('es-ES') + '.';
+}
+
+function confirmarCambioAcceso(formulario) {
+    var operacion = formulario.querySelector('[name="operacion"]').value;
+    if (operacion === 'permanent') {
+        return window.prompt('Bloqueo permanente. Escribe BLOQUEAR para confirmar.') === 'BLOQUEAR';
+    }
+    return window.confirm('¿Aplicar este cambio de acceso?');
 }
 
 // Cuota base + (plus mensual x meses de la cuota). Mismo cálculo que hace

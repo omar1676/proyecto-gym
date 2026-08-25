@@ -55,5 +55,6 @@ check('los modales principales declaran semántica dialog', substr_count($html, 
 check('Salir lateral usa POST con CSRF', preg_match('#<form[^>]+method="POST"[^>]+action="[^"]*action=logout"#i', $html) === 1);
 check('no queda un enlace GET de logout', preg_match('#<a[^>]+href="[^"]*action=logout"#i', $html) === 0);
 check('el listado muestra estado económico y acceso lógico', strpos($html, 'Economía / acceso') !== false && strpos($html, 'Acceso:') !== false);
-check('dirección/admin puede abrir el detalle económico', strpos($html, 'detalle=') !== false && strpos($html, '>Economía</a>') !== false);
+check('listado paginado conserva el ámbito validado por servidor', strpos($html, 'MEMBER_NOT_FOUND_OR_OUT_OF_SCOPE') === false);
+check('dirección/admin puede abrir el detalle económico y de acceso', strpos($html, 'detalle=') !== false && strpos($html, '>Economía / acceso</a>') !== false);
 finishTests();

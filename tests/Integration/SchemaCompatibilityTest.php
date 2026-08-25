@@ -9,15 +9,15 @@ $temp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'gimnera-schema-compat-' . bi
 mkdir($temp, 0700, true);
 try {
     $current = SchemaCompatibility::assertRuntime($db, $root);
-    check('release actual acepta esquema actual', $current['current'] === 33);
+    check('release actual acepta esquema actual', $current['current'] === 34);
 
     file_put_contents($temp . '/SCHEMA_COMPATIBILITY.json', json_encode([
         'release' => 'previous-compatible',
         'minimum_runtime_version' => 27,
-        'maximum_runtime_version' => 33,
-        'maximum_migrator_version' => 33,
+        'maximum_runtime_version' => 34,
+        'maximum_migrator_version' => 34,
     ], JSON_THROW_ON_ERROR));
-    check('release declarada compatible acepta esquema actual', SchemaCompatibility::assertRuntime($db, $temp)['current'] === 33);
+    check('release declarada compatible acepta esquema actual', SchemaCompatibility::assertRuntime($db, $temp)['current'] === 34);
 
     file_put_contents($temp . '/SCHEMA_COMPATIBILITY.json', json_encode([
         'release' => 'f23-schema30',

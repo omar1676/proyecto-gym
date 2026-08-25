@@ -16,6 +16,7 @@ $suites = [
         'tests/Unit/SocioFormStateTest.php',
         'tests/Unit/RetentionPolicyTest.php', 'tests/Unit/RetentionPresentationTest.php',
         'tests/Unit/TrainingPolicyTest.php',
+        'tests/Unit/AccessTimeTest.php',
     ],
     'Integration' => [
         'tests/Integration/IntegrityTest.php', 'tests/Integration/IdempotencyTest.php',
@@ -63,6 +64,10 @@ $suites = [
         'tests/Integration/TrainingHostileIntegrityTest.php',
         'tests/Integration/TrainingExecutionSessionTest.php',
         'tests/Integration/MigrationV33ContractTest.php',
+        'tests/Integration/MigrationV34StructureTest.php',
+        'tests/Integration/AccessPolicyTest.php',
+        'tests/Integration/AccessPolicyConcurrencyTest.php',
+        'tests/Integration/AccessPolicyScaleIsolationTest.php',
     ],
     'Security' => [
         'tests/Security/OutputEncodingTest.php', 'tests/Security/RateLimitTest.php',
@@ -73,6 +78,7 @@ $suites = [
         'tests/Security/TenantOnboardingIsolationTest.php',
         'tests/Security/RetentionSecurityTest.php',
         'tests/Security/TrainingSecurityTest.php',
+        'tests/Security/AccessPolicySecurityTest.php',
         'pruebas/multisede.php', 'pruebas/autorizacion.php',
     ],
     'Functional' => [
@@ -92,6 +98,7 @@ $suites = [
     'Performance' => [
         'tests/Performance/RetentionPerformanceTest.php',
         'tests/Performance/TrainingPerformanceTest.php',
+        'tests/Performance/AccessPolicyPerformanceTest.php',
     ],
 ];
 

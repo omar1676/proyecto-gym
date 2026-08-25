@@ -1,10 +1,12 @@
 # Gimnera — gestión SaaS multiempresa para gimnasios
 
-Versión candidata: **0.16.0-fase25a-rc2**. Mantiene la base estable de F24.1 y
-añade Training Foundation en una rama aislada: biblioteca global/privada,
-plantillas multidisciplina, planes personalizados por snapshot, asignaciones,
-sesiones y material visual privado. El entrenador sigue diseñando el contenido.
-No usa IA, datos clínicos, DORLET, lectores, controladoras ni biometría.
+Versión candidata de integración: **0.17.1-integration-f25a-f26-rc1**. Combina
+Training Foundation (biblioteca global/privada, plantillas multidisciplina,
+planes por snapshot, asignaciones, sesiones y material visual privado) con una
+política lógica de acceso independiente del proveedor (temporales, suspensión,
+denegación y bloqueo permanente). Conserva aislamiento multiempresa/multisede,
+auditoría e idempotencia. No usa IA, datos clínicos, DORLET, lectores,
+controladoras ni biometría; `ACCESS_CONTROL_MODE` permanece desactivado.
 
 Panel de gestión para un gimnasio multisede: socios y membresías, venta de productos,
 empleados, remesas SEPA y control de acceso desde el panel.

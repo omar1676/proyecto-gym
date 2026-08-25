@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "release": "0.16.0-fase25a-rc2",
+  "release": "0.17.1-integration-f25a-f26-rc1",
   "minimum_runtime_version": 27,
-  "maximum_runtime_version": 33,
-  "maximum_migrator_version": 33,
-  "notes": "F25A candidate local. El runtime acepta v27-v33; v33 añade Training multidisciplina, catálogos global/tenant, plantillas, planes snapshot, asignaciones y sesiones. No hay IA, DORLET, biometría ni datos reales."
+  "maximum_runtime_version": 34,
+  "maximum_migrator_version": 34,
+  "notes": "Integración F25A+F26. El runtime acepta v27-v34; v33 añade Training y v34 la política lógica de acceso. No activa hardware: ACCESS_CONTROL_MODE permanece disabled."
 }

@@ -379,6 +379,16 @@ final class MigrationManager
                     'check:training_session_exercise.chk_training_session_completed' => $this->hasCheckConstraint('training_session_exercise', 'chk_training_session_completed'),
                 ]
             ),
+            'migracion_v34.sql' => array_merge(
+                $this->tableChecks(['access_policy','access_policy_event']),
+                [
+                    'index:access_policy.uq_access_policy_member_scope' => $this->hasIndex('access_policy', 'uq_access_policy_member_scope'),
+                    'index:access_policy.idx_access_policy_expiry' => $this->hasIndex('access_policy', 'idx_access_policy_expiry'),
+                    'index:access_policy_event.uq_access_policy_event_idempotency' => $this->hasIndex('access_policy_event', 'uq_access_policy_event_idempotency'),
+                    'fk:access_policy.fk_access_policy_member_scope' => $this->hasForeignKey('access_policy', 'fk_access_policy_member_scope'),
+                    'fk:access_policy_event.fk_access_policy_event_scope' => $this->hasForeignKey('access_policy_event', 'fk_access_policy_event_scope'),
+                ]
+            ),
             default => [],
         };
     }
