@@ -42,6 +42,17 @@ final class TrainingPolicy
     public static function slug(mixed $value): string
     {
         $value = mb_strtolower(trim((string) $value));
+        // iconv no translitera de forma determinista entre Windows y Linux
+        // (algunas builds separan la tilde como apóstrofo). Normalizamos primero
+        // los caracteres latinos habituales para que el identificador sea estable.
+        $value = strtr($value, [
+            'á' => 'a', 'à' => 'a', 'ä' => 'a', 'â' => 'a', 'ã' => 'a', 'å' => 'a',
+            'é' => 'e', 'è' => 'e', 'ë' => 'e', 'ê' => 'e',
+            'í' => 'i', 'ì' => 'i', 'ï' => 'i', 'î' => 'i',
+            'ó' => 'o', 'ò' => 'o', 'ö' => 'o', 'ô' => 'o', 'õ' => 'o',
+            'ú' => 'u', 'ù' => 'u', 'ü' => 'u', 'û' => 'u',
+            'ñ' => 'n', 'ç' => 'c', 'ý' => 'y', 'ÿ' => 'y',
+        ]);
         if (function_exists('iconv')) {
             $converted = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
             if ($converted !== false) $value = $converted;
