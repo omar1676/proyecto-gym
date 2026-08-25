@@ -17,6 +17,7 @@ require_once __DIR__ . '/../app/controllers/AdminController.php';
 require_once __DIR__ . '/../app/controllers/MediaController.php';
 require_once __DIR__ . '/../app/controllers/PlatformController.php';
 require_once __DIR__ . '/../app/controllers/RetentionController.php';
+require_once __DIR__ . '/../app/controllers/AccessPolicyController.php';
 require_once __DIR__ . '/../app/helpers/SecurityHeaders.php';
 require_once __DIR__ . '/../app/helpers/ErrorHandler.php';
 require_once __DIR__ . '/../app/helpers/RequestContext.php';
@@ -150,6 +151,10 @@ $rutas = [
     'admin_membresia_contratar' => ['admin', 'contratarMembresia'],
     'admin_membresias'          => ['admin', 'mostrarMembresias'],
 
+    /* Política lógica de acceso; no abre puertas ni usa biometría */
+    'admin_access'               => ['access', 'index'],
+    'admin_access_change'        => ['access', 'change'],
+
     /* Retention V1: detección y revisión, nunca envío de mensajes */
     'retention'                 => ['retention', 'index'],
     'retention_cases'           => ['retention', 'cases'],
@@ -201,6 +206,7 @@ $ctrl = match ($controlador) {
     'media' => new MediaController(),
     'platform' => new PlatformController(),
     'retention' => new RetentionController(),
+    'access' => new AccessPolicyController(),
     default => new AdminController(),
 };
 $ctrl->$metodo();

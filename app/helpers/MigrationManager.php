@@ -320,6 +320,16 @@ final class MigrationManager
                     'fk:retention_member_snapshot.fk_retention_snapshot_site_scope' => $this->hasForeignKey('retention_member_snapshot', 'fk_retention_snapshot_site_scope'),
                 ]
             ),
+            'migracion_v33.sql' => array_merge(
+                $this->tableChecks(['access_policy','access_policy_event']),
+                [
+                    'index:access_policy.uq_access_policy_member_scope' => $this->hasIndex('access_policy', 'uq_access_policy_member_scope'),
+                    'index:access_policy.idx_access_policy_expiry' => $this->hasIndex('access_policy', 'idx_access_policy_expiry'),
+                    'index:access_policy_event.uq_access_policy_event_idempotency' => $this->hasIndex('access_policy_event', 'uq_access_policy_event_idempotency'),
+                    'fk:access_policy.fk_access_policy_member_scope' => $this->hasForeignKey('access_policy', 'fk_access_policy_member_scope'),
+                    'fk:access_policy_event.fk_access_policy_event_scope' => $this->hasForeignKey('access_policy_event', 'fk_access_policy_event_scope'),
+                ]
+            ),
             default => [],
         };
     }

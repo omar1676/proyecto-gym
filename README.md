@@ -1,12 +1,10 @@
 # Gimnera — gestión SaaS multiempresa para gimnasios
 
-Versión actual: **0.15.2-fase24.1**. Mantiene Retention Engine V1 y añade su
-dashboard operativo con lenguaje humano, búsqueda, filtros e historial paginado. La detección
-determinista y explicable de caídas de asistencia sobre eventos genéricos,
-con aislamiento multiempresa/multisede, cooldown, retorno y revisión manual.
-No envía mensajes, no conecta DORLET, lectores, controladoras ni biometría.
-Esta revisión corrige además la restauración de dumps MariaDB con triggers sin
-exigir el usuario `DEFINER` original ni privilegios administrativos a la aplicación.
+Versión de esta rama: **0.17.0-fase26-rc1**. Añade una política lógica de acceso
+independiente del proveedor: temporales con caducidad exacta, suspensión,
+denegación y bloqueo permanente, con aislamiento multiempresa/multisede,
+auditoría e idempotencia. No conecta DORLET, lectores, controladoras ni
+biometría; `ACCESS_CONTROL_MODE` permanece desactivado.
 
 Panel de gestión para un gimnasio multisede: socios y membresías, venta de productos,
 empleados, remesas SEPA y control de acceso desde el panel.

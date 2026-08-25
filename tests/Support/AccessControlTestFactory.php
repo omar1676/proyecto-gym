@@ -8,6 +8,8 @@ final class AccessControlTestFactory
         $ids = array_values(array_filter(array_map('intval', $ids)));
         if (!$ids) return;
         $in = implode(',', $ids);
+        $db->exec("DELETE FROM access_policy_event WHERE id_empresa IN ({$in})");
+        $db->exec("DELETE FROM access_policy WHERE id_empresa IN ({$in})");
         $db->exec("DELETE FROM access_control_audit WHERE id_empresa IN ({$in})");
         $db->exec("DELETE FROM access_sync_job WHERE id_empresa IN ({$in})");
         $db->exec("DELETE FROM access_identity_map WHERE id_empresa IN ({$in})");
@@ -48,6 +50,11 @@ final class AccessControlTestFactory
     public static function createMember(PDO $db, int $empresaId, int $sedeId, string $code): int
     {
         return self::createUser($db, $empresaId, $sedeId, 'socio', $code);
+    }
+
+    public static function createActor(PDO $db, int $empresaId, ?int $sedeId, string $role, string $code): int
+    {
+        return self::createUser($db, $empresaId, $sedeId, $role, $code);
     }
 
     private static function createUser(PDO $db, int $empresaId, ?int $sedeId, string $role, string $code): int

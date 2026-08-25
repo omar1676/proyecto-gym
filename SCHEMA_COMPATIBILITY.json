@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "release": "0.15.2-fase24.1",
+  "release": "0.17.0-fase26-rc1",
   "minimum_runtime_version": 27,
-  "maximum_runtime_version": 32,
-  "maximum_migrator_version": 32,
-  "notes": "F24.1. El runtime acepta v27-v32; v32 añade la proyección diaria consultable y el índice de historial, sin cambiar la fórmula Retention V1. La revisión 0.15.2 restaura triggers MariaDB sin depender del DEFINER original."
+  "maximum_runtime_version": 33,
+  "maximum_migrator_version": 33,
+  "notes": "F26 RC1. El runtime acepta v27-v33; v33 añade la política lógica de acceso y su historial inmutable. No activa hardware: ACCESS_CONTROL_MODE permanece disabled."
 }
