@@ -15,6 +15,7 @@ $suites = [
         'tests/Unit/AuditPolicyTest.php', 'tests/Unit/LogSanitizationTest.php',
         'tests/Unit/SocioFormStateTest.php',
         'tests/Unit/RetentionPolicyTest.php', 'tests/Unit/RetentionPresentationTest.php',
+        'tests/Unit/TrainingPolicyTest.php',
     ],
     'Integration' => [
         'tests/Integration/IntegrityTest.php', 'tests/Integration/IdempotencyTest.php',
@@ -50,12 +51,18 @@ $suites = [
         'tests/Integration/SocioProfileConcurrencyTest.php',
         'tests/Integration/MigrationV31StructureTest.php',
         'tests/Integration/MigrationV32StructureTest.php',
+        'tests/Integration/MigrationV33StructureTest.php',
         'tests/Integration/RetentionEngineTest.php',
         'tests/Integration/RetentionDashboardTest.php',
         'tests/Integration/RetentionConcurrencyTest.php',
         'tests/Integration/RetentionMultiTenantScaleTest.php',
         'tests/Integration/AttendanceTimezoneTest.php',
         'tests/Integration/RetentionAuditFailureTest.php',
+        'tests/Integration/TrainingFoundationTest.php',
+        'tests/Integration/TrainingConcurrencyTest.php',
+        'tests/Integration/TrainingHostileIntegrityTest.php',
+        'tests/Integration/TrainingExecutionSessionTest.php',
+        'tests/Integration/MigrationV33ContractTest.php',
     ],
     'Security' => [
         'tests/Security/OutputEncodingTest.php', 'tests/Security/RateLimitTest.php',
@@ -65,6 +72,7 @@ $suites = [
         'tests/Security/PrivacyRoutesTest.php', 'tests/Security/InfrastructureFailureTest.php',
         'tests/Security/TenantOnboardingIsolationTest.php',
         'tests/Security/RetentionSecurityTest.php',
+        'tests/Security/TrainingSecurityTest.php',
         'pruebas/multisede.php', 'pruebas/autorizacion.php',
     ],
     'Functional' => [
@@ -78,10 +86,12 @@ $suites = [
         'tests/Functional/ResponsiveAdminViewsTest.php',
         'tests/Functional/SocioFormRecoveryHttpTest.php',
         'tests/Functional/RetentionViewTest.php',
+        'tests/Functional/TrainingViewsTest.php',
         'pruebas/acceso.php',
     ],
     'Performance' => [
         'tests/Performance/RetentionPerformanceTest.php',
+        'tests/Performance/TrainingPerformanceTest.php',
     ],
 ];
 

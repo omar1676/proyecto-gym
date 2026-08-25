@@ -14,6 +14,7 @@ final class Authorization
             'migrations.manage', 'caja.view', 'caja.operate', 'caja.adjust',
             'access.view', 'access.manage', 'access.sync', 'access.audit',
             'retention.view', 'retention.review',
+            'training.view', 'training.manage',
         ],
         'admin' => [
             'dashboard.view', 'socios.view', 'socios.create', 'socios.edit',
@@ -24,6 +25,7 @@ final class Authorization
             'caja.view', 'caja.operate', 'caja.adjust',
             'access.view', 'access.audit',
             'retention.view', 'retention.review',
+            'training.view', 'training.manage',
         ],
         'recepcion' => [
             'dashboard.view', 'socios.view', 'socios.create', 'socios.edit',
@@ -32,7 +34,7 @@ final class Authorization
         ],
         // No hay portal de socio todavía. Esta capacidad deja explícita la
         // regla que deberá usarlo: solo recursos cuyo propietario sea él mismo.
-        'socio' => ['propio.view'],
+        'socio' => ['propio.view', 'training.own.view'],
     ];
 
     public static function can(string $rol, string $permiso): bool

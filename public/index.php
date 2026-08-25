@@ -17,6 +17,7 @@ require_once __DIR__ . '/../app/controllers/AdminController.php';
 require_once __DIR__ . '/../app/controllers/MediaController.php';
 require_once __DIR__ . '/../app/controllers/PlatformController.php';
 require_once __DIR__ . '/../app/controllers/RetentionController.php';
+require_once __DIR__ . '/../app/controllers/TrainingController.php';
 require_once __DIR__ . '/../app/helpers/SecurityHeaders.php';
 require_once __DIR__ . '/../app/helpers/ErrorHandler.php';
 require_once __DIR__ . '/../app/helpers/RequestContext.php';
@@ -156,6 +157,26 @@ $rutas = [
     'retention_history'         => ['retention', 'history'],
     'retention_action'          => ['retention', 'act'],
 
+    /* Training profesional: biblioteca, plantillas y planes */
+    'training_library'               => ['training', 'library'],
+    'training_exercise_create'       => ['training', 'createExercise'],
+    'training_exercise_clone'        => ['training', 'cloneExercise'],
+    'training_media_add'             => ['training', 'addMedia'],
+    'training_media'                 => ['training', 'media'],
+    'training_plan_media'            => ['training', 'planMedia'],
+    'training_templates'             => ['training', 'templates'],
+    'training_template_create'       => ['training', 'createTemplate'],
+    'training_template_day_add'      => ['training', 'addTemplateDay'],
+    'training_template_block_add'    => ['training', 'addTemplateBlock'],
+    'training_template_exercise_add' => ['training', 'addTemplateExercise'],
+    'training_plans'                 => ['training', 'plans'],
+    'training_plan_create'           => ['training', 'createPlan'],
+    'training_plan_assign'           => ['training', 'assignPlan'],
+    'training_plan_day_add'          => ['training', 'addPlanDay'],
+    'training_plan_block_add'        => ['training', 'addPlanBlock'],
+    'training_plan_exercise_add'     => ['training', 'addPlanExercise'],
+    'training_plan_exercise_update'  => ['training', 'updatePlanExercise'],
+
     /* Importaciones masivas (solo dirección/superadmin) */
     'admin_importaciones'             => ['admin', 'mostrarImportaciones'],
     'admin_importacion_subir'         => ['admin', 'subirImportacion'],
@@ -201,6 +222,7 @@ $ctrl = match ($controlador) {
     'media' => new MediaController(),
     'platform' => new PlatformController(),
     'retention' => new RetentionController(),
+    'training' => new TrainingController(),
     default => new AdminController(),
 };
 $ctrl->$metodo();
