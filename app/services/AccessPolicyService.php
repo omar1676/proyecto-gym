@@ -454,8 +454,14 @@ final class AccessPolicyService
             $stmt->execute($params);
             if ($stmt->rowCount() !== 1) throw new DomainException('Conflicto concurrente al actualizar la política de acceso.');
         }
-        $stmt = $this->db->prepare('SELECT * FROM access_policy WHERE id_access_policy=:id LIMIT 1');
-        $stmt->execute([':id'=>$id]);
+        $stmt = $this->db->prepare(
+            'SELECT * FROM access_policy WHERE id_access_policy=:id AND id_empresa=:empresa '
+            . 'AND id_gimnasio=:sede AND id_socio=:socio LIMIT 1'
+        );
+        $stmt->execute([
+            ':id'=>$id, ':empresa'=>$this->empresaId,
+            ':sede'=>(int)$member['id_gimnasio'], ':socio'=>(int)$member['id_usuario'],
+        ]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 

@@ -387,6 +387,9 @@ final class MigrationManager
                     'index:access_policy_event.uq_access_policy_event_idempotency' => $this->hasIndex('access_policy_event', 'uq_access_policy_event_idempotency'),
                     'fk:access_policy.fk_access_policy_member_scope' => $this->hasForeignKey('access_policy', 'fk_access_policy_member_scope'),
                     'fk:access_policy_event.fk_access_policy_event_scope' => $this->hasForeignKey('access_policy_event', 'fk_access_policy_event_scope'),
+                    'check:access_policy.chk_access_policy_version' => $this->hasCheckConstraint('access_policy', 'chk_access_policy_version'),
+                    'check:access_policy.chk_access_policy_temporary_expiry' => $this->hasCheckConstraint('access_policy', 'chk_access_policy_temporary_expiry'),
+                    'check:access_policy.chk_access_policy_interval' => $this->hasCheckConstraint('access_policy', 'chk_access_policy_interval'),
                 ]
             ),
             default => [],

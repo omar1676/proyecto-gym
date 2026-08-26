@@ -24,5 +24,13 @@ try {
     check('schema gate detecta índice de caducidad ausente',(bool)array_filter(
         $manager->status()['structural_mismatch'],static fn(string $item):bool=>str_contains($item,'idx_access_policy_expiry')
     ));
+    $fixture['db']->exec(
+        'ALTER TABLE access_policy ADD KEY idx_access_policy_expiry (state,expires_at_utc,id_access_policy)'
+    );
+    $fixture['db']->exec('ALTER TABLE access_policy DROP CONSTRAINT chk_access_policy_temporary_expiry');
+    check('schema gate detecta CHECK temporal ausente',(bool)array_filter(
+        $manager->status()['structural_mismatch'],
+        static fn(string $item):bool=>str_contains($item,'chk_access_policy_temporary_expiry')
+    ));
 } finally { SchemaMigrationTestFactory::drop($fixture); }
 finishTests();
