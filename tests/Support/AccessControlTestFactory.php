@@ -60,6 +60,11 @@ final class AccessControlTestFactory
     private static function createUser(PDO $db, int $empresaId, ?int $sedeId, string $role, string $code): int
     {
         $safe = strtolower(preg_replace('/[^a-z0-9_]/i', '', $code));
+        $dni = 'TACC' . strtoupper(substr(
+            hash('sha256', $empresaId . '|' . ($sedeId ?? 0) . '|' . $role . '|' . $safe),
+            0,
+            16
+        ));
         $stmt = $db->prepare(
             'INSERT INTO usuario
              (nombre,apellidos,dni,telefono,email,nombre_usuario,contrasena,activo,rol,id_empresa,id_gimnasio)
@@ -68,7 +73,7 @@ final class AccessControlTestFactory
         );
         $stmt->execute([
             ':nombre'=>'Test', ':apellidos'=>'Access ' . strtoupper($safe),
-            ':dni'=>'TACC-' . strtoupper($safe), ':telefono'=>'600000000',
+            ':dni'=>$dni, ':telefono'=>'600000000',
             ':email'=>$safe . '@example.invalid', ':usuario'=>'test_access_' . $safe,
             ':pass'=>password_hash('synthetic-only', PASSWORD_DEFAULT), ':rol'=>$role,
             ':empresa'=>$empresaId, ':sede'=>$sedeId,
