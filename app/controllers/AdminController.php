@@ -47,6 +47,7 @@ require_once __DIR__ . '/../services/AccessPolicyService.php';
 require_once __DIR__ . '/../services/SocioRegistrationService.php';
 require_once __DIR__ . '/../services/SocioProfileService.php';
 require_once __DIR__ . '/../services/TrainingService.php';
+require_once __DIR__ . '/../services/RetentionService.php';
 
 class AdminController
 {
@@ -745,6 +746,7 @@ class AdminController
         $historialFinanciero = [];
         $accesoFicha = null;
         $trainingSummary = null;
+        $retentionSummary = null;
         $socioDetalle = null;
         $historialAcceso = [];
         $detalleSocioId = filter_var($_GET['detalle'] ?? 0, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]) ?: 0;
@@ -769,6 +771,14 @@ class AdminController
                         $this->tenant->usuarioId()
                     );
                     $trainingSummary = $training->memberSummary((int)$detalleSocioId);
+                }
+                if (Authorization::can($this->tenant->rol(), 'retention.view')) {
+                    $retention = new RetentionService(
+                        Database::getInstance()->getConnection(),
+                        (int)$this->tenant->empresaId(),
+                        $this->tenant->sedeId()
+                    );
+                    $retentionSummary = $retention->memberSummary((int)$detalleSocioId);
                 }
             }
         }

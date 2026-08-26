@@ -1,4 +1,4 @@
-<?php require __DIR__ . '/../_header_admin.php'; ?>
+<?php require_once __DIR__ . '/../../helpers/AccessPolicyPresentation.php'; require __DIR__ . '/../_header_admin.php'; ?>
 <main class="flex-1 min-w-0 bg-[#f7f7f8] px-4 py-6 sm:px-6 lg:px-8">
 <section class="mx-auto max-w-6xl">
     <div class="pt-4">
@@ -14,8 +14,8 @@
     </div>
     <div class="mt-6 overflow-x-auto rounded-2xl border bg-white">
         <table class="min-w-[850px] w-full text-left text-sm">
-            <thead class="bg-neutral-100 text-xs uppercase text-neutral-500"><tr><th class="p-3">Socio</th><th class="p-3">Estado</th><th class="p-3">Motivo</th><th class="p-3">Inicio UTC</th><th class="p-3">Caducidad UTC</th><th class="p-3">Versión</th></tr></thead>
-            <tbody><?php foreach($policies as $policy): ?><tr class="border-t"><td class="p-3 font-bold"><a class="text-indigo-700" href="index.php?action=admin_socios&amp;detalle=<?= (int)$policy['id_socio'] ?>"><?= htmlspecialchars(trim($policy['nombre'].' '.$policy['apellidos']),ENT_QUOTES,'UTF-8') ?></a></td><td class="p-3"><?= htmlspecialchars($policy['state'],ENT_QUOTES,'UTF-8') ?></td><td class="p-3"><?= htmlspecialchars($policy['reason_code'],ENT_QUOTES,'UTF-8') ?></td><td class="p-3"><?= htmlspecialchars((string)$policy['starts_at_utc'],ENT_QUOTES,'UTF-8') ?></td><td class="p-3"><?= htmlspecialchars((string)$policy['expires_at_utc'],ENT_QUOTES,'UTF-8') ?></td><td class="p-3"><?= (int)$policy['version'] ?></td></tr><?php endforeach; ?></tbody>
+            <thead class="bg-neutral-100 text-xs uppercase text-neutral-500"><tr><th class="p-3">Socio</th><th class="p-3">Estado</th><th class="p-3">Motivo</th><th class="p-3">Inicio</th><th class="p-3">Caducidad</th><th class="p-3">Versión</th></tr></thead>
+            <tbody><?php foreach($policies as $policy): ?><tr class="border-t"><td class="p-3 font-bold"><a class="text-indigo-700" href="index.php?action=admin_socios&amp;detalle=<?= (int)$policy['id_socio'] ?>"><?= htmlspecialchars(trim($policy['nombre'].' '.$policy['apellidos']),ENT_QUOTES,'UTF-8') ?></a></td><td class="p-3"><?= htmlspecialchars(AccessPolicyPresentation::state($policy['state']),ENT_QUOTES,'UTF-8') ?></td><td class="p-3"><?= htmlspecialchars(AccessPolicyPresentation::reason($policy['reason_code']),ENT_QUOTES,'UTF-8') ?></td><td class="p-3"><?= htmlspecialchars(AccessPolicyPresentation::dateTime($policy['starts_at_utc']),ENT_QUOTES,'UTF-8') ?></td><td class="p-3"><?= htmlspecialchars(AccessPolicyPresentation::dateTime($policy['expires_at_utc']),ENT_QUOTES,'UTF-8') ?></td><td class="p-3"><?= (int)$policy['version'] ?></td></tr><?php endforeach; ?></tbody>
         </table>
         <?php if(!$policies): ?><p class="p-6 text-sm text-neutral-500">Todavía no existen excepciones manuales de acceso.</p><?php endif; ?>
     </div>

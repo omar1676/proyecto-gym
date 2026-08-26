@@ -17,6 +17,7 @@ $suites = [
         'tests/Unit/RetentionPolicyTest.php', 'tests/Unit/RetentionPresentationTest.php',
         'tests/Unit/TrainingPolicyTest.php',
         'tests/Unit/AccessTimeTest.php',
+        'tests/Unit/AccessPolicyPresentationTest.php',
     ],
     'Integration' => [
         'tests/Integration/IntegrityTest.php', 'tests/Integration/IdempotencyTest.php',

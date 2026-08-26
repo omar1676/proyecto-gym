@@ -39,7 +39,10 @@ try {
     $stored=$db->query('SELECT reason_note FROM access_policy WHERE id_access_policy='.(int)$created['policy']['id_access_policy'])->fetchColumn();
     check('nota se persiste como dato sin transformación destructiva',$stored==='<script>alert(1)</script>');
     $view=file_get_contents(dirname(__DIR__,2).'/app/views/admin/socios.php');
-    check('vista escapa reason codes y datos de acceso',str_contains($view,"htmlspecialchars($".'accesoFicha')&&str_contains($view,"htmlspecialchars($".'event'));
+    check('vista escapa etiquetas y datos de acceso',
+        str_contains($view,'htmlspecialchars(AccessPolicyPresentation::state')
+        &&str_contains($view,'htmlspecialchars(AccessPolicyPresentation::reason')
+        &&str_contains($view,'htmlspecialchars(AccessPolicyPresentation::action'));
     $router=file_get_contents(dirname(__DIR__,2).'/public/index.php');
     $controller=file_get_contents(dirname(__DIR__,2).'/app/controllers/AccessPolicyController.php');
     check('mutación usa POST y CSRF',str_contains($router,"'admin_access_change'")&&str_contains($controller,"REQUEST_METHOD'] !== 'POST'")&&str_contains($controller,'Csrf::validarPost()'));

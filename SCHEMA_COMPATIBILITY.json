@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "release": "0.17.1-integration-f25a-f26-rc1",
+  "release": "0.17.1-integration-f25a-f26-rc2",
   "minimum_runtime_version": 27,
   "maximum_runtime_version": 34,
   "maximum_migrator_version": 34,

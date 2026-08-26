@@ -369,6 +369,44 @@ final class RetentionService
         ];
     }
 
+    /** @return array<string,mixed>|null */
+    public function memberSummary(int $memberId): ?array
+    {
+        if ($memberId <= 0) return null;
+        $runId = $this->latestRunId() ?? 0;
+        $sql = "SELECT u.id_usuario id_socio,u.nombre,u.apellidos,u.id_gimnasio,g.nombre sede_nombre,
+                       s.id_retention_run,s.state,s.activity_family,s.baseline_visits,s.recent_visits,
+                       s.baseline_weekly_rate,s.recent_weekly_rate,s.drop_pct,s.last_attendance_utc,
+                       d.id_retention_detection,d.status workflow_status,d.version,d.detected_at_utc,
+                       d.contacted_at_utc,d.returned_at_utc,d.days_to_return,d.next_review_at,
+                       CASE WHEN d.status='RETURNED' THEN 'RETURNED' ELSE COALESCE(s.state,'NOT_EVALUATED') END display_state
+                  FROM usuario u
+             LEFT JOIN retention_member_snapshot s
+                    ON s.id_empresa=u.id_empresa AND s.id_socio=u.id_usuario AND s.id_retention_run=:run
+             LEFT JOIN (
+                    SELECT id_empresa,id_socio,MAX(id_retention_detection) id_retention_detection
+                      FROM retention_detection WHERE id_empresa=:detection_company GROUP BY id_empresa,id_socio
+                  ) latest_detection
+                    ON latest_detection.id_empresa=u.id_empresa AND latest_detection.id_socio=u.id_usuario
+             LEFT JOIN retention_detection d ON d.id_retention_detection=latest_detection.id_retention_detection
+                  JOIN gimnasio g ON g.id_gimnasio=u.id_gimnasio AND g.id_empresa=u.id_empresa
+                 WHERE u.id_usuario=:member AND u.id_empresa=:company AND u.rol='socio'
+                   AND u.activo=1 AND u.anonimizado_en IS NULL";
+        $params = [
+            ':run'=>$runId, ':detection_company'=>$this->companyId,
+            ':member'=>$memberId, ':company'=>$this->companyId,
+        ];
+        if ($this->siteId !== null) {
+            $sql .= ' AND u.id_gimnasio=:site';
+            $params[':site'] = $this->siteId;
+        }
+        $stmt = $this->db->prepare($sql . ' LIMIT 1');
+        $stmt->execute($params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) return null;
+        return $this->decorateCases([$row])[0];
+    }
+
     /** @return list<array<string,mixed>> */
     public function recentVisits(int $limit = 10): array
     {
