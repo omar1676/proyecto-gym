@@ -40,6 +40,11 @@ final class DemoGymFactory
             ] as $table) {
                 $db->exec("DELETE FROM {$table} WHERE id_empresa = {$empresaId}");
             }
+            $db->exec("DELETE FROM access_policy_event WHERE id_empresa = {$empresaId}");
+            $db->exec("DELETE FROM access_policy WHERE id_empresa = {$empresaId}");
+            $db->exec("DELETE FROM access_control_audit WHERE id_empresa = {$empresaId}");
+            $db->exec("DELETE FROM access_sync_job WHERE id_empresa = {$empresaId}");
+            $db->exec("DELETE FROM access_identity_map WHERE id_empresa = {$empresaId}");
             $db->exec("DELETE FROM retention_action WHERE id_empresa = {$empresaId}");
             $db->exec("DELETE FROM retention_member_snapshot WHERE id_empresa = {$empresaId}");
             $db->exec("DELETE FROM retention_detection WHERE id_empresa = {$empresaId}");

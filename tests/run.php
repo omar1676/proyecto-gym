@@ -67,6 +67,7 @@ $suites = [
         'tests/Integration/MigrationV34StructureTest.php',
         'tests/Integration/AccessPolicyTest.php',
         'tests/Integration/AccessPolicyConcurrencyTest.php',
+        'tests/Integration/TrainingAccessIntegrationTest.php',
         'tests/Integration/AccessPolicyScaleIsolationTest.php',
     ],
     'Security' => [
