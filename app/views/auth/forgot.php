@@ -27,7 +27,9 @@ $e = function ($v): string {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Recuperar contraseña — <?= $e($marca['nombre']) ?></title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"
+            integrity="sha384-aJ9rL4k6lF+91guGvUFVSkpIcge7Zd9EiI4TQDLoK9kFaFJgKHgjEXVvG/qA5COj"
+            crossorigin="anonymous"></script>
     <style>
         body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
         :root {

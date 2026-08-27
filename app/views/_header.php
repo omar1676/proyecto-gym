@@ -22,7 +22,9 @@ if ($logoSedeH !== '' && is_file($rutaPublicaH . 'gimnasios/' . $logoSedeH)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'Acceso', ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars($nombreCabecera, ENT_QUOTES, 'UTF-8') ?>
     </title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"
+            integrity="sha384-aJ9rL4k6lF+91guGvUFVSkpIcge7Zd9EiI4TQDLoK9kFaFJgKHgjEXVvG/qA5COj"
+            crossorigin="anonymous"></script>
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 

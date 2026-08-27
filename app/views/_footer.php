@@ -45,17 +45,17 @@ $nombrePie = defined('APP_NOMBRE') ? APP_NOMBRE : 'Gimnasio';
             <div class="flex gap-4 justify-center items-center flex-wrap pt-1">
                 <a href="#" class="hover:opacity-80 transition-opacity duration-200" aria-label="Instagram">
                     <img class="h-5 w-5 object-contain"
-                        src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/instagram.svg"
+                        src="https://cdn.jsdelivr.net/npm/simple-icons@11.15.0/icons/instagram.svg"
                         style="filter: invert(1);" alt="Instagram">
                 </a>
                 <a href="#" class="hover:opacity-80 transition-opacity duration-200" aria-label="Facebook">
                     <img class="h-5 w-5 object-contain"
-                        src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/facebook.svg"
+                        src="https://cdn.jsdelivr.net/npm/simple-icons@11.15.0/icons/facebook.svg"
                         style="filter: invert(1);" alt="Facebook">
                 </a>
                 <a href="#" class="hover:opacity-80 transition-opacity duration-200" aria-label="WhatsApp">
                     <img class="h-5 w-5 object-contain"
-                        src="https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/whatsapp.svg"
+                        src="https://cdn.jsdelivr.net/npm/simple-icons@11.15.0/icons/whatsapp.svg"
                         style="filter: invert(1);" alt="WhatsApp">
                 </a>
             </div>

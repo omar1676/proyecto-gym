@@ -1,12 +1,19 @@
 <?php
-require_once dirname(__DIR__) . '/app/config/config.php';
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
+$php = PHP_BINARY; $root = dirname(__DIR__);
+$integrityCommand = [$php, $root . '/ops/verify_release_integrity.php'];
+$escapedIntegrity = implode(' ', array_map('escapeshellarg', $integrityCommand));
+passthru($escapedIntegrity, $integrityExit);
+if ($integrityExit !== 0) {
+    fwrite(STDERR, "DESPLIEGUE DETENIDO: integridad de release no demostrada.\n");
+    exit($integrityExit);
+}
+require_once $root . '/app/config/config.php';
 $args = array_slice($argv, 1);
 $confirmed = in_array('--confirm-production', $args, true);
 $stagingConfirmed = in_array('--confirm-staging', $args, true);
 if (APP_ENV === 'production' && !$confirmed) { fwrite(STDERR, "Falta --confirm-production.\n"); exit(1); }
 if (APP_ENV === 'staging' && !$stagingConfirmed) { fwrite(STDERR, "Falta --confirm-staging.\n"); exit(1); }
-$php = PHP_BINARY; $root = dirname(__DIR__);
 $commands = [
     [$php, $root . '/ops/preflight.php'],
     [$php, $root . '/cron/copia_seguridad.php'],
