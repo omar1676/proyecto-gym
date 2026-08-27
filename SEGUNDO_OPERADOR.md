@@ -19,3 +19,24 @@ Prueba sin ayuda verbal:
 
 Registrar tiempo, pasos bloqueados y errores. La prueba solo es VERIFICADA si
 otra persona la completa siguiendo documentación, sin instrucciones verbales.
+
+## Alta nominal
+
+1. Identidad personal y responsable autorizante registrados fuera de Git.
+2. Cuenta Linux individual y clave pública propia; nunca copiar claves privadas.
+3. Sudo limitado a wrappers root-owned ya probados.
+4. Cuenta individual y MFA en cada proveedor estrictamente necesario.
+5. Acceso al material de recuperación según función, no por comodidad.
+6. Prueba de health, diagnóstico, backup, rollback dry-run, localización del
+   restore y respuesta a una alerta sintética.
+
+## Offboarding
+
+1. Deshabilitar primero las sesiones y cuentas individuales del operador.
+2. Retirar por fingerprint únicamente su clave SSH y probar acceso alternativo.
+3. Retirar su sudoers específico y validar `visudo -cf` antes de cerrar sesión.
+4. Revocar GitHub, Cloudflare y OVH; revisar sesiones/tokens emitidos para esa
+   identidad y rotar solo lo compartido que no pueda revocarse individualmente.
+5. Desactivar su cuenta Gimnera conservando la auditoría histórica.
+6. Verificar que no puede iniciar una sesión nueva ni usar una anterior.
+7. Registrar fecha, autorizante y evidencias sin conservar secretos.
