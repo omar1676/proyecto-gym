@@ -20,6 +20,19 @@ try {
     check('release declarada compatible acepta esquema actual', SchemaCompatibility::assertRuntime($db, $temp)['current'] === 35);
 
     file_put_contents($temp . '/SCHEMA_COMPATIBILITY.json', json_encode([
+        'release' => '0.17.1-integration-f25a-f26-rc2',
+        'minimum_runtime_version' => 27,
+        'maximum_runtime_version' => 34,
+        'maximum_migrator_version' => 34,
+    ], JSON_THROW_ON_ERROR));
+    $v34RuntimeRejected = false;
+    $v34MigratorRejected = false;
+    try { SchemaCompatibility::assertRuntime($db, $temp); } catch (RuntimeException) { $v34RuntimeRejected = true; }
+    try { SchemaCompatibility::assertMigrator($db, $temp); } catch (RuntimeException) { $v34MigratorRejected = true; }
+    check('release v34 rechaza explícitamente schema Restaurants v35', $v34RuntimeRejected);
+    check('migrador v34 no actúa frente a schema Restaurants v35', $v34MigratorRejected);
+
+    file_put_contents($temp . '/SCHEMA_COMPATIBILITY.json', json_encode([
         'release' => 'f23-schema30',
         'minimum_runtime_version' => 27,
         'maximum_runtime_version' => 30,
