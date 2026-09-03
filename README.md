@@ -1,6 +1,12 @@
-# Gimnera — gestión SaaS multiempresa para gimnasios
+# Gimnera — plataforma SaaS multivertical
 
-Versión candidata de integración: **0.17.1-integration-f25a-f26-rc1**. Combina
+La visión de producto es Gimnera Platform con verticales Gym, Beauty y
+Restaurants. Gym sigue siendo el producto maduro de este repositorio; Beauty
+requiere una auditoría separada de su SaaS real. La candidate local de
+Restaurants se documenta en `RESTAURANTS_ARCHITECTURE_AUDIT.md` y
+`RESTAURANTS_FOUNDATION.md` y no está desplegada.
+
+Base integrada: **0.17.1-integration-f25a-f26-rc2**. Combina
 Training Foundation (biblioteca global/privada, plantillas multidisciplina,
 planes por snapshot, asignaciones, sesiones y material visual privado) con una
 política lógica de acceso independiente del proveedor (temporales, suspensión,

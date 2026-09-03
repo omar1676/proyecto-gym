@@ -392,6 +392,34 @@ final class MigrationManager
                     'check:access_policy.chk_access_policy_interval' => $this->hasCheckConstraint('access_policy', 'chk_access_policy_interval'),
                 ]
             ),
+            'migracion_v35.sql' => array_merge(
+                $this->tableChecks([
+                    'restaurant_account', 'restaurant_brand',
+                    'restaurant_legal_entity', 'restaurant_location',
+                ]),
+                [
+                    'index:restaurant_account.uq_restaurant_account_company' => $this->hasIndex('restaurant_account', 'uq_restaurant_account_company'),
+                    'index:restaurant_account.uq_restaurant_account_idempotency' => $this->hasIndex('restaurant_account', 'uq_restaurant_account_idempotency'),
+                    'index:restaurant_account.uq_restaurant_account_scope' => $this->hasIndex('restaurant_account', 'uq_restaurant_account_scope'),
+                    'column:restaurant_account.request_fingerprint' => $this->hasColumn('restaurant_account', 'request_fingerprint'),
+                    'index:restaurant_brand.uq_restaurant_brand_company_slug' => $this->hasIndex('restaurant_brand', 'uq_restaurant_brand_company_slug'),
+                    'index:restaurant_brand.uq_restaurant_brand_scope' => $this->hasIndex('restaurant_brand', 'uq_restaurant_brand_scope'),
+                    'index:restaurant_legal_entity.uq_restaurant_legal_company_code' => $this->hasIndex('restaurant_legal_entity', 'uq_restaurant_legal_company_code'),
+                    'index:restaurant_legal_entity.uq_restaurant_legal_scope' => $this->hasIndex('restaurant_legal_entity', 'uq_restaurant_legal_scope'),
+                    'index:restaurant_location.uq_restaurant_location_company_slug' => $this->hasIndex('restaurant_location', 'uq_restaurant_location_company_slug'),
+                    'index:restaurant_location.uq_restaurant_location_scope' => $this->hasIndex('restaurant_location', 'uq_restaurant_location_scope'),
+                    'fk:restaurant_account.fk_restaurant_account_company' => $this->hasForeignKey('restaurant_account', 'fk_restaurant_account_company'),
+                    'fk:restaurant_brand.fk_restaurant_brand_account_scope' => $this->hasForeignKey('restaurant_brand', 'fk_restaurant_brand_account_scope'),
+                    'fk:restaurant_legal_entity.fk_restaurant_legal_account_scope' => $this->hasForeignKey('restaurant_legal_entity', 'fk_restaurant_legal_account_scope'),
+                    'fk:restaurant_location.fk_restaurant_location_account_scope' => $this->hasForeignKey('restaurant_location', 'fk_restaurant_location_account_scope'),
+                    'fk:restaurant_location.fk_restaurant_location_brand_scope' => $this->hasForeignKey('restaurant_location', 'fk_restaurant_location_brand_scope'),
+                    'fk:restaurant_location.fk_restaurant_location_legal_scope' => $this->hasForeignKey('restaurant_location', 'fk_restaurant_location_legal_scope'),
+                    'check:restaurant_account.chk_restaurant_account_version' => $this->hasCheckConstraint('restaurant_account', 'chk_restaurant_account_version'),
+                    'check:restaurant_brand.chk_restaurant_brand_version' => $this->hasCheckConstraint('restaurant_brand', 'chk_restaurant_brand_version'),
+                    'check:restaurant_legal_entity.chk_restaurant_legal_version' => $this->hasCheckConstraint('restaurant_legal_entity', 'chk_restaurant_legal_version'),
+                    'check:restaurant_location.chk_restaurant_location_version' => $this->hasCheckConstraint('restaurant_location', 'chk_restaurant_location_version'),
+                ]
+            ),
             default => [],
         };
     }

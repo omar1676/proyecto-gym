@@ -70,6 +70,9 @@ $suites = [
         'tests/Integration/AccessPolicyConcurrencyTest.php',
         'tests/Integration/TrainingAccessIntegrationTest.php',
         'tests/Integration/AccessPolicyScaleIsolationTest.php',
+        'tests/Integration/MigrationV35StructureTest.php',
+        'tests/Integration/RestaurantOrganizationFoundationTest.php',
+        'tests/Integration/RestaurantOrganizationConcurrencyTest.php',
     ],
     'Security' => [
         'tests/Security/OutputEncodingTest.php', 'tests/Security/RateLimitTest.php',
@@ -101,6 +104,7 @@ $suites = [
         'tests/Performance/RetentionPerformanceTest.php',
         'tests/Performance/TrainingPerformanceTest.php',
         'tests/Performance/AccessPolicyPerformanceTest.php',
+        'tests/Performance/RestaurantOrganizationPerformanceTest.php',
     ],
 ];
 

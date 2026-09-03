@@ -13,7 +13,7 @@ try {
         $file=dirname(__DIR__,2).'/app/config/migracion_v'.$version.'.sql';
         $track->execute([basename($file),hash_file('sha256',$file),'integration-test-v33']);
     }
-    check('v34 se ejecuta realmente',$manager->migratePending()===['migracion_v34.sql']);
+    check('v34 se ejecuta realmente antes de v35',$manager->migratePending()===['migracion_v34.sql','migracion_v35.sql']);
     check('v34 crea estado actual',SchemaMigrationTestFactory::tableExists($fixture['db'],'access_policy'));
     check('v34 crea historial inmutable',SchemaMigrationTestFactory::tableExists($fixture['db'],'access_policy_event'));
     check('v34 crea unicidad tenant/sede/socio',SchemaMigrationTestFactory::indexExists($fixture['db'],'access_policy','uq_access_policy_member_scope'));

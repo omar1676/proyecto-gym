@@ -23,11 +23,11 @@ try {
 
     $before = RestoreVerifier::verify($fixture['db'], dirname(__DIR__, 2) . '/app/config', $artifact);
     check('backup antiguo válido no se presenta como corrupción', $before['BACKUP_INTEGRITY'] === 'OK');
-    check('verificador separa esquema v27 de actual v34', $before['SCHEMA_AT_BACKUP'] === 27 && $before['CURRENT_SCHEMA'] === 34);
+    check('verificador separa esquema v27 de actual v35', $before['SCHEMA_AT_BACKUP'] === 27 && $before['CURRENT_SCHEMA'] === 35);
     check('verificador exige migración sin invalidar integridad', $before['SCHEMA_CURRENCY'] === 'OLD' && $before['MIGRATION_REQUIRED'] === 'YES');
 
     $currentManager = new MigrationManager($fixture['db']);
-    check('migración posterior del restore aplica v28-v34', $currentManager->migratePending() === ['migracion_v28.sql', 'migracion_v29.sql', 'migracion_v30.sql', 'migracion_v31.sql', 'migracion_v32.sql', 'migracion_v33.sql', 'migracion_v34.sql']);
+    check('migración posterior del restore aplica v28-v35', $currentManager->migratePending() === ['migracion_v28.sql', 'migracion_v29.sql', 'migracion_v30.sql', 'migracion_v31.sql', 'migracion_v32.sql', 'migracion_v33.sql', 'migracion_v34.sql', 'migracion_v35.sql']);
     $after = RestoreVerifier::verify($fixture['db'], dirname(__DIR__, 2) . '/app/config', $artifact);
     check('restore migrado conserva integridad y queda current', $after['BACKUP_INTEGRITY'] === 'OK'
         && $after['SCHEMA_CURRENCY'] === 'CURRENT'
