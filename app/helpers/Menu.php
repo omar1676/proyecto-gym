@@ -29,6 +29,8 @@ class Menu
         'migraciones'=> 'M12 3v12m0 0-4-4m4 4 4-4M5 19h14',
         'empresas'   => 'M3 21h18M5 21V7l7-4 7 4v14M9 10h.01M15 10h.01M9 14h.01M15 14h.01',
         'retention'  => 'M4 19v-7a8 8 0 0 1 16 0v7M8 19v-5m8 5v-8M9 7l3-3 3 3',
+        'training'   => 'M6 7h12M6 17h12M4 9v6m16-6v6M9 5v4m6-4v4M9 15v4m6-4v4',
+        'access'     => 'M12 3 5 6v5c0 4.6 2.9 8.5 7 10 4.1-1.5 7-5.4 7-10V6l-7-3Zm0 5v5m0 3h.01',
         'salir'      => 'M10 17 15 12 10 7M15 12H3m8-9h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6',
     ];
 
@@ -51,16 +53,18 @@ class Menu
         $migraciones= ['admin_importaciones','migraciones','Importaciones','migraciones'];
         $empresas    = ['admin_empresas','empresas','Empresas','empresas'];
         $retention   = ['retention', 'retention', 'Atención socios', 'retention'];
+        $training    = ['training_library', 'training', 'Entrenamientos', 'training'];
+        $access      = ['admin_access', 'access', 'Control de acceso', 'access'];
 
         switch ($rol) {
             case 'superadmin':
-                return [$empresas, $inicio, $ventas, $caja, $productos, $socios, $membresias, $remesas,
+                return [$empresas, $inicio, $ventas, $caja, $productos, $socios, $access, $membresias, $remesas,
                         ['admin_sedes', 'sedes', 'Sedes', 'sedes'], $personal, $reportes, $historial, $migraciones];
             case 'direccion':
-                return [$inicio, $ventas, $caja, $productos, $socios, $retention, $membresias, $remesas,
+                return [$inicio, $ventas, $caja, $productos, $socios, $training, $access, $retention, $membresias, $remesas,
                         ['admin_sedes', 'sedes', 'Sedes', 'sedes'], $personal, $reportes, $historial, $migraciones];
             case 'admin':
-                return [$inicio, $ventas, $caja, $productos, $socios, $retention, $membresias, $remesas,
+                return [$inicio, $ventas, $caja, $productos, $socios, $training, $access, $retention, $membresias, $remesas,
                         $personal, $reportes, $historial];
             case 'recepcion':
                 // Mostrador: cobrar y atender socios.

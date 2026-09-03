@@ -12,8 +12,10 @@ final class Authorization
             'informes.view', 'informes.export', 'empleados.manage', 'sedes.manage',
             'auditoria.view', 'remesas.manage', 'mandatos.create', 'config.manage',
             'migrations.manage', 'caja.view', 'caja.operate', 'caja.adjust',
-            'access.view', 'access.manage', 'access.sync', 'access.audit',
+            'access.view', 'access.manage', 'access.temporary', 'access.suspend',
+            'access.deny', 'access.permanent', 'access.restore', 'access.sync', 'access.audit',
             'retention.view', 'retention.review',
+            'training.view', 'training.manage',
         ],
         'admin' => [
             'dashboard.view', 'socios.view', 'socios.create', 'socios.edit',
@@ -22,17 +24,19 @@ final class Authorization
             'informes.view', 'informes.export', 'empleados.manage',
             'auditoria.view', 'remesas.manage', 'mandatos.create',
             'caja.view', 'caja.operate', 'caja.adjust',
-            'access.view', 'access.audit',
+            'access.view', 'access.temporary', 'access.suspend', 'access.deny',
+            'access.restore', 'access.audit',
             'retention.view', 'retention.review',
+            'training.view', 'training.manage',
         ],
         'recepcion' => [
             'dashboard.view', 'socios.view', 'socios.create', 'socios.edit',
             'membresias.renew', 'ventas.view', 'ventas.create', 'mandatos.create',
-            'caja.view', 'caja.operate',
+            'caja.view', 'caja.operate', 'access.view', 'access.temporary',
         ],
         // No hay portal de socio todavía. Esta capacidad deja explícita la
         // regla que deberá usarlo: solo recursos cuyo propietario sea él mismo.
-        'socio' => ['propio.view'],
+        'socio' => ['propio.view', 'training.own.view'],
     ];
 
     public static function can(string $rol, string $permiso): bool

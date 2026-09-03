@@ -52,6 +52,10 @@ try{
     check('comodines se tratan como texto literal',$service->search('%_',1,20)['pagination']['total']===0);
     $site1Service=new RetentionService($db,$company,$site1);
     check('ámbito sede no incluye contadores ni búsquedas de sede 2',$site1Service->metrics()['evaluated']===3&&$site1Service->search('Nora',1,20)['pagination']['total']===0);
+    $memberSummary=$site1Service->memberSummary($partial);
+    check('ficha de socio ofrece resumen Retention humano',$memberSummary!==null&&$memberSummary['id_socio']===$partial
+        &&$memberSummary['state_label']==='Rutina a medias'&&$memberSummary['display_state']==='ATTENTION');
+    check('resumen Retention de ficha respeta sede',$site1Service->memberSummary($insufficient)===null);
     $history=$service->attendanceHistory(['from'=>'2026-08-20','to'=>'2026-08-20'],1,20);
     check('historial deduplica eventos del mismo socio y día',$history['pagination']['total']===1&&$history['items'][0]['id_socio']===$normal
         &&$history['items'][0]['activity_family']==='GENERAL'&&(int)$history['items'][0]['event_count']===3);
@@ -67,6 +71,7 @@ try{
     check('evento nuevo aparece tras refresh normal',$service->recentVisits(1)[0]['id_socio']===$high);
     $service->run('2026-08-21');
     check('evento nuevo actualiza RETURNED sin alterar la regla',$service->cases(['state'=>'returned'],1,20)['items'][0]['id_socio']===$high);
+    check('resumen Retention refleja el retorno más reciente',$service->memberSummary($high)['display_state']==='RETURNED');
     $latestRun=(int)$db->query("SELECT MAX(id_retention_run) FROM retention_run WHERE id_empresa={$company}")->fetchColumn();
     $stale=$db->prepare("INSERT INTO retention_detection
       (detection_id,id_empresa,id_gimnasio,id_socio,id_retention_run,evaluation_date,level,status,activity_family,

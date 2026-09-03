@@ -320,6 +320,78 @@ final class MigrationManager
                     'fk:retention_member_snapshot.fk_retention_snapshot_site_scope' => $this->hasForeignKey('retention_member_snapshot', 'fk_retention_snapshot_site_scope'),
                 ]
             ),
+            'migracion_v33.sql' => array_merge(
+                $this->tableChecks([
+                    'training_exercise', 'training_exercise_media',
+                    'training_template', 'training_template_discipline',
+                    'training_template_day', 'training_template_block', 'training_template_exercise',
+                    'training_plan', 'training_plan_discipline', 'training_plan_day',
+                    'training_plan_block', 'training_plan_exercise', 'training_plan_exercise_media',
+                    'training_assignment', 'training_session', 'training_session_exercise',
+                ]),
+                [
+                    'index:training_exercise.uq_training_exercise_scope_slug' => $this->hasIndex('training_exercise', 'uq_training_exercise_scope_slug'),
+                    'index:training_exercise.uq_training_exercise_scope_id' => $this->hasIndex('training_exercise', 'uq_training_exercise_scope_id'),
+                    'index:training_exercise_media.uq_training_media_order' => $this->hasIndex('training_exercise_media', 'uq_training_media_order'),
+                    'index:training_template.uq_training_template_company_slug' => $this->hasIndex('training_template', 'uq_training_template_company_slug'),
+                    'index:training_template.uq_training_template_scope' => $this->hasIndex('training_template', 'uq_training_template_scope'),
+                    'index:training_template_day.uq_training_template_day_order' => $this->hasIndex('training_template_day', 'uq_training_template_day_order'),
+                    'index:training_template_block.uq_training_template_block_order' => $this->hasIndex('training_template_block', 'uq_training_template_block_order'),
+                    'index:training_template_exercise.uq_training_template_exercise_order' => $this->hasIndex('training_template_exercise', 'uq_training_template_exercise_order'),
+                    'index:training_plan.uq_training_plan_scope' => $this->hasIndex('training_plan', 'uq_training_plan_scope'),
+                    'index:training_plan.idx_training_plan_member' => $this->hasIndex('training_plan', 'idx_training_plan_member'),
+                    'index:training_plan_day.uq_training_plan_day_order' => $this->hasIndex('training_plan_day', 'uq_training_plan_day_order'),
+                    'index:training_plan_block.uq_training_plan_block_order' => $this->hasIndex('training_plan_block', 'uq_training_plan_block_order'),
+                    'index:training_plan_exercise.uq_training_plan_exercise_order' => $this->hasIndex('training_plan_exercise', 'uq_training_plan_exercise_order'),
+                    'index:training_plan_exercise.uq_training_plan_exercise_scope' => $this->hasIndex('training_plan_exercise', 'uq_training_plan_exercise_scope'),
+                    'index:training_plan_exercise_media.uq_training_plan_media_order' => $this->hasIndex('training_plan_exercise_media', 'uq_training_plan_media_order'),
+                    'index:training_assignment.uq_training_assignment_idempotency' => $this->hasIndex('training_assignment', 'uq_training_assignment_idempotency'),
+                    'index:training_assignment.uq_training_assignment_active_member' => $this->hasIndex('training_assignment', 'uq_training_assignment_active_member'),
+                    'index:training_session.uq_training_session_idempotency' => $this->hasIndex('training_session', 'uq_training_session_idempotency'),
+                    'index:training_session.uq_training_session_scope' => $this->hasIndex('training_session', 'uq_training_session_scope'),
+                    'index:training_session_exercise.uq_training_session_exercise' => $this->hasIndex('training_session_exercise', 'uq_training_session_exercise'),
+                    'fk:training_exercise_media.fk_training_media_exercise_scope' => $this->hasForeignKey('training_exercise_media', 'fk_training_media_exercise_scope'),
+                    'fk:training_template_day.fk_training_template_day_scope' => $this->hasForeignKey('training_template_day', 'fk_training_template_day_scope'),
+                    'fk:training_template_block.fk_training_template_block_day_scope' => $this->hasForeignKey('training_template_block', 'fk_training_template_block_day_scope'),
+                    'fk:training_template_exercise.fk_training_template_exercise_block_scope' => $this->hasForeignKey('training_template_exercise', 'fk_training_template_exercise_block_scope'),
+                    'fk:training_template_exercise.fk_training_template_exercise_catalog_scope' => $this->hasForeignKey('training_template_exercise', 'fk_training_template_exercise_catalog_scope'),
+                    'fk:training_plan.fk_training_plan_member_scope' => $this->hasForeignKey('training_plan', 'fk_training_plan_member_scope'),
+                    'fk:training_plan.fk_training_plan_site_scope' => $this->hasForeignKey('training_plan', 'fk_training_plan_site_scope'),
+                    'fk:training_plan_day.fk_training_plan_day_scope' => $this->hasForeignKey('training_plan_day', 'fk_training_plan_day_scope'),
+                    'fk:training_plan_block.fk_training_plan_block_day_scope' => $this->hasForeignKey('training_plan_block', 'fk_training_plan_block_day_scope'),
+                    'fk:training_plan_exercise.fk_training_plan_exercise_block_scope' => $this->hasForeignKey('training_plan_exercise', 'fk_training_plan_exercise_block_scope'),
+                    'fk:training_plan_exercise_media.fk_training_plan_media_exercise_scope' => $this->hasForeignKey('training_plan_exercise_media', 'fk_training_plan_media_exercise_scope'),
+                    'fk:training_assignment.fk_training_assignment_plan_scope' => $this->hasForeignKey('training_assignment', 'fk_training_assignment_plan_scope'),
+                    'fk:training_session.fk_training_session_plan_scope' => $this->hasForeignKey('training_session', 'fk_training_session_plan_scope'),
+                    'fk:training_session.fk_training_session_day_scope' => $this->hasForeignKey('training_session', 'fk_training_session_day_scope'),
+                    'fk:training_session_exercise.fk_training_session_exercise_session_scope' => $this->hasForeignKey('training_session_exercise', 'fk_training_session_exercise_session_scope'),
+                    'fk:training_session_exercise.fk_training_session_exercise_plan_scope' => $this->hasForeignKey('training_session_exercise', 'fk_training_session_exercise_plan_scope'),
+                    'check:training_exercise.chk_training_exercise_active' => $this->hasCheckConstraint('training_exercise', 'chk_training_exercise_active'),
+                    'check:training_exercise_media.chk_training_media_reference' => $this->hasCheckConstraint('training_exercise_media', 'chk_training_media_reference'),
+                    'check:training_template.chk_training_template_days' => $this->hasCheckConstraint('training_template', 'chk_training_template_days'),
+                    'check:training_template_block.chk_training_template_circuit' => $this->hasCheckConstraint('training_template_block', 'chk_training_template_circuit'),
+                    'check:training_template_exercise.chk_training_template_nonnegative' => $this->hasCheckConstraint('training_template_exercise', 'chk_training_template_nonnegative'),
+                    'check:training_template_exercise.chk_training_template_execution_shape' => $this->hasCheckConstraint('training_template_exercise', 'chk_training_template_execution_shape'),
+                    'check:training_plan.chk_training_plan_dates' => $this->hasCheckConstraint('training_plan', 'chk_training_plan_dates'),
+                    'check:training_plan_block.chk_training_plan_circuit' => $this->hasCheckConstraint('training_plan_block', 'chk_training_plan_circuit'),
+                    'check:training_plan_exercise.chk_training_plan_nonnegative' => $this->hasCheckConstraint('training_plan_exercise', 'chk_training_plan_nonnegative'),
+                    'check:training_plan_exercise.chk_training_plan_execution_shape' => $this->hasCheckConstraint('training_plan_exercise', 'chk_training_plan_execution_shape'),
+                    'check:training_session_exercise.chk_training_session_completed' => $this->hasCheckConstraint('training_session_exercise', 'chk_training_session_completed'),
+                ]
+            ),
+            'migracion_v34.sql' => array_merge(
+                $this->tableChecks(['access_policy','access_policy_event']),
+                [
+                    'index:access_policy.uq_access_policy_member_scope' => $this->hasIndex('access_policy', 'uq_access_policy_member_scope'),
+                    'index:access_policy.idx_access_policy_expiry' => $this->hasIndex('access_policy', 'idx_access_policy_expiry'),
+                    'index:access_policy_event.uq_access_policy_event_idempotency' => $this->hasIndex('access_policy_event', 'uq_access_policy_event_idempotency'),
+                    'fk:access_policy.fk_access_policy_member_scope' => $this->hasForeignKey('access_policy', 'fk_access_policy_member_scope'),
+                    'fk:access_policy_event.fk_access_policy_event_scope' => $this->hasForeignKey('access_policy_event', 'fk_access_policy_event_scope'),
+                    'check:access_policy.chk_access_policy_version' => $this->hasCheckConstraint('access_policy', 'chk_access_policy_version'),
+                    'check:access_policy.chk_access_policy_temporary_expiry' => $this->hasCheckConstraint('access_policy', 'chk_access_policy_temporary_expiry'),
+                    'check:access_policy.chk_access_policy_interval' => $this->hasCheckConstraint('access_policy', 'chk_access_policy_interval'),
+                ]
+            ),
             default => [],
         };
     }
@@ -407,6 +479,17 @@ final class MigrationManager
         $stmt = $this->db->prepare(
             'SELECT COUNT(*) FROM information_schema.referential_constraints '
             . 'WHERE constraint_schema=DATABASE() AND table_name=:table AND constraint_name=:constraint'
+        );
+        $stmt->execute([':table' => $table, ':constraint' => $constraint]);
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    private function hasCheckConstraint(string $table, string $constraint): bool
+    {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM information_schema.table_constraints "
+            . "WHERE constraint_schema=DATABASE() AND table_name=:table "
+            . "AND constraint_name=:constraint AND constraint_type='CHECK'"
         );
         $stmt->execute([':table' => $table, ':constraint' => $constraint]);
         return (int) $stmt->fetchColumn() > 0;

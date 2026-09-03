@@ -71,6 +71,11 @@ check('pantallas Retention cierran el layout antes del footer', $layoutClosed);
 check('menú admin contiene atención socios', str_contains(Menu::render('admin','retention'), 'Atención socios'));
 check('menú recepción no expone Retention', !str_contains(Menu::render('recepcion',''), 'Atención socios'));
 check('menú superadmin global no ofrece una ruta sin tenant', !str_contains(Menu::render('superadmin',''), 'Atención socios'));
+$memberViewSource=(string)file_get_contents(dirname(__DIR__,2).'/app/views/admin/socios.php');
+check('ficha de socio integra resumen Retention sin duplicar motor',str_contains($memberViewSource,'Seguimiento de asistencia del socio')
+    &&str_contains($memberViewSource,'Ver en Retention'));
+check('ficha presenta acceso en lenguaje humano y avisa caducidad',str_contains($memberViewSource,'AccessPolicyPresentation::state')
+    &&str_contains($memberViewSource,'Este acceso se denegará automáticamente'));
 
 session_write_close();
 foreach (glob($sessionDir . '/*') ?: [] as $file) if (is_file($file)) unlink($file);

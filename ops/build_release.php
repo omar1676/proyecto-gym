@@ -71,7 +71,7 @@ try {
         'RESTORE_STAGING_REAL.md', 'SMTP_STAGING.md', 'RELEASE_MANIFEST.md',
         'WATCHDOG_EXTERNO.md', 'SEGUNDO_OPERADOR.md', 'CUSTODIA_SECRETOS.md',
         'POLITICA_DATOS_AUDITORIA.md', 'AUDITORIA_OPERATIVA.md',
-        'RETENTION_ENGINE.md',
+        'RETENTION_ENGINE.md', 'TRAINING_FOUNDATION.md',
     ];
     $list = releaseGit(array_merge(['ls-tree', '-r', '--name-only', 'HEAD', '--'], $pathspecs), $root);
     $files = array_values(array_filter(preg_split('/\r?\n/', trim($list)) ?: []));

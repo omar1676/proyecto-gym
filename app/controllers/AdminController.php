@@ -43,8 +43,11 @@ require_once __DIR__ . '/../helpers/SocioProfileValidator.php';
 require_once __DIR__ . '/../services/MigrationService.php';
 require_once __DIR__ . '/../services/SocioFinancialService.php';
 require_once __DIR__ . '/../services/AccessEligibilityService.php';
+require_once __DIR__ . '/../services/AccessPolicyService.php';
 require_once __DIR__ . '/../services/SocioRegistrationService.php';
 require_once __DIR__ . '/../services/SocioProfileService.php';
+require_once __DIR__ . '/../services/TrainingService.php';
+require_once __DIR__ . '/../services/RetentionService.php';
 
 class AdminController
 {
@@ -68,6 +71,7 @@ class AdminController
     private $migrationService;
     private $financialService;
     private $accessEligibility;
+    private $accessPolicy;
 
     public function __construct()
     {
@@ -203,6 +207,14 @@ class AdminController
             $this->sepaModel        = new SepaModel($sede, $empresa);
             $this->financialService = new SocioFinancialService((int) $empresa, $sede);
             $this->accessEligibility = new AccessEligibilityService((int) $empresa, $sede);
+            $stmt = Database::getInstance()->getConnection()->prepare('SELECT configuracion FROM empresa WHERE id_empresa=:empresa LIMIT 1');
+            $stmt->execute([':empresa'=>$empresa]);
+            $config = json_decode((string)$stmt->fetchColumn(), true);
+            $maxReception = (int)($config['access_policy']['recepcion_max_temporary_days'] ?? 3);
+            $this->accessPolicy = new AccessPolicyService(
+                Database::getInstance()->getConnection(), (int)$empresa, $sede,
+                $this->tenant->usuarioId(), $this->tenant->rol(), null, null, $maxReception
+            );
         }
     }
 
@@ -685,6 +697,7 @@ class AdminController
         if (isset($_GET['ok_prueba']))     $mensajeExito = 'Acceso gratuito de prueba abierto por ' . MembresiaModel::DIAS_PRUEBA . ' días.';
         if (isset($_GET['ok_editar']))     $mensajeExito = 'Datos del socio actualizados.';
         if (isset($_GET['ok_mandato']))    $mensajeExito = 'Mandato SEPA registrado. Ya se le puede domiciliar la cuota.';
+        if (isset($_GET['ok_access']))      $mensajeExito = 'Política de acceso actualizada correctamente.';
 
         $busquedaValidada = InputValidator::text($_GET['buscar'] ?? '', 100, false);
         $busqueda = $busquedaValidada ?? '';
@@ -704,7 +717,7 @@ class AdminController
         $socios         = $paginacion['items'];
         $idsSocios = array_map(static fn(array $s): int => (int) $s['id_usuario'], $socios);
         $estadoFinancieroSocios = $this->financialService->resumenPorSocios($idsSocios);
-        $estadoAccesoSocios = [];
+        $estadoAccesoBase = [];
         foreach ($socios as $socioListado) {
             $idListado = (int) $socioListado['id_usuario'];
             $economico = $estadoFinancieroSocios[$idListado] ?? [
@@ -712,8 +725,9 @@ class AdminController
                 'estado_economico' => 'AL_CORRIENTE', 'ultimo_cobro' => null,
             ];
             $estadoFinancieroSocios[$idListado] = $economico;
-            $estadoAccesoSocios[$idListado] = $this->accessEligibility->evaluarResumen($socioListado, $economico);
+            $estadoAccesoBase[$idListado] = $this->accessEligibility->evaluarResumen($socioListado, $economico);
         }
+        $estadoAccesoSocios = $this->accessPolicy->evaluateBatch($socios, $estadoAccesoBase);
         $totalResultados = $paginacion['total'];
         $paginaActual   = $paginacion['pagina'];
         $porPagina      = $paginacion['por_pagina'];
@@ -727,16 +741,45 @@ class AdminController
         $pruebas     = $this->membresiaModel->listarPruebasPendientes();
         $diasPrueba  = MembresiaModel::DIAS_PRUEBA;
         $puedeVerDetalleEconomico = in_array($this->tenant->rol(), ['superadmin', 'direccion', 'admin'], true);
+        $puedeVerDetalleAcceso = Authorization::can($this->tenant->rol(), 'access.view');
         $fichaFinanciera = null;
         $historialFinanciero = [];
         $accesoFicha = null;
+        $trainingSummary = null;
+        $retentionSummary = null;
+        $socioDetalle = null;
+        $historialAcceso = [];
         $detalleSocioId = filter_var($_GET['detalle'] ?? 0, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]) ?: 0;
-        if ($puedeVerDetalleEconomico && $detalleSocioId > 0) {
+        if (($puedeVerDetalleEconomico || $puedeVerDetalleAcceso) && $detalleSocioId > 0) {
             $socioDetalle = $this->userModel->buscarPorId((int) $detalleSocioId);
             if ($socioDetalle && ($socioDetalle['rol'] ?? '') === 'socio') {
-                $fichaFinanciera = $this->financialService->estado((int) $detalleSocioId);
-                $historialFinanciero = $this->financialService->historial((int) $detalleSocioId, 100);
-                $accesoFicha = $this->accessEligibility->evaluar((int) $detalleSocioId);
+                if ($puedeVerDetalleEconomico) {
+                    $fichaFinanciera = $this->financialService->estado((int) $detalleSocioId);
+                    $historialFinanciero = $this->financialService->historial((int) $detalleSocioId, 100);
+                }
+                if ($puedeVerDetalleAcceso) {
+                    $accesoFicha = $this->accessPolicy->canAccess((int)$detalleSocioId);
+                    $historialAcceso = Authorization::can($this->tenant->rol(), 'access.audit')
+                        ? $this->accessPolicy->history((int)$detalleSocioId, 50) : [];
+                }
+                if (Authorization::can($this->tenant->rol(), 'training.view')) {
+                    $training = new TrainingService(
+                        Database::getInstance()->getConnection(),
+                        (int)$this->tenant->empresaId(),
+                        $this->tenant->sedeId(),
+                        $this->tenant->rol(),
+                        $this->tenant->usuarioId()
+                    );
+                    $trainingSummary = $training->memberSummary((int)$detalleSocioId);
+                }
+                if (Authorization::can($this->tenant->rol(), 'retention.view')) {
+                    $retention = new RetentionService(
+                        Database::getInstance()->getConnection(),
+                        (int)$this->tenant->empresaId(),
+                        $this->tenant->sedeId()
+                    );
+                    $retentionSummary = $retention->memberSummary((int)$detalleSocioId);
+                }
             }
         }
 

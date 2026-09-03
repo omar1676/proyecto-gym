@@ -126,12 +126,21 @@ final class AccessControlSyncService
             $decision, $this->provider->name(), 'SYNC_PROCESS', $code,
             null, $workerId, (int) $job['id_job'], $latencyMs
         );
-        AppLogger::warning('access_control_sync_failed', [
+        $log = [
             'company_id'=>$decision->empresaId(), 'site_id'=>$decision->sedeId(),
             'member_id'=>$decision->socioId(), 'provider'=>$this->provider->name(),
             'result_code'=>$code, 'correlation_id'=>$decision->correlationId(),
             'job_id'=>(int) $job['id_job'], 'status'=>$updated['status'],
-        ]);
+            'decision_state'=>$decision->estado(),
+        ];
+        // Una concesión que no sincroniza degrada disponibilidad. Una retirada
+        // de acceso que no llega al proveedor degrada seguridad física y debe
+        // escalar como CRITICAL para que no quede oculta entre reintentos.
+        if ($decision->estado() === AccessDecision::BLOQUEADO) {
+            AppLogger::critical('access_control_deny_sync_failed', $log);
+        } else {
+            AppLogger::warning('access_control_sync_failed', $log);
+        }
         return ['status'=>$updated['status'], 'result'=>$code, 'job_id'=>(int) $job['id_job']];
     }
 }

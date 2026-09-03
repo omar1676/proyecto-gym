@@ -66,10 +66,37 @@ check('proveedor caído no autoriza y programa retry', $down['status'] === 'RETR
 
 $missingMember = AccessControlTestFactory::createMember($db, $tenant['empresa'], $tenant['sede'], 'sync_missing');
 $repository->mapIdentity($tenant['empresa'], $tenant['sede'], $missingMember, 'mock', 'opaque-missing');
+$logDirExisted = is_dir(LOG_DIR);
+if (!$logDirExisted && !mkdir(LOG_DIR, 0770, true) && !is_dir(LOG_DIR)) {
+    throw new RuntimeException('No se pudo crear el directorio temporal de logs del test.');
+}
+$applicationLog = rtrim(LOG_DIR, '/\\') . DIRECTORY_SEPARATOR . 'application-' . date('Y-m-d') . '.log';
+$applicationLogExisted = is_file($applicationLog);
+$logOffset = is_file($applicationLog) ? (int) filesize($applicationLog) : 0;
 $missingDecision = new AccessDecision($tenant['empresa'], $tenant['sede'], $missingMember, 'BLOQUEADO', 'NO_ACTIVE_MEMBERSHIP', null, null, 'missing-v1');
 $active->request($missingDecision, $tenant['actor'], 'test-suite');
 $missing = $active->processOne('test-worker');
 check('identidad externa inexistente no se inventa', $missing['status'] === 'RETRY' && $missing['result'] === 'NOT_FOUND');
+$criticalDenyLogged = false;
+clearstatcache(true, $applicationLog);
+if (is_file($applicationLog) && filesize($applicationLog) > $logOffset) {
+    $handle = fopen($applicationLog, 'rb');
+    if (is_resource($handle)) {
+        fseek($handle, $logOffset);
+        $tail = stream_get_contents($handle);
+        fclose($handle);
+        foreach (preg_split('/\R/', (string)$tail, -1, PREG_SPLIT_NO_EMPTY) as $line) {
+            $entry = json_decode($line, true);
+            if (($entry['level'] ?? null) === 'CRITICAL'
+                && ($entry['event'] ?? null) === 'access_control_deny_sync_failed'
+                && (int)($entry['context']['member_id'] ?? 0) === $missingMember
+                && ($entry['context']['decision_state'] ?? null) === 'BLOQUEADO') {
+                $criticalDenyLogged = true;
+            }
+        }
+    }
+}
+check('fallo al sincronizar DENY se eleva a CRITICAL', $criticalDenyLogged);
 
 $audit = $repository->listAudit($tenant['empresa'], $tenant['sede'], 100);
 check('auditoría conserva tenant, sede, socio y correlación', count($audit) >= 6 && !empty($audit[0]['correlation_id']));
@@ -77,6 +104,9 @@ check('auditoría no tiene columnas biométricas', count(array_filter(array_keys
 $metrics = $repository->metrics($tenant['empresa'], $tenant['sede']);
 check('métricas preparan éxito, fallos, retries y pendientes', isset($metrics['jobs']['SYNCED'], $metrics['jobs']['RETRY'], $metrics['attempts']['retries'], $metrics['audit']['avg_latency_ms']));
 check('métricas separan decisiones por estado', isset($metrics['decisions']['PERMITIDO'], $metrics['decisions']['BLOQUEADO'], $metrics['decisions']['REVISAR']));
+
+if (!$applicationLogExisted && is_file($applicationLog)) unlink($applicationLog);
+if (!$logDirExisted && is_dir(LOG_DIR)) @rmdir(LOG_DIR);
 
 AccessControlTestFactory::cleanup($db);
 finishTests();

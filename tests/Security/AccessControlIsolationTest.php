@@ -50,7 +50,12 @@ check('auditoría A no ve B', count($repo->listAudit($a['empresa'], null)) === 0
 check('dirección puede ver acceso', Authorization::can('direccion', 'access.view'));
 check('dirección puede gestionar y sincronizar', Authorization::can('direccion', 'access.manage') && Authorization::can('direccion', 'access.sync'));
 check('admin de sede solo ve y audita', Authorization::can('admin', 'access.view') && Authorization::can('admin', 'access.audit') && !Authorization::can('admin', 'access.manage') && !Authorization::can('admin', 'access.sync'));
-check('recepción no recibe permisos de acceso físico', !Authorization::can('recepcion', 'access.view') && !Authorization::can('recepcion', 'access.manage') && !Authorization::can('recepcion', 'access.sync') && !Authorization::can('recepcion', 'access.audit'));
+check('recepción solo recibe consulta y temporal limitado', Authorization::can('recepcion', 'access.view')
+    && Authorization::can('recepcion', 'access.temporary')
+    && !Authorization::can('recepcion', 'access.manage')
+    && !Authorization::can('recepcion', 'access.permanent')
+    && !Authorization::can('recepcion', 'access.sync')
+    && !Authorization::can('recepcion', 'access.audit'));
 
 $columns = $db->query(
     "SELECT COUNT(*) FROM information_schema.columns

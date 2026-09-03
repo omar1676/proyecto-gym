@@ -1,12 +1,12 @@
 # Gimnera — gestión SaaS multiempresa para gimnasios
 
-Versión actual: **0.15.2-fase24.1**. Mantiene Retention Engine V1 y añade su
-dashboard operativo con lenguaje humano, búsqueda, filtros e historial paginado. La detección
-determinista y explicable de caídas de asistencia sobre eventos genéricos,
-con aislamiento multiempresa/multisede, cooldown, retorno y revisión manual.
-No envía mensajes, no conecta DORLET, lectores, controladoras ni biometría.
-Esta revisión corrige además la restauración de dumps MariaDB con triggers sin
-exigir el usuario `DEFINER` original ni privilegios administrativos a la aplicación.
+Versión candidata de integración: **0.17.1-integration-f25a-f26-rc1**. Combina
+Training Foundation (biblioteca global/privada, plantillas multidisciplina,
+planes por snapshot, asignaciones, sesiones y material visual privado) con una
+política lógica de acceso independiente del proveedor (temporales, suspensión,
+denegación y bloqueo permanente). Conserva aislamiento multiempresa/multisede,
+auditoría e idempotencia. No usa IA, datos clínicos, DORLET, lectores,
+controladoras ni biometría; `ACCESS_CONTROL_MODE` permanece desactivado.
 
 Panel de gestión para un gimnasio multisede: socios y membresías, venta de productos,
 empleados, remesas SEPA y control de acceso desde el panel.
@@ -73,3 +73,6 @@ release.
 
 `RETENTION_ENGINE.md` documenta las reglas, límites, permisos y operación del
 motor de retención determinista.
+
+`TRAINING_FOUNDATION.md` documenta el modelo multidisciplina, unidades,
+snapshots, permisos, privacidad y almacenamiento de medios de F25A.

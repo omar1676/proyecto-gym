@@ -4,7 +4,7 @@ final class AppLogger
 {
     public static function write(string $nivel, string $evento, array $contexto = []): void
     {
-        $permitidos = ['INFO', 'WARNING', 'ERROR', 'SECURITY'];
+        $permitidos = ['INFO', 'WARNING', 'ERROR', 'CRITICAL', 'SECURITY'];
         $nivel = in_array($nivel, $permitidos, true) ? $nivel : 'INFO';
         require_once __DIR__ . '/RequestContext.php';
         $contexto = self::sanitize($contexto);
@@ -30,6 +30,7 @@ final class AppLogger
     public static function info(string $evento, array $contexto = []): void { self::write('INFO', $evento, $contexto); }
     public static function warning(string $evento, array $contexto = []): void { self::write('WARNING', $evento, $contexto); }
     public static function error(string $evento, array $contexto = []): void { self::write('ERROR', $evento, $contexto); }
+    public static function critical(string $evento, array $contexto = []): void { self::write('CRITICAL', $evento, $contexto); }
     public static function security(string $evento, array $contexto = []): void { self::write('SECURITY', $evento, $contexto); }
 
     private static function sanitize(array $context): array
