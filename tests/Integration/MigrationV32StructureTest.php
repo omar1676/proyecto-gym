@@ -13,7 +13,7 @@ try{
         $file=dirname(__DIR__,2).'/app/config/migracion_v'.$version.'.sql';
         $track->execute([basename($file),hash_file('sha256',$file),'f241-test-v31']);
     }
-    check('v32 se ejecuta antes de v33-v35',$manager->migratePending()===['migracion_v32.sql','migracion_v33.sql','migracion_v34.sql','migracion_v35.sql']);
+    check('v32 se ejecuta antes de v33-v36',$manager->migratePending()===['migracion_v32.sql','migracion_v33.sql','migracion_v34.sql','migracion_v35.sql','migracion_v36.sql']);
     check('v32 crea snapshot diario',SchemaMigrationTestFactory::tableExists($fixture['db'],'retention_member_snapshot'));
     check('v32 crea proyección de visitas diarias',SchemaMigrationTestFactory::tableExists($fixture['db'],'attendance_daily_visit'));
     check('v32 crea índice dashboard',SchemaMigrationTestFactory::indexExists($fixture['db'],'retention_member_snapshot','idx_retention_snapshot_dashboard'));

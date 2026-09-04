@@ -16,8 +16,8 @@ try {
         $track->execute([basename($file), hash_file('sha256', $file), 'restaurants-test-v34']);
     }
 
-    check('v35 es la única migración pendiente', $manager->status()['pending'] === ['migracion_v35.sql']);
-    check('v35 se ejecuta realmente', $manager->migratePending() === ['migracion_v35.sql']);
+    check('v35-v36 son las migraciones pendientes', $manager->status()['pending'] === ['migracion_v35.sql','migracion_v36.sql']);
+    check('v35 se ejecuta antes de v36', $manager->migratePending() === ['migracion_v35.sql','migracion_v36.sql']);
     foreach (['restaurant_account', 'restaurant_brand', 'restaurant_legal_entity', 'restaurant_location'] as $table) {
         check('v35 crea ' . $table, SchemaMigrationTestFactory::tableExists($fixture['db'], $table));
     }
@@ -37,13 +37,14 @@ try {
 
     $foreignKeys = (int) $fixture['db']->query(
         "SELECT COUNT(*) FROM information_schema.referential_constraints
-          WHERE constraint_schema=DATABASE() AND constraint_name LIKE 'fk_restaurant_%'"
+          WHERE constraint_schema=DATABASE()
+            AND table_name IN ('restaurant_account','restaurant_brand','restaurant_legal_entity','restaurant_location')"
     )->fetchColumn();
     check('v35 instala seis defensas FK', $foreignKeys === 6);
     $checks = (int) $fixture['db']->query(
         "SELECT COUNT(*) FROM information_schema.table_constraints
           WHERE constraint_schema=DATABASE() AND constraint_type='CHECK'
-            AND constraint_name LIKE 'chk_restaurant_%'"
+            AND table_name IN ('restaurant_account','restaurant_brand','restaurant_legal_entity','restaurant_location')"
     )->fetchColumn();
     check('v35 instala cuatro checks de versión', $checks === 4);
     check('v35 no se reaplica', $manager->migratePending() === []);

@@ -73,6 +73,9 @@ $suites = [
         'tests/Integration/MigrationV35StructureTest.php',
         'tests/Integration/RestaurantOrganizationFoundationTest.php',
         'tests/Integration/RestaurantOrganizationConcurrencyTest.php',
+        'tests/Integration/MigrationV36StructureTest.php',
+        'tests/Integration/RestaurantMenuCatalogTest.php',
+        'tests/Integration/RestaurantMenuCatalogConcurrencyTest.php',
     ],
     'Security' => [
         'tests/Security/OutputEncodingTest.php', 'tests/Security/RateLimitTest.php',
@@ -84,6 +87,7 @@ $suites = [
         'tests/Security/RetentionSecurityTest.php',
         'tests/Security/TrainingSecurityTest.php',
         'tests/Security/AccessPolicySecurityTest.php',
+        'tests/Security/RestaurantMenuCatalogSecurityTest.php',
         'pruebas/multisede.php', 'pruebas/autorizacion.php',
     ],
     'Functional' => [
@@ -105,6 +109,7 @@ $suites = [
         'tests/Performance/TrainingPerformanceTest.php',
         'tests/Performance/AccessPolicyPerformanceTest.php',
         'tests/Performance/RestaurantOrganizationPerformanceTest.php',
+        'tests/Performance/RestaurantMenuCatalogPerformanceTest.php',
     ],
 ];
 

@@ -13,7 +13,7 @@ try {
         $file=dirname(__DIR__,2).'/app/config/migracion_v'.$version.'.sql';
         $track->execute([basename($file),hash_file('sha256',$file),'f25a-test-v32']);
     }
-    check('v33 se ejecuta realmente antes de v34-v35', $manager->migratePending() === ['migracion_v33.sql','migracion_v34.sql','migracion_v35.sql']);
+    check('v33 se ejecuta realmente antes de v34-v36', $manager->migratePending() === ['migracion_v33.sql','migracion_v34.sql','migracion_v35.sql','migracion_v36.sql']);
     $tables = [
         'training_exercise','training_exercise_media','training_template','training_template_discipline',
         'training_template_day','training_template_block','training_template_exercise','training_plan',
@@ -33,7 +33,7 @@ try {
     check('idempotencia de sesión está en DB', SchemaMigrationTestFactory::indexExists(
         $fixture['db'],'training_session','uq_training_session_idempotency'
     ));
-    check('v33-v35 no se reaplican', $manager->migratePending() === []);
+    check('v33-v36 no se reaplican', $manager->migratePending() === []);
     check('v33 termina sin checksum ni estructura pendiente', $manager->status()['checksum_mismatch'] === []
         && $manager->status()['structural_mismatch'] === []);
     $fixture['db']->exec('DROP TABLE training_session_exercise');

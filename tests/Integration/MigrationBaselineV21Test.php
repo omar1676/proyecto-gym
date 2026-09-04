@@ -10,15 +10,15 @@ try {
     $manager->baselineExisting();
     $afterBaseline = $manager->status();
     check('baseline v21 solo registra hasta v22', $afterBaseline['pending'] === [
-        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql', 'migracion_v28.sql', 'migracion_v29.sql', 'migracion_v30.sql', 'migracion_v31.sql', 'migracion_v32.sql', 'migracion_v33.sql', 'migracion_v34.sql', 'migracion_v35.sql',
+        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql', 'migracion_v28.sql', 'migracion_v29.sql', 'migracion_v30.sql', 'migracion_v31.sql', 'migracion_v32.sql', 'migracion_v33.sql', 'migracion_v34.sql', 'migracion_v35.sql', 'migracion_v36.sql',
     ]);
     check('baseline v21 no inventa estructuras v24', !SchemaMigrationTestFactory::tableExists($db, 'migration_batch'));
     check('baseline v21 no inventa estructuras v25', !SchemaMigrationTestFactory::tableExists($db, 'obligacion_pago'));
     check('baseline v21 no inventa estructuras v26', !SchemaMigrationTestFactory::tableExists($db, 'access_sync_job'));
 
     $applied = $manager->migratePending();
-    check('v23-v35 se ejecutan realmente y en orden', $applied === [
-        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql', 'migracion_v28.sql', 'migracion_v29.sql', 'migracion_v30.sql', 'migracion_v31.sql', 'migracion_v32.sql', 'migracion_v33.sql', 'migracion_v34.sql', 'migracion_v35.sql',
+    check('v23-v36 se ejecutan realmente y en orden', $applied === [
+        'migracion_v23.sql', 'migracion_v24.sql', 'migracion_v25.sql', 'migracion_v26.sql', 'migracion_v27.sql', 'migracion_v28.sql', 'migracion_v29.sql', 'migracion_v30.sql', 'migracion_v31.sql', 'migracion_v32.sql', 'migracion_v33.sql', 'migracion_v34.sql', 'migracion_v35.sql', 'migracion_v36.sql',
     ]);
     foreach ([
         'migration_batch', 'obligacion_pago', 'cobro', 'access_identity_map',
@@ -41,6 +41,9 @@ try {
         && SchemaMigrationTestFactory::tableExists($db, 'access_policy_event'));
     check('v35 crea foundation organizativa Restaurants', SchemaMigrationTestFactory::tableExists($db, 'restaurant_account')
         && SchemaMigrationTestFactory::tableExists($db, 'restaurant_location'));
+    check('v36 crea Menu & Catalog Foundation', SchemaMigrationTestFactory::tableExists($db, 'restaurant_catalog')
+        && SchemaMigrationTestFactory::tableExists($db, 'restaurant_product')
+        && SchemaMigrationTestFactory::tableExists($db, 'restaurant_price'));
     $status = $manager->status();
     check('legacy v21 termina sin migraciones pendientes', $status['pending'] === []);
     check('legacy v21 termina sin checksum mismatch', $status['checksum_mismatch'] === []);
