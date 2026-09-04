@@ -137,6 +137,11 @@ try {
         'product_id' => $demoA['products']['Producto Simple'], 'amount' => '0', 'scope_type' => 'BRAND',
         'idempotency_key' => RestaurantCatalogTestFactory::uuid('r02:price:zero'),
     ])['amount_minor'] === 0);
+    check('precio máximo exacto es representable sin float', $pricing->setPrice($scopeA + [
+        'product_id' => $demoA['products']['Producto Simple'], 'amount' => '9999999999.99',
+        'scope_type' => 'CHANNEL', 'channel' => 'DELIVERY',
+        'idempotency_key' => RestaurantCatalogTestFactory::uuid('r02:price:maximum'),
+    ])['amount_minor'] === 999999999999);
 
     $brandAvailability = $availability->setAvailability($scopeA + [
         'product_id' => $demoA['products']['Bebida Demo'], 'is_available' => false,
